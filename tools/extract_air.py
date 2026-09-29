@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import json
 import struct
-from extract import address, read_rom, sprite_frames, animation_records, tile
+from extract import address, read_rom, sprite_frames, animation_records, tile, roof_hud
 
 # Semantic state IDs for the forthcoming native Air Bumper handlers.
 HANDLERS={0x23e2:0,0x5fa6:1,0x5fae:2,0x5fc9:3,0x5fd6:4,0x3bb3:5,
@@ -36,13 +36,13 @@ def air_map(rom,pointer):
 
 def extract_air(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    payload=bytearray(b'TICDAIR1')
+    payload=bytearray(b'TICDAIR2')
     for i in range(128):payload+=tile(rom,address(4,0x688c)+i*16)
     payload+=rom[address(4,0x78cc):address(4,0x78cc)+512]
     payload+=rom[address(4,0x784c):address(4,0x784c)+128]
     frames=sprite_frames(rom,59,0xe0bf,0xe08f,12,address(5,0x4000))
     for meta,pixels in frames:payload+=meta+pixels
-    manifest={'format':'TICDAIR1','difficulties':[]}
+    manifest={'format':'TICDAIR2','difficulties':[]}
     for d in range(4):
         x,y,timer,quota,map_ptr,objects_ptr=struct.unpack_from('<BBBBHH',rom,0xc1f+d*8)
         cells,rows=air_map(rom,map_ptr)
@@ -67,6 +67,11 @@ def extract_air(rom,output):
     for command in commands:payload+=struct.pack('<BhhhH',*command)
     # Five sets of six world-collision probes, speed curve, five tilt records.
     payload+=rom[0x648c:0x6504]+rom[0x6554:0x6574]+rom[0x65f8:0x660c]
+    atlas,_,_=roof_hud(rom)
+    for i in range(8):atlas[(0xe9+i)*64:(0xea+i)*64]=tile(rom,address(3,0x5780)+i*16)
+    atlas[0xf1*64:0xf2*64]=tile(rom,address(3,0x5820))
+    atlas[0xf2*64:0xf3*64]=tile(rom,address(3,0x5800))
+    payload+=atlas+rom[0x2fa2:0x2fb6]+bytes(rom[0x2f89+i*2] for i in range(13))
     (output/'air.dat').write_bytes(payload)
     (output/'air-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

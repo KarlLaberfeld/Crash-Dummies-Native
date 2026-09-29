@@ -143,7 +143,7 @@ The runtime is not yet a matching reconstruction. In particular:
 - Palette register changes and intro/menu text are not fully reconstructed;
   the launcher explicitly identifies the build
   as work in progress.
-- No original sound driver, other four stunts, campaign or ending.
+- No original sound driver, other three stunts, campaign or ending.
 
 Do not fill these gaps using guessed gameplay and then claim equivalence.
 Record address-level evidence and add behavior comparisons as each subsystem
@@ -179,14 +179,15 @@ The original one-byte row count wraps at 256; native code must retain 256.
 Placement lists contain 78, 131, 143 and 143 entries, kinds 18 through 30.
 Their X coordinates receive a fixed-point offset of `0x4000`.
 
-`tools/extract_air.py` writes the local-only `TICDAIR1` data pack. It includes
+`tools/extract_air.py` writes the local-only `TICDAIR2` data pack. It includes
 59 sprite composites, the four maps, 18 semantic object definitions, thirteen
 animation graph roots, six collision probes for each of five tilt positions
 (`01:648c`), a 32-entry signed speed curve (`01:6554`), and five motion/frame
 records (`01:65f8`). The shared extraction helpers do not execute SM83 code.
 Tests check template rotation, overflow rejection, deterministic extraction,
 known map/list sizes and animation graph references. These are extraction
-checks, not evidence of a playable or fully faithful second stunt.
+checks, not evidence of complete fidelity. The second stunt is now integrated
+in the Windows development build.
 
 Player states start at `01:5fa6`: rise (`5fae`), wait (`5fc9`), then gameplay
 (`5fd6`). Gameplay updates the camera before movement (`659c`), damage (`6041`),
@@ -203,6 +204,28 @@ return (`6336`), and finish motion (`6103`). Terrain impact adds 16 to an
 unsigned damage byte, failing on overflow; bounce selects speed index -4 when
 falling and +9 when rising. Finish gates award 50, or 150 for the bonus gate,
 and compare collected items with the full quota and half-quota for result flags.
-The ordinary global finish countdown is 128 updates. Native integration remains
-in progress; original Air Bumper HUD, graphics-transfer delays, audio, full
-object interactions and reference timing still need implementation/validation.
+The ordinary global finish countdown is 128 updates. Native integration is implemented in `src/air.cpp`, including all eighteen
+object definitions and the thirteen extracted animation roots. Audio and original
+graphics-transfer delays remain unimplemented; reference timing is unverified.
+
+The native Air HUD reconstructs `00:2f09` / `00:2f4c`: player number, four score
+digits, BCD time, and six quota-bar tiles. It uses the original thirteen-column
+update cycle, icons from `03:5820` / `03:5800`, and bar tiles at `03:5780`.
+Unlike Roof Jump, this bar tracks `collected * 48 / quota`, not camera height.
+
+Two easily missed ordering details are covered by native tests. The rise handler
+falls into the first wait tick, leaving 223 after its final movement. The boost
+countdown helper returns the zero flag of its old value, so a boost with one tick
+left still uses the saved tilt for that frame. Input A and neutral vertical-axis
+drag both execute on multiples of sixteen; simplifying this to a single choice
+changes acceleration. Breaking the two-piece obstacle applies both a 16-point
+terrain impact and a separate 32-point damage addition. Pickups encode decimal
+score in BCD; they are not ordinary binary point values.
+
+`00:1723` updates only the high byte of its two-byte random seed. The native
+formula reproduces the subtract-with-borrow sequence, but starts each standalone
+stunt with zero because the original menu seed/phase is not yet reconstructed.
+Animation graphs use the original gameplay commands, not CPU instructions.
+All world positions wrap at 16 bits; map lookup wraps at sixteen metatile columns.
+Replay tests validate bounds and terminal states across all four difficulties;
+these must not be presented as a reference-execution comparison.

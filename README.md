@@ -3,29 +3,30 @@
 **Work in progress. This is not a complete port.**
 
 This project aims to faithfully reimplement the Game Boy release as a native
-Windows game. The current build contains **Roof Jump**, with reconstructed
-original graphics, four difficulty layouts, and a partial translation of the
-original game logic. The other four stunts, original menus, audio, and full
-behavioral validation remain unfinished. Air Bumper reconstruction is underway.
+Windows game. The current build contains **Roof Jump** and **Air Bumper**, each with
+reconstructed original graphics, four difficulty layouts, and a partial native
+translation of the original game logic. The other three stunts, original menus,
+audio, and full behavioral validation remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat` asset package.
+loads the generated `crash.dat` and `air.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat` and `air.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 
 | Key | Action |
 |---|---|
+| F1 / F2 | Select Roof Jump / Air Bumper |
 | Enter | Start or pause the stunt |
-| Left / Right | Move sideways |
-| Up / Down | Change falling posture |
-| Z or A | Primary action / jump |
-| X or S | Secondary action |
+| Left / Right | Roof: move sideways; Air: tilt |
+| Up / Down | Roof: change falling posture |
+| Z or A | Roof: jump; Air: ascend |
+| X or S | Roof: secondary action; Air: descend |
 | Esc | Pause / resume |
 | R | Restart the stunt |
 | 1–4 | Select difficulty and restart |
@@ -54,13 +55,13 @@ python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Native tests cover selected rules derived from the original, deterministic
-replays, and completed roof-stunt runs. They **do not establish full fidelity**
+replays, and terminal results on all four layouts of both implemented stunts. They **do not establish full fidelity**
 to the original game. Captured images remain local in the build directory.
 
 ## Project layout
 
 - `src/`: native game logic, renderer, and Windows application.
-- `tools/extract.py`: reproducible extraction with cartridge hash validation.
+- `tools/extract.py`, `tools/extract_air.py`: reproducible extraction with cartridge hash validation.
 - `tools/disassemble.py`: static inspection only; does not execute the ROM.
 - `tests/`: synthetic format checks and native rule/replay tests.
 - [Reverse-engineering notes](docs/REVERSE_ENGINEERING.md): documented structures and routines.

@@ -7,7 +7,7 @@ without CPU emulation or replacing the original rules with a loose remake.
 Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 
 **The overall task is not complete.** The Windows executable is a development
-build of Roof Jump, not a complete game.
+build of Roof Jump and Air Bumper, not a complete game.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -20,7 +20,7 @@ conversation remains in German. Continue development until the port is complete.
 - Partial translation of roof physics, animation scripts, and object interactions.
 - Compiler: `.tools/zig-x86_64-windows-0.16.0/zig.exe`.
 - Build: `powershell -NoProfile -ExecutionPolicy Bypass -File ./build.ps1 -Test`.
-- Local outputs: `build/CrashDummies.exe` and `build/crash.dat`.
+- Local outputs: `build/CrashDummies.exe`, `build/crash.dat`, and `build/air.dat`.
 - Source and documentation published to the private GitHub repository.
 - Windows x64 GUI executable verified as PE subsystem 2 (no console window).
 
@@ -54,9 +54,28 @@ Published roof checkpoint: `763317baa9692388e2240a9f47bc9e9496284d1b`.
 
 `tools/extract_air.py` now reconstructs the four maps, original graphics,
 collision probes, speed/tilt tables, object definitions, and animation graphs.
-The local output is `build/air.dat` (`TICDAIR1`); native gameplay integration
-is still pending. All 14 Python tests pass, including three new Air Bumper
-extraction tests. No additional playable stunt is claimed yet.
+The local output is `build/air.dat` (`TICDAIR2`). Native integration is now in
+`src/air.h` and `src/air.cpp`, selectable with F2 (F1 returns to Roof Jump).
+The implementation includes intro/countdown, movement and camera, six terrain
+probes, collision response, pickups, breakable objects, damage, crash/return
+states, finish gates, animations and the original gradual HUD updates.
+
+The usage limit reset before the 23:06 Europe/Berlin heartbeat; normal usage
+was available at 0%. No reset credit was consumed. Development resumed in the
+same project. English README, notes and status were published in commit
+`7ec557af391696c1184248c302d3369948db2815` before this continuation.
+
+Validation: 14 Python tests, 48,863 roof assertions, and 446,182 Air assertions
+passed. The assertion totals include repeated replay invariants, not independent
+test cases. Twelve Air replays (three input patterns per difficulty) reach valid
+terminal results. Easy runs reach the gate with insufficient quota; other runs
+end in timeout or damage failure. These are not successful complete-game runs
+or a proof of equivalence. Native window-start and frame-capture checks passed.
+
+Remaining Air differences include asynchronous sprite-transfer timing, original
+sprite capacity/priority, exact palette/frame phase and menu-seeded randomness.
+The development selector and result overlay are temporary, not original menus.
+Original audio and campaign/life integration are absent.
 
 | Difficulty | Map rows | Objects | Seconds | Quota |
 |---|---:|---:|---:|---:|
@@ -67,8 +86,8 @@ extraction tests. No additional playable stunt is claimed yet.
 
 ## Remaining work
 
-1. Complete Air Bumper's native movement, map collision, objects, rendering,
-   and integration, with source-derived tests.
+1. Validate and refine Air Bumper's original timing and edge cases, including
+   asynchronous sprite transfer and a successful quota-completing run.
 2. Continue roof fidelity checks: animation transfer timing, lifecycle,
    plane/balloon/rope interactions, and landing. See `REVERSE_ENGINEERING.md`.
 3. Reconstruct the other three stunts from their initialization and handlers.

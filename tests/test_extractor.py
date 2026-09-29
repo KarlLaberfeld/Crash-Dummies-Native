@@ -115,7 +115,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[40,60,70,70])
             self.assertEqual([x['quota'] for x in levels],[14,15,24,16])
             pack=(Path(directory)/'air.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDAIR1')
+            self.assertEqual(pack[:8],b'TICDAIR2')
             extract_air.extract_air(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'air.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_air.ANIMATIONS,extract_air.HANDLERS)

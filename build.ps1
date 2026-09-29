@@ -18,8 +18,10 @@ if (-not $SkipExtract) {
     }
     & python tools/extract.py $Rom --out build
     if ($LASTEXITCODE -ne 0) { throw 'Extraction failed.' }
+    & python tools/extract_air.py $Rom --out build
+    if ($LASTEXITCODE -ne 0) { throw 'Air Bumper extraction failed.' }
 }
-& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp tests/native_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
+& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp tests/native_tests.cpp tests/air_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
 if ($Test) {
     & python -m unittest discover -s tests -p 'test_*.py'
@@ -28,6 +30,7 @@ if ($Test) {
     try {
         $process = Start-Process -FilePath '.\CrashDummies.exe' -ArgumentList '--self-test' -Wait -PassThru -WindowStyle Hidden
         Get-Content self-test.txt
+        Get-Content air-test.txt
         if ($process.ExitCode -ne 0) { throw 'Native tests failed.' }
     } finally { Pop-Location }
 }
