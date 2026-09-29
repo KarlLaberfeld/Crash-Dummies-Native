@@ -29,7 +29,7 @@ struct AirReader {
 void check(bool ok){if(!ok)throw std::runtime_error("Invalid Air Bumper asset record. Rebuild the local data.");}
 }
 AirAssets AirAssets::load(const std::wstring& path){
-    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR2",8));
+    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR3",8));
     AirAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.quadrants.data(),a.quadrants.size());r.raw(a.collision.data(),a.collision.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
     for(auto& l:a.levels){
@@ -55,6 +55,7 @@ AirAssets AirAssets::load(const std::wstring& path){
     for(auto& pose:a.probes)for(auto& probe:pose)for(auto& axis:probe)axis=s16(r.word());
     for(auto& speed:a.speeds)speed=s8(r.byte());
     for(auto& pose:a.tilts)for(int j=0;j<4;++j)pose[j]=j>=2?s8(r.byte()):r.byte();
+    r.raw(a.transferChunks.data(),a.transferChunks.size());
     r.raw(a.hudTiles.data(),a.hudTiles.size());r.raw(a.hudMap.data(),20);r.raw(a.hudColumns.data(),13);
     for(int col:a.hudColumns)check(col<20);
     for(int v:a.tiles)check(v<4);
@@ -72,6 +73,8 @@ void AirGame::start(int level){
     cameraLead=cameraLeadTarget=176;tilt=speed=rate=lastForce=returnX=returnY=0;
     scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=randomState=0;
     finishTimer=128;started=true;paused=false;probes={};
+    transferState=transferRemaining=transferFrame=transferFlags=0;
+    lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
     hudMap=assets.hudMap;refreshHud();
@@ -88,7 +91,7 @@ int AirGame::spawn(int kind,int x,int y,int placement){
     return -1;
 }
 void AirGame::setFrame(int i,int frame,int flags){
-    auto& e=entities[i];e.frame=frame;e.flags=(e.flags&31)|flags;e.animDone=true;
+    auto& e=entities[i];e.frame=frame;e.flags=(e.flags&31)|flags;e.animDone=true;e.frameWaiting=false;
 }
 void AirGame::startAnimation(int i,int sequence,bool force){
     auto& e=entities[i];if(!force&&!e.animDone)return;
@@ -99,13 +102,23 @@ void AirGame::animate(int i){
     if(e.delay){--e.delay;return;}
     for(int guard=0;guard<256;++guard){
         if(e.anim<=0||e.anim>=static_cast<int>(assets.commands.size()))break;
-        auto c=assets.commands[e.anim];e.anim=c.next;
+        int commandIndex=e.anim;auto c=assets.commands[e.anim];e.anim=c.next;
         switch(c.op){
         case 0:e.animDone=true;return;
         case 1:e.delay=e.period;return;
         case 2:e.move(c.a,0);break;
         case 3:e.move(0,c.a);break;
-        case 4:e.frame=c.a;break;
+        case 4:
+            if(c.a<12){
+                // 00:3c74 keeps the command pointer at the frame operand while
+                // its asynchronous graphics transfer is pending.
+                if(e.frameWaiting){
+                    if(transferState!=2){e.anim=commandIndex;return;}
+                    e.frameWaiting=false;break;
+                }
+                if(e.frame!=c.a){e.frame=c.a;e.frameWaiting=true;e.anim=commandIndex;return;}
+            }
+            e.frame=c.a;break;
         case 5:e.period=c.a;break;
         case 6:e.flags^=32;break;
         case 7:e.flags&=~32;break;
@@ -145,7 +158,7 @@ void AirGame::followCamera(bool horizontal){
 }
 void AirGame::movePlayer(){
     auto& p=entities[0];const auto& display=assets.tilts.at(tilt+2);
-    setFrame(0,display[0],display[1]);
+    if(!transferState)setFrame(0,display[0],display[1]);
     // 00:3d59 returns flags for the old byte, even when its decrement reaches 0.
     bool boosted=p.params[3]!=0;
     p.params[3]=static_cast<uint8_t>(approach(s8(p.params[3]),0));
@@ -154,7 +167,7 @@ void AirGame::movePlayer(){
     if(rate>=0&&(p.y>>8)==assets.levels[difficulty].rows-2)speed=0;
 }
 void AirGame::input(){
-    if(!lastForce&&rate){if((held&Left)&&tilt>-2)--tilt;if((held&Right)&&tilt<2)++tilt;}
+    if(!transferState&&!lastForce&&rate){if((held&Left)&&tilt>-2)--tilt;if((held&Right)&&tilt<2)++tilt;}
     auto up=[&]{if(!(ticks&3)){cameraLeadTarget=176;if(speed>-20)--speed;}};
     if((cameraY>>8)>=15){
         if(held&A)up();
@@ -165,6 +178,28 @@ void AirGame::input(){
     if((cameraY>>8)<15)up();
 }
 void AirGame::lookupRate(){rate=assets.speeds.at(speed+20);}
+void AirGame::beginVideoTick(){
+    // 00:0c3f / 00:1897: a map row has priority; otherwise copy at most four
+    // 32-byte resource chunks. This models the original asset queue, not a CPU.
+    if(transferRemaining&&!mapTransfer){
+        transferRemaining=std::max(0,transferRemaining-4);
+        if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
+    }
+}
+void AirGame::finishVideoTick(int oldFrame,int oldFlags){
+    // 00:3f30 runs after game handlers and before visibility / map preparation.
+    if(transferState==2)transferState=0;
+    auto& p=entities[0];
+    if(p.frame<12&&p.frame!=oldFrame){
+        if(!transferState){transferState=1;transferFrame=-1;}
+        if(p.frame!=transferFrame){
+            transferRemaining=assets.transferChunks[p.frame];
+            if(!transferRemaining)return;
+            transferFrame=p.frame;transferFlags=p.flags;
+        }
+        p.frame=oldFrame;p.flags=oldFlags;
+    }
+}
 void AirGame::tickTimer(){if(++secondTicks==60){secondTicks=0;if(seconds)--seconds;}}
 void AirGame::beginFinish(int flags){resultFlags=flags;entities[0].handler=AirHandler::FinishDelay;if(--finishTimer==0)result=resultFlags;}
 void AirGame::damage(int amount){
@@ -321,9 +356,12 @@ void AirGame::updateVisibility(){
 }
 void AirGame::step(int buttons){
     if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;tickHud();
+    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();tickHud();
+    int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
+    finishVideoTick(oldFrame,oldFlags);
     updateVisibility();
+    mapTransfer=((lastMapCamera^cameraY)&128)!=0;lastMapCamera=cameraY;
     for(int n=0;n<8&&!placements.empty();++n){
         auto& p=placements[scan];int low=cameraY>>8,high=(low+14)&255,row=((p.y>>8)+3)&255;
         if(!p.active&&low<row&&high>=row){int slot=spawn(p.kind,p.x,p.y,scan);if(slot>=0)p.active=true;}

@@ -29,10 +29,11 @@ struct Assets {
     std::array<uint8_t,20> hudMap{};
     std::array<uint8_t,13> hudColumns{};
     std::array<uint8_t,8> cloudSpeeds{};
+    std::array<uint8_t,35> transferChunks{};
     static Assets load(const std::wstring& path);
 };
 struct Entity {
-    bool alive=false,animDone=true,hidden=false,offscreen=false;
+    bool alive=false,animDone=true,hidden=false,offscreen=false,frameWaiting=false;
     int kind=0,frame=0,flags=0,x=0,y=0,collision=255,placement=-1;
     int vy=0,pose=0,vx=0,counter=0,parent=-1,offsetX=0,offsetY=0;
     Handler handler=Handler::Idle;
@@ -47,6 +48,8 @@ struct Game {
     int breaksNeeded=10,fireHits=4,camera=0,cameraLead=24,cameraLeadTarget=24;
     int scan=0,introCounter=128,finishTimer=64,result=0,pendingResult=0,resultFlags=0;
     int held=0,pressed=0,previous=0,animationFaults=0;
+    int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
+    bool mapTransfer=true;
     bool launched=false,hazardsActive=false,paused=false,started=false,targetReached=false;
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};
@@ -71,6 +74,8 @@ struct Game {
     void finish(int i,int code);
     void land(int i);
     void tickTimer();
+    void beginVideoTick();
+    void finishVideoTick(int oldFrame,int oldFlags);
     void updateVisibility();
     void refreshHud();
     void tickHud();

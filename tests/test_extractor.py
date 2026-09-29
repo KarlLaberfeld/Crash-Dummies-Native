@@ -100,7 +100,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([l['objects'] for l in manifest['roof_difficulties']],[36,39,49,46])
             self.assertEqual([l['height'] for l in manifest['roof_difficulties']],[1888,1696,1952,1952])
             pack=(Path(directory)/'crash.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDNAT3')
+            self.assertEqual(pack[:8],b'TICDNAT4')
             self.assertNotIn(self.rom,pack)
             first=pack
             extract.extract(self.rom,directory)
@@ -115,7 +115,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[40,60,70,70])
             self.assertEqual([x['quota'] for x in levels],[14,15,24,16])
             pack=(Path(directory)/'air.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDAIR2')
+            self.assertEqual(pack[:8],b'TICDAIR3')
             extract_air.extract_air(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'air.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_air.ANIMATIONS,extract_air.HANDLERS)

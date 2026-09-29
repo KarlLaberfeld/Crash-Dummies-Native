@@ -165,12 +165,12 @@ def roof_hud(rom):
 def extract(rom, output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     frames=roof_frames(rom)
-    payload=bytearray(b'TICDNAT3')
+    payload=bytearray(b'TICDNAT4')
     payload+=title_image(rom)
     # Font is a standalone decoded tile atlas; no ROM instruction bytes.
     for i in range(52):payload+=tile(rom,0xc000+i*16)
     for header,pixels in frames:payload+=header+pixels
-    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT3','roof_difficulties':[]}
+    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT4','roof_difficulties':[]}
     for difficulty in range(4):
         ptr,repeats,quota,timer,fire_hits=struct.unpack_from('<HBBBB',rom,0x9b1+difficulty*6)
         height,pixels=roof_map(rom,repeats)
@@ -193,6 +193,7 @@ def extract(rom, output):
     for command in commands:payload+=struct.pack('<BhhhH',*command)
     for data in roof_hud(rom):payload+=data
     payload+=rom[0x5f8f:0x5f97]
+    payload+=rom[0xd8d0:0xd95c:4]
     (output/'crash.dat').write_bytes(payload)
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

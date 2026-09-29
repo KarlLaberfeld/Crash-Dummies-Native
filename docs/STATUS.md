@@ -33,7 +33,7 @@ No reset credit was consumed.
 Reconstructed and corrected:
 
 - Sprite origins and mirror centers from the original renderer, aligning
-  graphics with collision positions. Current roof asset format: `TICDNAT3`.
+  graphics with collision positions. Current roof asset format: `TICDNAT4`.
 - Visibility bounds, object respawning, and permanent target collection.
 - Plane/balloon activation after the flyover and jump-input ordering.
 - Upward awning collisions, plane stun, and simultaneous posture input.
@@ -54,7 +54,7 @@ Published roof checkpoint: `763317baa9692388e2240a9f47bc9e9496284d1b`.
 
 `tools/extract_air.py` now reconstructs the four maps, original graphics,
 collision probes, speed/tilt tables, object definitions, and animation graphs.
-The local output is `build/air.dat` (`TICDAIR2`). Native integration is now in
+The local output is `build/air.dat` (`TICDAIR3`). Native integration is now in
 `src/air.h` and `src/air.cpp`, selectable with F2 (F1 returns to Roof Jump).
 The implementation includes intro/countdown, movement and camera, six terrain
 probes, collision response, pickups, breakable objects, damage, crash/return
@@ -65,15 +65,17 @@ was available at 0%. No reset credit was consumed. Development resumed in the
 same project. English README, notes and status were published in commit
 `7ec557af391696c1184248c302d3369948db2815` before this continuation.
 
-Validation: 14 Python tests, 48,863 roof assertions, and 446,182 Air assertions
+Validation: 14 Python tests, 48,863 roof assertions, and 449,064 Air assertions
 passed. The assertion totals include repeated replay invariants, not independent
 test cases. Twelve Air replays (three input patterns per difficulty) reach valid
-terminal results. Easy runs reach the gate with insufficient quota; other runs
-end in timeout or damage failure. These are not successful complete-game runs
+terminal results. The easy steering replay reaches a successful gate result with eight items;
+other runs end with insufficient quota, timeout or damage failure. These are not successful complete-game runs
 or a proof of equivalence. Native window-start and frame-capture checks passed.
 
-Remaining Air differences include asynchronous sprite-transfer timing, original
-sprite capacity/priority, exact palette/frame phase and menu-seeded randomness.
+Original asynchronous sprite transfers are now modeled in both implemented
+stunts, including map-row priority and animation waits. Remaining Air differences
+include original sprite capacity/priority, exact palette/frame phase and
+menu-seeded randomness; reference timing still needs validation.
 The development selector and result overlay are temporary, not original menus.
 Original audio and campaign/life integration are absent.
 
@@ -87,7 +89,7 @@ Original audio and campaign/life integration are absent.
 ## Remaining work
 
 1. Validate and refine Air Bumper's original timing and edge cases, including
-   asynchronous sprite transfer and a successful quota-completing run.
+   reference timing and successful runs beyond the easy steering replay.
 2. Continue roof fidelity checks: animation transfer timing, lifecycle,
    plane/balloon/rope interactions, and landing. See `REVERSE_ENGINEERING.md`.
 3. Reconstruct the other three stunts from their initialization and handlers.
@@ -102,3 +104,6 @@ scheduled hourly at minute 05. After a limit interruption, continue in this
 project and chat. Keep ROMs and extracted assets local. Update this status
 before ending a work session. Disable the automation only when the complete
 port is finished. Do not create additional chats.
+
+Native Air Bumper checkpoint published as `d3dcccae0379871a94aa45b6712847855312efb3`.
+Later local work reconstructs resource-transfer timing and begins Ski Slope.

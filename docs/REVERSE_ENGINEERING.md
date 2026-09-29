@@ -133,7 +133,8 @@ the original menu/briefing duration determines it in the complete game.
 
 The runtime is not yet a matching reconstruction. In particular:
 
-- The original asynchronous graphics-transfer stalls are not reproduced.
+- Resource-transfer queues and animation waits are reconstructed, but hardware
+  frame timing still needs reference validation.
 - Roof frame ordering, offscreen lifecycle and all edge-case collisions need
   comparison with a reference execution; current tests only validate native
   invariants and selected translated rules.
@@ -179,7 +180,7 @@ The original one-byte row count wraps at 256; native code must retain 256.
 Placement lists contain 78, 131, 143 and 143 entries, kinds 18 through 30.
 Their X coordinates receive a fixed-point offset of `0x4000`.
 
-`tools/extract_air.py` writes the local-only `TICDAIR2` data pack. It includes
+`tools/extract_air.py` writes the local-only `TICDAIR3` data pack. It includes
 59 sprite composites, the four maps, 18 semantic object definitions, thirteen
 animation graph roots, six collision probes for each of five tilt positions
 (`01:648c`), a 32-entry signed speed curve (`01:6554`), and five motion/frame
@@ -205,8 +206,7 @@ unsigned damage byte, failing on overflow; bounce selects speed index -4 when
 falling and +9 when rising. Finish gates award 50, or 150 for the bonus gate,
 and compare collected items with the full quota and half-quota for result flags.
 The ordinary global finish countdown is 128 updates. Native integration is implemented in `src/air.cpp`, including all eighteen
-object definitions and the thirteen extracted animation roots. Audio and original
-graphics-transfer delays remain unimplemented; reference timing is unverified.
+object definitions and the thirteen extracted animation roots. Audio remains unimplemented; reference timing is unverified.
 
 The native Air HUD reconstructs `00:2f09` / `00:2f4c`: player number, four score
 digits, BCD time, and six quota-bar tiles. It uses the original thirteen-column
@@ -229,3 +229,23 @@ Animation graphs use the original gameplay commands, not CPU instructions.
 All world positions wrap at 16 bits; map lookup wraps at sixteen metatile columns.
 Replay tests validate bounds and terminal states across all four difficulties;
 these must not be presented as a reference-execution comparison.
+
+
+## Asynchronous player sprite resources
+
+Both native stunts now translate the original resource queue (`00:3f30`),
+resource-copy budget (`00:1897`) and animation frame handshake (`00:3c74`).
+A changed dynamic player frame keeps the old frame visible while copying up
+to four 32-byte chunks per update. A pending background-row update has priority
+(`00:09c9` / `00:0c3f`), detected when camera Y crosses bit 7 of its fixed-point
+coordinate (`00:1ead`). On completion, the requested frame and flags install
+together; status 2 remains visible to gameplay for one update and is then cleared.
+Animation frame commands wait for that handshake before starting their delay.
+Air tilt input and frame selection explicitly check this busy state. The roof
+player's direct frame selection does not, so a newer request can replace a
+pending one. Chunk counts are extracted as data, with no CPU execution.
+
+Targeted tests cover row priority, four-chunk copying, atomic installation,
+the completed-transfer input lock and animation delay ordering. With these rules,
+the easy Air steering replay reaches result 03 with eight items. This is a native
+regression result; no frame-by-frame original-execution comparison is claimed.

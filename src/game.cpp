@@ -25,7 +25,7 @@ struct Reader {
 };
 Assets Assets::load(const std::wstring& path) {
     Reader r(path);char magic[8];r.raw(magic,8);
-    if(memcmp(magic,"TICDNAT3",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
+    if(memcmp(magic,"TICDNAT4",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
     Assets a;r.raw(a.title.data(),a.title.size());r.raw(a.font.data(),a.font.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
     for(auto& level:a.levels){
@@ -42,6 +42,7 @@ Assets Assets::load(const std::wstring& path) {
     for(int i=0;i<commands;++i){Command c;c.op=r.byte();c.a=r.signedWord();c.b=r.signedWord();c.c=r.signedWord();c.next=r.word();a.commands.push_back(c);}
     r.raw(a.hudTiles.data(),a.hudTiles.size());r.raw(a.hudMap.data(),a.hudMap.size());
     r.raw(a.hudColumns.data(),a.hudColumns.size());r.raw(a.cloudSpeeds.data(),a.cloudSpeeds.size());
+    r.raw(a.transferChunks.data(),a.transferChunks.size());
     for(int col:a.hudColumns)if(col>=20)throw std::runtime_error("Ungueltige Statuszeile.");
     for(const auto& c:a.commands){
         if(c.op<0||c.op>19||c.next<0||c.next>commands||(c.op==10&&(c.a<=0||c.a>commands))||(c.op==4&&(c.a<0||c.a>=69))||(c.op==11&&(c.a<0||c.a>29)))throw std::runtime_error("Ungueltiger Animationsbefehl.");
@@ -63,6 +64,7 @@ void Game::start(int level) {
     breaksNeeded=10;camera=(l.height-152)*16;cameraLead=cameraLeadTarget=24;
     scan=0;introCounter=128;finishTimer=64;result=pendingResult=resultFlags=0;previous=held=pressed=0;
     paused=false;launched=false;hazardsActive=false;targetReached=false;started=true;animationFaults=0;
+    transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=camera+128;mapTransfer=true;
     spawn(0,0x1290,0x0150);
     spawn(15,0x1a00,0);
     hudMap=assets.hudMap;hudCursor=0;refreshHud();
@@ -94,13 +96,21 @@ void Game::animate(int i) {
     if(e.delay>0){--e.delay;return;}
     for(int safeguard=0;safeguard<256;++safeguard){
         if(e.anim<=0||e.anim>=static_cast<int>(assets.commands.size())){++animationFaults;e.animDone=true;return;}
-        auto c=assets.commands[e.anim];e.anim=c.next;
+        int commandIndex=e.anim;auto c=assets.commands[e.anim];e.anim=c.next;
         switch(c.op){
         case 0:e.animDone=true;return;
         case 1:e.delay=e.period;return;
         case 2:e.x+=c.a;break;
         case 3:e.y+=c.a;break;
-        case 4:e.frame=c.a;break;
+        case 4:
+            if(c.a<35){
+                if(e.frameWaiting){
+                    if(transferState!=2){e.anim=commandIndex;return;}
+                    e.frameWaiting=false;break;
+                }
+                if(e.frame!=c.a){e.frame=c.a;e.frameWaiting=true;e.anim=commandIndex;return;}
+            }
+            e.frame=c.a;break;
         case 5:e.period=c.a;break;
         case 6:e.flags^=32;break;
         case 7:e.flags&=~32;break;
@@ -140,6 +150,26 @@ void Game::finish(int i,int code) {
 }
 void Game::tickTimer() {
     if(++secondTicks==60){secondTicks=0;if(seconds>0)--seconds;}
+}
+void Game::beginVideoTick() {
+    if(transferRemaining&&!mapTransfer){
+        transferRemaining=std::max(0,transferRemaining-4);
+        if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
+    }
+}
+void Game::finishVideoTick(int oldFrame,int oldFlags) {
+    // Original resource queue, 00:3f30. No SM83 instructions are executed.
+    if(transferState==2)transferState=0;
+    auto& p=entities[0];
+    if(p.frame<35&&p.frame!=oldFrame){
+        if(!transferState){transferState=1;transferFrame=-1;}
+        if(p.frame!=transferFrame){
+            transferRemaining=assets.transferChunks[p.frame];
+            if(!transferRemaining)return;
+            transferFrame=p.frame;transferFlags=p.flags;
+        }
+        p.frame=oldFrame;p.flags=oldFlags;
+    }
 }
 void Game::land(int i) {
     auto& e=entities[i];
@@ -335,10 +365,13 @@ void Game::update(int i) {
 }
 void Game::step(int buttons) {
     if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
+    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();
     tickHud();
+    int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int i=0;i<16;++i)if(entities[i].alive)update(i);
+    finishVideoTick(oldFrame,oldFlags);
     updateVisibility();
+    mapTransfer=((lastMapCamera^camera)&128)!=0;lastMapCamera=camera;
     // The original scans eight records per frame (00:19a2), with 16 live slots.
     for(int k=0;k<8&&!placements.empty();++k){
         auto& p=placements[scan];int low=camera>>8,high=low+14;

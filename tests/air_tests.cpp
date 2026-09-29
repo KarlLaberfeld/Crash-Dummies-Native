@@ -37,6 +37,26 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         g.tilt=0;g.rate=-1;g.lastForce=4;g.input();require(g.tilt==0,"Conveyor feedback suppresses turn input");
         g.lastForce=0;g.input();require(g.tilt==1,"Turn resumes when terrain feedback clears");
 
+        g.start(0);g.setFrame(0,1,32);g.finishVideoTick(0,0);
+        require(g.entities[0].frame==0&&g.transferRemaining==13&&g.transferState==1,"Frame request holds old display during thirteen-chunk transfer");
+        g.beginVideoTick();require(g.transferRemaining==13,"Background row transfer takes priority over sprite chunks");
+        g.mapTransfer=false;
+        for(int n=0;n<3;++n)g.beginVideoTick();
+        require(g.transferRemaining==1&&g.entities[0].frame==0,"Three resource ticks copy twelve chunks");
+        g.beginVideoTick();require(g.transferState==2&&g.entities[0].frame==1&&g.entities[0].flags==32,"Completion installs requested frame and flags atomically");
+        g.rate=-1;g.held=Right;g.input();require(g.tilt==0,"Turn stays blocked during completed-transfer handshake");
+        g.finishVideoTick(1,32);require(g.transferState==0,"Post-update handler clears completion handshake");
+
+        g.start(0);int frameCommand=0;
+        for(int n=1;n<static_cast<int>(assets.commands.size());++n)if(assets.commands[n].op==4&&assets.commands[n].a==3){frameCommand=n;break;}
+        require(frameCommand!=0,"Crash graph has original dynamic frame command");
+        g.entities[0].anim=frameCommand;g.entities[0].animDone=false;g.entities[0].period=17;g.animate(0);
+        require(g.entities[0].frameWaiting&&g.entities[0].anim==frameCommand,"Animation command pauses at pending frame operand");
+        g.finishVideoTick(0,0);g.mapTransfer=false;g.beginVideoTick();g.animate(0);
+        require(g.entities[0].frameWaiting&&g.entities[0].delay==0,"Animation delay starts after transfer, not before");
+        g.beginVideoTick();g.animate(0);
+        require(!g.entities[0].frameWaiting&&g.entities[0].delay==17,"Completed transfer releases animation to its delay command");
+
         g.start(0);g.speed=-8;g.probes={1,0,0,0,0,0};g.terrainBounce();
         require(g.tilt==1&&g.lastForce==12&&g.speed==-8,"Rising left contact turns right before bouncing");
         g.tilt=2;g.terrainBounce();require(g.speed==9&&g.entities[0].params[5]==16,"Maximum tilt impact adds damage and reverses upward motion");
@@ -85,6 +105,7 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
                 }
                 fprintf(log,"difficulty=%d pattern=%d ticks=%d flags=%02x money=%d collected=%d\n",d,pattern,g.ticks,g.result,g.money,g.entities[0].params[1]);
                 require(g.result!=0,"Air replay reaches a terminal result");
+                if(d==0&&pattern==2)require(g.result==3&&g.entities[0].params[1]>7,"Easy steering replay reaches successful quota result");
                 g.render();for(int shade:g.screen)require(shade>=0&&shade<4,"Air frame palette bounds");
             }
         }

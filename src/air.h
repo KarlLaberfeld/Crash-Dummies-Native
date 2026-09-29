@@ -28,13 +28,14 @@ struct AirAssets {
     std::array<std::array<std::array<int,2>,6>,5> probes{};
     std::array<int,32> speeds{};
     std::array<std::array<int,4>,5> tilts{};
+    std::array<uint8_t,12> transferChunks{};
     std::array<uint8_t,256*64> hudTiles{};
     std::array<uint8_t,20> hudMap{};
     std::array<uint8_t,13> hudColumns{};
     static AirAssets load(const std::wstring& path);
 };
 struct AirEntity {
-    bool alive=false,animDone=true,offscreen=false;
+    bool alive=false,animDone=true,offscreen=false,frameWaiting=false;
     int kind=0,frame=0,flags=0,x=0,y=0,collision=255,placement=-1;
     AirHandler handler=AirHandler::Idle;
     // Original entity fields 09..0f; byte overflow is intentional game logic.
@@ -56,6 +57,8 @@ struct AirGame {
     int tilt=0,speed=0,rate=0,lastForce=0,returnX=0,returnY=0;
     int scan=0,hudCursor=0,finishTimer=128,result=0,resultFlags=0;
     int held=0,pressed=0,previous=0,animationFaults=0,randomState=0;
+    int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
+    bool mapTransfer=true;
     bool started=false,paused=false;
     AirGame(const AirAssets& a,const Assets& s):assets(a),shared(s){}
     void start(int level);
@@ -70,6 +73,8 @@ struct AirGame {
     void movePlayer();
     void input();
     void lookupRate();
+    void beginVideoTick();
+    void finishVideoTick(int oldFrame,int oldFlags);
     int tileAt(int x,int y) const;
     int terrainAt(int x,int y) const;
     void sampleProbes(int pose);
