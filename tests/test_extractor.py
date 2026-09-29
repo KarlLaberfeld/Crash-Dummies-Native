@@ -80,7 +80,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([l['objects'] for l in manifest['roof_difficulties']],[36,39,49,46])
             self.assertEqual([l['height'] for l in manifest['roof_difficulties']],[1888,1696,1952,1952])
             pack=(Path(directory)/'crash.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDNAT1')
+            self.assertEqual(pack[:8],b'TICDNAT2')
             self.assertNotIn(self.rom,pack)
             first=pack
             extract.extract(self.rom,directory)
@@ -93,5 +93,27 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual(len(meta),8)
             self.assertEqual(len(pixels),96*96)
             self.assertTrue(set(pixels)<={0,1,2,3,255})
+
+    def test_sprite_origin_against_oam_coordinates(self):
+        # Independent direct piece projection from 00:1cdb-1d36, without the
+        # extractor's composite-image offsets. Static target has flipped pieces.
+        frame=62
+        meta,pixels=extract.roof_frames(self.rom)[frame]
+        ptr=extract.address(3,struct.unpack_from('<H',self.rom,0xd95c+frame*2)[0])+8
+        expected={}
+        while self.rom[ptr]!=255:
+            y,x,tile,flags=self.rom[ptr:ptr+4];ptr+=4
+            origin_x=extract.signed(meta[0])+meta[6]+8+extract.signed(x)
+            origin_y=extract.signed(meta[1])+meta[7]+16+extract.signed(y)
+            for row in range(16):
+                sy=15-row if flags&64 else row
+                base=extract.address(4,0x4610)+(tile&254)*16+sy*2
+                low,high=self.rom[base:base+2]
+                for col in range(8):
+                    bit=col if flags&32 else 7-col
+                    shade=((low>>bit)&1)+2*((high>>bit)&1)
+                    if shade:expected[origin_x-8+col,origin_y-16+row]=shade
+        actual={(x-48,y-48):pixels[y*96+x] for y in range(96) for x in range(96) if pixels[y*96+x]!=255}
+        self.assertEqual(actual,expected)
 
 if __name__=='__main__':unittest.main()

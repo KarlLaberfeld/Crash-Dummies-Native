@@ -64,6 +64,49 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
 - `00:3b80–3cfa`: animation commands, loops, positions, frame changes and native-handler transitions.
 - `00:3e75`: camera tracking expressed directly in native integer arithmetic.
 
+## Corrections verified against static routines, 2026-09-29
+
+- Sprite origin: `00:1cdb/1cf3` adds header bytes 6/7 (half extents) to
+  the display offset before the piece offsets. Hardware coordinate biases
+  +8/+16 cancel when drawing the screen. Whole-frame mirroring uses that
+  same center. The previous extraction omitted the half extents, displacing
+  graphics relative to their collision boxes. Data format `TICDNAT2` prevents
+  silently loading old images; regenerate `crash.dat` after updating.
+- `00:1cb6–1cf6`: padded visibility bounds, after display offset, are
+  X [-2*halfWidth-16, 176], Y [-2*halfHeight-16, 152], inclusive.
+  Offscreen flags are updated after entity handlers and before placement scans.
+  Native repaint frequency does not affect this state. Original OAM capacity,
+  per-scanline sprite limits and alternating priority are still unimplemented.
+- `00:3da5` removes a live entity without resetting its placement's active
+  byte. Only visibility eviction with flag bits 4 and 2 clears that byte
+  (`00:1c91–1cb2`). A collected target therefore cannot reappear on a later scan.
+- `01:55fe` activates balloons/planes at the end of the intro camera rise;
+  this is separate from animation command 0x92 (`00:3cf1`, sound-driver gate).
+  `01:563a` processes walking before the jump button. Held lateral input can
+  legitimately postpone the jump, so test replays release steering during it.
+- `01:5c8b` tests pose before upward velocity. Spread/dive contact breaks
+  awnings even while rising; neutral upward contact does nothing. Four neutral
+  rebounds have velocities -41, -37, -33, -29; the fifth breaks the awning.
+- `01:5dbd/5dd7`: plane stun retains the definition's 0x40 countdown rather
+  than resetting it to 0x20. Collision stays disabled after the plane resumes.
+- `01:5722–584d`: only the main fall handler checks the ground row, snaps
+  Y to the next tile row, and chooses a landing sequence. Bounce/rope-release
+  handlers have their own updates. A head-first miss plays script `01:57cf`.
+  A target landing spawns five body pieces; the upward piece's script reaches
+  `01:59b6`, which starts the 64-update result delay. The player stays idle.
+  Result flags are 0x81 for insufficient breaks, 0x03 for success, and 0x07
+  for success with no remaining objects. Ten breaks leave the initial counter
+  at zero: eleven are required to set its sign bit. Timeout/fire use 0x11/0x21.
+- `01:5778` falls through to timeout movement on the same update; `01:59b6`
+  similarly performs the first countdown decrement immediately.
+
+Validation: ten Python tests (including independent OAM-coordinate projection),
+native regression checks and deterministic replays for all four roof lists.
+Windows x64 GUI executable (PE subsystem 2), hidden-window smoke test and
+local image capture passed. This is static source-derived validation, **not**
+a frame-by-frame comparison to original hardware. No CPU emulator was run
+for this continuation.
+
 ## Unverified or incomplete
 
 The runtime is not yet a matching reconstruction. In particular:
@@ -72,8 +115,8 @@ The runtime is not yet a matching reconstruction. In particular:
 - Roof frame ordering, offscreen lifecycle and all edge-case collisions need
   comparison with a reference execution; current tests only validate native
   invariants and selected translated rules.
-- Plane stun behavior, target/landing timing, balloon/rope interactions and
-  the interpretation of several entity flags need further reference checks.
+- The corrected plane/landing rules above still need reference timing checks;
+  balloon/rope interactions and several entity flags need further analysis.
 - Decorative cloud entities and some transient effects are absent.
 - Palette register changes, original status-bar layout and intro/menu text
   are not fully reconstructed; the launcher explicitly identifies the build

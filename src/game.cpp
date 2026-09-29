@@ -25,7 +25,7 @@ struct Reader {
 };
 Assets Assets::load(const std::wstring& path) {
     Reader r(path);char magic[8];r.raw(magic,8);
-    if(memcmp(magic,"TICDNAT1",8))throw std::runtime_error("Falsches Datenformat.");
+    if(memcmp(magic,"TICDNAT2",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
     Assets a;r.raw(a.title.data(),a.title.size());r.raw(a.font.data(),a.font.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
     for(auto& level:a.levels){
@@ -58,8 +58,8 @@ void Game::start(int level) {
     const auto& l=assets.levels[difficulty];
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
     breaksNeeded=10;camera=(l.height-152)*16;cameraLead=cameraLeadTarget=24;
-    scan=0;introCounter=128;finishTimer=64;result=pendingResult=0;previous=held=pressed=0;
-    paused=false;launched=false;started=true;animationFaults=0;
+    scan=0;introCounter=128;finishTimer=64;result=pendingResult=resultFlags=0;previous=held=pressed=0;
+    paused=false;launched=false;hazardsActive=false;targetReached=false;started=true;animationFaults=0;
     spawn(0,0x1290,0x0150);
 }
 int Game::spawn(int kind,int x,int y,int placement) {
@@ -74,8 +74,8 @@ int Game::spawn(int kind,int x,int y,int placement) {
     return -1;
 }
 void Game::destroy(int i) {
-    auto& e=entities[i];e.alive=false;
-    if(e.placement>=0)placements[e.placement].active=false;
+    // 00:3da5 only frees the live slot. Collected/destroyed placements stay used.
+    entities[i].alive=false;
 }
 void Game::startAnimation(int i,int sequence,bool force) {
     auto& e=entities[i];if(!force&&!e.animDone)return;
@@ -125,7 +125,38 @@ void Game::followCamera(const Entity& e) {
 void Game::followParent(Entity& e) {
     if(e.parent>=0&&e.parent<16&&entities[e.parent].alive){e.x=entities[e.parent].x+e.offsetX*16;e.y=entities[e.parent].y+e.offsetY*16;}
 }
-void Game::finish(int code) { pendingResult=code;entities[0].handler=Handler::FinishDelay; }
+void Game::finish(int i,int code) {
+    // 01:59b6 falls directly into 59be: the first countdown tick is immediate.
+    pendingResult=code;entities[i].handler=Handler::FinishDelay;
+    if(--finishTimer==0)result=pendingResult;
+}
+void Game::tickTimer() {
+    if(++secondTicks==60){secondTicks=0;if(seconds>0)--seconds;}
+}
+void Game::land(int i) {
+    auto& e=entities[i];
+    // 01:5722 checks the 16-pixel row, then snaps to the following row.
+    const int row=assets.levels[difficulty].height/16-2;
+    if((e.y>>8)!=row)return;
+    e.y=(row+1)*256;
+    if(targetReached){
+        e.frame=29;e.flags&=31;e.animDone=true;e.handler=Handler::Idle;
+        resultFlags=breaksNeeded>=0?0x81:remaining!=0?0x03:0x07;
+        pendingResult=(resultFlags&2)?3:5;
+        spawn(4,e.x,e.y);
+        spawn(9,e.x-16,e.y+128);spawn(10,e.x+80,e.y+128);
+        spawn(11,e.x,e.y-128); // This piece starts the result countdown at 01:591b.
+        spawn(12,e.x+128,e.y-96);spawn(13,e.x-96,e.y-96);
+    }else{
+        resultFlags=1;pendingResult=1;
+        if(e.pose==28){
+            spawn(4,e.x,e.y);e.handler=Handler::Animation;startAnimation(i,19,true);
+        }else{
+            e.frame=25;e.flags&=31;e.animDone=true;
+            spawn(4,e.x+64,e.y);finish(i,1);
+        }
+    }
+}
 void Game::decrementGoal(int other) {
     auto& e=entities[other];
     if(e.placement>=0&&placements[e.placement].state==0){--remaining;--breaksNeeded;placements[e.placement].state=1;}
@@ -134,7 +165,6 @@ void Game::collideWith(int player,int other) {
     auto& p=entities[player];auto& o=entities[other];
     switch(o.collision){
     case 0: // 01:5c8b, cloth awning, five hits or immediate head-first break.
-        if(p.vy<0)break;
         if(o.placement>=0){
             auto& state=placements[o.placement].state;
             if(state>=5)break;
@@ -142,6 +172,7 @@ void Game::collideWith(int player,int other) {
                 if(p.pose==20){p.pose=24;startAnimation(player,7,true);}
                 state=5;--remaining;--breaksNeeded;money+=10;
             }else{
+                if(p.vy<0)break;
                 int old=state++;
                 if(old==4){--remaining;--breaksNeeded;money+=5;}
                 else{p.vy=-((4-old)*4+24)-1;startAnimation(other,13);startAnimation(player,14,true);p.handler=Handler::Bounce;money+=2;}
@@ -168,7 +199,7 @@ void Game::collideWith(int player,int other) {
         }else{startAnimation(other,18,true);o.collision=255;decrementGoal(other);money+=10;}
         break;
     case 4: // 01:5dbd, plane hit and temporary stun.
-        o.frame=53;o.handler=Handler::PlaneStun;o.collision=255;o.vx=32;money=std::max(0,money-20);break;
+        o.frame=53;o.handler=Handler::PlaneStun;o.collision=255;money=std::max(0,money-20);break;
     case 5: // 01:5ef3, solid balcony breaks on first collision.
         if(o.placement>=0&&!placements[o.placement].state){
             decrementGoal(other);spawn(4,o.x+128,o.y);
@@ -176,7 +207,7 @@ void Game::collideWith(int player,int other) {
             else{if(p.pose==20){p.pose=24;startAnimation(player,7,true);}money+=10;}
         }break;
     case 6: // 01:5f29, collect target and set landing flag.
-        --remaining;--breaksNeeded;money+=100;pendingResult=3;destroy(other);break;
+        --remaining;--breaksNeeded;money+=100;targetReached=true;destroy(other);break;
     default:break;
     }
 }
@@ -186,7 +217,7 @@ void Game::collide(int i) {
         return std::array<int,4>{e.x/16+s8(m[0])+s8(m[2]),e.y/16+s8(m[1])+s8(m[3]),m[4],m[5]};
     };
     auto a=box(entities[i]);
-    for(int j=0;j<16;++j)if(j!=i&&entities[j].alive&&entities[j].collision!=255){
+    for(int j=0;j<16;++j)if(j!=i&&entities[j].alive&&!entities[j].offscreen&&entities[j].collision!=255){
         auto b=box(entities[j]);
         if(a[0]+a[2]>=b[0]&&a[0]<b[0]+b[2]&&a[1]+a[3]>=b[1]&&a[1]<b[1]+b[3])collideWith(i,j);
     }
@@ -194,20 +225,21 @@ void Game::collide(int i) {
 void Game::update(int i) {
     auto& e=entities[i];
     switch(e.handler){
-    case Handler::IntroPan:if(--introCounter==0)e.handler=Handler::IntroRise;break;
+    case Handler::IntroPan:if(--introCounter==0){e.handler=Handler::IntroRise;update(i);}break;
     case Handler::IntroRise:
         camera+=s8(introCounter);
         if(static_cast<uint8_t>(introCounter-1)!=127)introCounter=static_cast<uint8_t>(introCounter-1);
-        if(camera<0x600){e.handler=Handler::IntroAnimation;startAnimation(i,0);}
+        if(camera<0x600){hazardsActive=true;e.handler=Handler::IntroAnimation;startAnimation(i,0);}
         break;
     case Handler::IntroAnimation:animate(i);followCamera(e);break;
     case Handler::RoofWait:
         animate(i);
-        if(e.counter>0&&!(held&(A|B))){
+        if(e.counter>0){
             if((held&Left)&&e.x!=0x1050)startAnimation(i,2);
             if((held&Right)&&e.x!=0x1830)startAnimation(i,3);
-            if(!(ticks&1))--e.counter;
-        }else if(e.animDone){e.handler=Handler::Animation;startAnimation(i,1,true);}
+            if(!(held&(A|B))){if(!(ticks&1))--e.counter;break;}
+        }
+        if(e.animDone){e.handler=Handler::Animation;startAnimation(i,1,true);}
         break;
     case Handler::Falling:
     case Handler::Bounce:
@@ -215,27 +247,26 @@ void Game::update(int i) {
         Handler before=e.handler;animate(i);
         if(before==Handler::Falling&&e.animDone){
             e.frame=e.pose==20?34:e.pose==28?12:e.vx==0?9:13;
-            e.flags=(e.flags&~32)|(e.vx<0?32:0);
+            e.flags=(e.flags&31)|((e.pose==24&&e.vx<0)?32:0);
         }
         followCamera(e);
         if(before!=Handler::RopeRelease){if(held&Left)e.vx=-10;if(held&Right)e.vx=10;}
         if(before==Handler::Falling&&e.animDone){
             if((pressed&Up)&&e.pose!=20){bool neutral=e.pose!=24;e.pose=neutral?24:20;startAnimation(i,neutral?4:5,true);}
-            if((pressed&Down)&&e.pose!=28){bool neutral=e.pose==20;e.pose=neutral?24:28;startAnimation(i,neutral?7:6,true);}
+            if((pressed&Down)&&e.pose!=28&&e.animDone){bool neutral=e.pose==20;e.pose=neutral?24:28;startAnimation(i,neutral?7:6,true);}
         }
         collide(i);moveFalling(e);gravity(e);
         if(before!=Handler::RopeRelease||(ticks&15)==0)e.vx=approach(e.vx,0);
-        if(++secondTicks==60){secondTicks=0;if(seconds>0)--seconds;}
-        if(seconds==0)e.handler=Handler::Timeout;
-        const int ground=(assets.levels[difficulty].height-2*16)*16;
-        if(e.y>=ground){
-            e.y=ground;
-            if(pendingResult==3){e.frame=29;finish(breaksNeeded<0?3:5);}
-            else{e.frame=e.pose==28?26:25;finish(1);}
+        tickTimer();
+        // Only the main fall handler checks time/ground (01:571c).
+        // Bounce and rope-release finish their current routines first.
+        if(before==Handler::Falling){
+            if(seconds==0){e.handler=Handler::Timeout;update(i);}
+            else land(i);
         }
         break;}
-    case Handler::Timeout:e.y+=e.vy;gravity(e);if(e.y/16-camera/16>160)finish(2);break;
-    case Handler::Finish:finish(pendingResult?pendingResult:1);break;
+    case Handler::Timeout:e.y+=e.vy;gravity(e);if(e.offscreen){resultFlags=0x11;finish(i,2);}break;
+    case Handler::Finish:finish(i,pendingResult?pendingResult:1);break;
     case Handler::FinishDelay:if(--finishTimer<=0)result=pendingResult;break;
     case Handler::Animation:animate(i);break;
     case Handler::Fire:
@@ -250,12 +281,14 @@ void Game::update(int i) {
         break;
     case Handler::Puff:e.handler=Handler::Animation;startAnimation(i,12);break;
     case Handler::Balloon:
-        if(!launched)break;
-        if((ticks&3)==0&&e.vy!=-8)--e.vy;e.y+=e.vy;break;
+        if(!hazardsActive){e.flags|=20;break;}
+        if((ticks&3)==0&&e.vy!=-8)--e.vy;e.y+=e.vy;
+        if((camera>>8)>=(e.y>>8)+2)destroy(i);
+        break;
     case Handler::Burst:e.frame=40;if(--e.vy==0)destroy(i);break;
     case Handler::BalloonRide:
         followCamera(e);followParent(e);
-        if(++secondTicks==60){secondTicks=0;if(seconds>0)--seconds;}
+        tickTimer();
         if((held&(A|B))||(!(ticks&1)&&--e.counter==0)){
             e.handler=Handler::Falling;
             if(e.parent>=0){entities[e.parent].handler=Handler::Burst;entities[e.parent].vy=16;}
@@ -265,17 +298,19 @@ void Game::update(int i) {
         animate(i);followCamera(e);followParent(e);
         if(e.animDone){e.vy=-32;e.x+=(e.flags&32)?0:-384;startAnimation(i,14,true);e.handler=Handler::RopeRelease;}
         break;
-    case Handler::Plane:if(launched){e.handler=Handler::PlaneFly;startAnimation(i,15);}break;
+    case Handler::Plane:if(hazardsActive){e.handler=Handler::PlaneFly;startAnimation(i,15);}else e.flags|=20;break;
     case Handler::PlaneFly:
-        animate(i);e.x+=e.vy;e.y+=s8(e.pose);
+        animate(i);
+        if(e.x<0x0e00||e.x>=0x1b00)destroy(i);
+        e.x+=e.vy;e.y+=s8(e.pose);
         if(e.y<entities[0].y){if(s8(e.pose)<8)e.pose=static_cast<uint8_t>(s8(e.pose)+1);}
         else if(s8(e.pose)>-8)e.pose=static_cast<uint8_t>(s8(e.pose)-1);
-        if(e.x<0x0e00||e.x>=0x1b00)destroy(i);break;
-    case Handler::PlaneStun:if(--e.vx==0)e.handler=Handler::PlaneFly;break;
+        break;
+    case Handler::PlaneStun:e.vx=static_cast<uint8_t>(e.vx-1);if(e.vx==0)e.handler=Handler::PlaneFly;break;
     case Handler::Burning:
         moveFalling(e);gravity(e);if(!(ticks&7))e.vx=approach(e.vx,0);
         if(!(ticks&15))spawn(4,e.x+64,e.y);
-        if(e.y/16-camera/16>160)finish(4);break;
+        if(e.offscreen){resultFlags=0x21;finish(i,4);}break;
     case Handler::LimbLeft:case Handler::LimbRight:case Handler::LimbUp:
     case Handler::LimbSideRight:case Handler::LimbSideLeft:{
         int sequence=20+static_cast<int>(e.handler)-static_cast<int>(Handler::LimbLeft);
@@ -287,6 +322,7 @@ void Game::step(int buttons) {
     if(!started||paused||result)return;
     held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
     for(int i=0;i<16;++i)if(entities[i].alive)update(i);
+    updateVisibility();
     // The original scans eight records per frame (00:19a2), with 16 live slots.
     for(int k=0;k<8&&!placements.empty();++k){
         auto& p=placements[scan];int low=camera>>8,high=low+14;
@@ -294,9 +330,21 @@ void Game::step(int buttons) {
         if(!p.active&&low<row&&high>=row){int id=spawn(p.kind,p.x,p.y,scan);if(id>=0)p.active=true;}
         scan=(scan+1)%static_cast<int>(placements.size());
     }
-    for(int i=1;i<16;++i)if(entities[i].alive){
-        const auto& e=entities[i];int relative=e.y/16-camera/16;
-        if(relative < -96||relative>232){if(e.flags&16)destroy(i);}
+}
+void Game::updateVisibility() {
+    // 00:1cb6-1cf6 tests the frame's padded bounds; 1c7c handles removal.
+    // This belongs to the simulation tick, independent of Windows repaint rate.
+    for(int i=0;i<16;++i)if(entities[i].alive){
+        auto& e=entities[i];e.offscreen=false;if(e.hidden)continue;
+        const auto& m=assets.frames[e.frame].meta;
+        int x=(e.x>>4)-256+s8(m[0]),y=(e.y>>4)-(camera>>4)+s8(m[1]);
+        bool outside=x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152;
+        if(outside){
+            if(e.flags&16){
+                if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;
+                destroy(i);
+            }else e.offscreen=true;
+        }
     }
 }
 
@@ -305,7 +353,8 @@ void Game::drawFrame(int number,int x,int y,int flags) {
     const auto& f=assets.frames[number];
     for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){
         int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*s8(f.meta[0])+47-sx:sx-48),dy=y+((flags&64)?2*s8(f.meta[1])+47-sy:sy-48);
+        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
+        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
         if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
     }
 }

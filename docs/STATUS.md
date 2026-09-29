@@ -18,18 +18,39 @@ ein Entwicklungsstand des Dachstunts, keine vollständige Portierung.
 - Lokaler Compiler: `.tools/zig-x86_64-windows-0.16.0/zig.exe`.
 - Build: `powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test`.
 - Buildausgabe: `build/CrashDummies.exe`, dazu lokal `build/crash.dat`.
-- Erste native Ablauf-/Regeltests liefen durch. Nach Änderungen erneut prüfen.
+- Quellcode und Dokumentation sind im privaten GitHub-Repository veröffentlicht.
+- Windows-x64-GUI-Build ohne Konsolenfenster geprüft (PE-Subsystem 2).
+
+## Fortsetzung nach Limitreset — 29. September, ab 16:59 Uhr
+
+Der Chatverlauf bestätigt Limitabbrüche um 14:07, 15:05 und 16:07 Uhr
+(Europe/Berlin). Bei Wiederaufnahme erlaubte das Konto normale Nutzung;
+das Fünfstundenfenster war zu 5 % genutzt. Kein Reset-Guthaben verbraucht.
+
+Neu rekonstruiert und korrigiert:
+
+- Sprite-Ursprung und Spiegelzentrum aus dem Originalrenderer; Grafiken passen
+  jetzt zu den Kollisionspositionen. Neues lokales Datenformat `TICDNAT2`.
+- Sichtbarkeitsgrenzen, Wiedererscheinen von Objekten und dauerhafte Zielentnahme.
+- Aktivierung der Flugzeuge/Ballons nach dem Kameraschwenk, Sprungeingabereihenfolge.
+- Aufwärtskollision an Markisen, Flugzeugbetäubung und gleichzeitige Haltungstasten.
+- Landung mit Original-Zerlegeanimation, Kopfaufprall, verzögertem Ergebnis und
+  Unterscheidung zwischen Erfolg, perfektem Ergebnis und zu wenigen Treffern.
+
+Prüfung: 10 Python-Tests und 48.853 native Prüfungen erfolgreich; alle vier
+Schwierigkeitslisten erreichen ein Stuntende ohne ungültige Animationsbefehle.
+Die Zahl enthält wiederholte Invariantenprüfungen, keine ebenso große Zahl
+unabhängiger Testfälle. Fensterstart und Bildausgabe erfolgreich. Kein Beleg
+vollständiger Originaltreue: bisher statischer Vergleich mit Originalroutinen.
 
 ## Offen
 
-1. Native Tests und erzeugte Ansichten nach den letzten Änderungen prüfen.
-2. Quellcode und Dokumentation ins bereits angelegte private Repository übertragen.
-3. Dachstunt mit Referenzverhalten vergleichen: Animationstiming, Objektlebensdauer,
+1. Dachstunt weiter mit Originalroutinen abgleichen: Animationstiming, Objektlebensdauer,
    Flugzeug, Ballon, Seil, Ziel/Landung. Bekannte Lücken stehen in
    `REVERSE_ENGINEERING.md`. Keine Vollständigkeit behaupten.
-4. Vier weitere Stunts aus ihren Initialisierungen und Handlern rekonstruieren.
-5. Originalmenüs, Kampagne, Endsequenz, Musik/Sound portieren.
-6. Durchspielbarkeit und Originaltreue verifizieren, portable Distribution erzeugen.
+2. Vier weitere Stunts aus ihren Initialisierungen und Handlern rekonstruieren.
+3. Originalmenüs, Kampagne, Endsequenz, Musik/Sound portieren.
+4. Durchspielbarkeit und Originaltreue verifizieren, portable Distribution erzeugen.
 
 ## Automatische Fortsetzung
 

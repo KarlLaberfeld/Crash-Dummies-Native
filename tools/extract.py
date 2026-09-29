@@ -100,7 +100,10 @@ def roof_frames(rom):
                 for px in range(8):
                     sx=7-px if flags&32 else px
                     value=row[(sy%8)*8+sx]
-                    dx,dy=x+px+48+signed(header[0]),y+py+48+signed(header[1])
+                    # 00:1cdb/1cf3 add the half extents before emitting OAM.
+                    # The hardware's +8/+16 coordinate bias cancels on screen.
+                    dx=x+px+48+signed(header[0])+header[6]
+                    dy=y+py+48+signed(header[1])+header[7]
                     if value and 0<=dx<96 and 0<=dy<96:
                         pixels[dy*96+dx]=value
         result.append((header,pixels))
@@ -146,12 +149,12 @@ def title_image(rom):
 def extract(rom, output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     frames=roof_frames(rom)
-    payload=bytearray(b'TICDNAT1')
+    payload=bytearray(b'TICDNAT2')
     payload+=title_image(rom)
     # Font is a standalone decoded tile atlas; no ROM instruction bytes.
     for i in range(52):payload+=tile(rom,0xc000+i*16)
     for header,pixels in frames:payload+=header+pixels
-    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT1','roof_difficulties':[]}
+    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT2','roof_difficulties':[]}
     for difficulty in range(4):
         ptr,repeats,quota,timer,fire_hits=struct.unpack_from('<HBBBB',rom,0x9b1+difficulty*6)
         height,pixels=roof_map(rom,repeats)
