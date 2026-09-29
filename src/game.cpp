@@ -25,12 +25,12 @@ struct Reader {
 };
 Assets Assets::load(const std::wstring& path) {
     Reader r(path);char magic[8];r.raw(magic,8);
-    if(memcmp(magic,"TICDNAT2",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
+    if(memcmp(magic,"TICDNAT3",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
     Assets a;r.raw(a.title.data(),a.title.size());r.raw(a.font.data(),a.font.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
     for(auto& level:a.levels){
         level.height=r.word();level.quota=r.word();level.seconds=r.word();level.fireHits=r.word();int count=r.word();
-        if(level.height<144||level.height>4096||count>512||level.seconds>600||level.fireHits>20)throw std::runtime_error("Ungueltige Leveldaten.");
+        if(level.height<176||level.height>4096||level.height%16||count>512||level.seconds>99||level.fireHits>20)throw std::runtime_error("Ungueltige Leveldaten.");
         level.pixels.resize(Width*level.height);r.raw(level.pixels.data(),level.pixels.size());
         for(int j=0;j<count;++j){Placement p;p.kind=r.byte();p.x=r.word();p.y=r.word();if(p.kind>=16)throw std::runtime_error("Ungueltiger Objekttyp.");level.objects.push_back(p);}
     }
@@ -40,13 +40,16 @@ Assets Assets::load(const std::wstring& path) {
     for(int i=0;i<starts;++i)a.animationStarts.push_back(r.word());
     a.commands.push_back({});
     for(int i=0;i<commands;++i){Command c;c.op=r.byte();c.a=r.signedWord();c.b=r.signedWord();c.c=r.signedWord();c.next=r.word();a.commands.push_back(c);}
+    r.raw(a.hudTiles.data(),a.hudTiles.size());r.raw(a.hudMap.data(),a.hudMap.size());
+    r.raw(a.hudColumns.data(),a.hudColumns.size());r.raw(a.cloudSpeeds.data(),a.cloudSpeeds.size());
+    for(int col:a.hudColumns)if(col>=20)throw std::runtime_error("Ungueltige Statuszeile.");
     for(const auto& c:a.commands){
         if(c.op<0||c.op>19||c.next<0||c.next>commands||(c.op==10&&(c.a<=0||c.a>commands))||(c.op==4&&(c.a<0||c.a>=69))||(c.op==11&&(c.a<0||c.a>29)))throw std::runtime_error("Ungueltiger Animationsbefehl.");
     }
     for(int i:a.animationStarts)if(i<=0||i>commands)throw std::runtime_error("Ungueltiger Animationseinstieg.");
     for(const auto& d:a.definitions)if(d.frame>=69||static_cast<int>(d.handler)>29)throw std::runtime_error("Ungueltige Objektdefinition.");
     auto validPixels=[](const auto& p,bool transparent){return std::all_of(p.begin(),p.end(),[=](int v){return v<4||(transparent&&v==255);});};
-    if(!validPixels(a.title,false)||!validPixels(a.font,false))throw std::runtime_error("Ungueltige Bilddaten.");
+    if(!validPixels(a.title,false)||!validPixels(a.font,false)||!validPixels(a.hudTiles,false))throw std::runtime_error("Ungueltige Bilddaten.");
     for(const auto& f:a.frames)if(!validPixels(f.pixels,true))throw std::runtime_error("Ungueltige Spritedaten.");
     for(const auto& l:a.levels)if(!validPixels(l.pixels,false))throw std::runtime_error("Ungueltige Hintergrunddaten.");
     if(r.pos!=r.bytes.size())throw std::runtime_error("Unerwartete Daten am Dateiende.");
@@ -61,6 +64,9 @@ void Game::start(int level) {
     scan=0;introCounter=128;finishTimer=64;result=pendingResult=resultFlags=0;previous=held=pressed=0;
     paused=false;launched=false;hazardsActive=false;targetReached=false;started=true;animationFaults=0;
     spawn(0,0x1290,0x0150);
+    spawn(15,0x1a00,0);
+    hudMap=assets.hudMap;hudCursor=0;refreshHud();
+    for(int j=0;j<13;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
 }
 int Game::spawn(int kind,int x,int y,int placement) {
     if(kind<0||kind>=16)return -1;
@@ -69,6 +75,8 @@ int Game::spawn(int kind,int x,int y,int placement) {
         e.alive=true;e.kind=kind;e.frame=d.frame;e.flags=d.flags;e.hidden=(d.flags&8)!=0;
         e.handler=d.handler;e.collision=d.collision;e.x=x;e.y=y;e.placement=placement;
         e.vy=s8(d.params[0]);e.pose=d.params[1];e.vx=s8(d.params[2]);e.counter=d.params[3];
+        e.cloudX={d.params[0]|(d.params[1]<<8),d.params[4]|(d.params[5]<<8)};
+        e.cloudSpeed={d.params[2]&7,d.params[6]&7};
         entities[i]=e;return i;
     }
     return -1;
@@ -315,12 +323,20 @@ void Game::update(int i) {
     case Handler::LimbSideRight:case Handler::LimbSideLeft:{
         int sequence=20+static_cast<int>(e.handler)-static_cast<int>(Handler::LimbLeft);
         e.handler=Handler::Animation;startAnimation(i,sequence);break;}
-    case Handler::BackgroundCloud:case Handler::Idle:break;
+    case Handler::BackgroundCloud:{
+        // 01:5f40 multiplexes two clouds in a single entity slot, one per frame.
+        int cloud=ticks&1;
+        e.cloudX[cloud]+=s8(assets.cloudSpeeds[e.cloudSpeed[cloud]]);
+        e.x=e.cloudX[cloud];e.y=cloud?0x90:-0x10;
+        if(e.x==0x0d80){e.cloudX[cloud]=0x1a00;e.cloudSpeed[cloud]=(e.cloudSpeed[cloud]+1)&7;}
+        break;}
+    case Handler::Idle:break;
     }
 }
 void Game::step(int buttons) {
     if(!started||paused||result)return;
     held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
+    tickHud();
     for(int i=0;i<16;++i)if(entities[i].alive)update(i);
     updateVisibility();
     // The original scans eight records per frame (00:19a2), with 16 live slots.
@@ -330,6 +346,34 @@ void Game::step(int buttons) {
         if(!p.active&&low<row&&high>=row){int id=spawn(p.kind,p.x,p.y,scan);if(id>=0)p.active=true;}
         scan=(scan+1)%static_cast<int>(placements.size());
     }
+}
+
+void Game::refreshHud() {
+    // 00:2e9b displays player number, the low four BCD score digits, seconds,
+    // then six height-bar tiles. The counter is camera-based, not goal-based.
+    hudValues[0]=0xf7; // First player; campaign/multiplayer is not ported yet.
+    int score=money%10000;
+    hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+(score/100)%10;
+    hudValues[3]=0xf6+(score/10)%10;hudValues[4]=0xf6+score%10;
+    hudValues[5]=0xf6+seconds/10;hudValues[6]=0xf6+seconds%10;
+    int bar=48-((camera>>8)*48)/(assets.levels[difficulty].height/16-10);
+    bar=static_cast<uint8_t>(bar);
+    for(int j=7;j<13;++j){
+        if(bar>=8){hudValues[j]=0x78;bar-=8;}
+        else if(bar>0){hudValues[j]=0x78+(bar^7);bar=0;}
+        else hudValues[j]=0;
+    }
+}
+void Game::tickHud() {
+    // 00:3198 updates one tile per frame; 00:2e9b refreshes the source buffer
+    // only after all thirteen updates. Preserve its visible score/time lag.
+    hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];
+    hudCursor=(hudCursor+1)%13;
+    if(hudCursor==0)refreshHud();
+}
+void Game::drawHud() {
+    for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)
+        screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
 }
 void Game::updateVisibility() {
     // 00:1cb6-1cf6 tests the frame's padded bounds; 1c7c handles removal.
@@ -378,7 +422,7 @@ void Game::render() {
     const auto& l=assets.levels[difficulty];
     for(int y=0;y<PlayHeight;++y){int row=camera/16+y;if(row>=0&&row<l.height)std::copy_n(l.pixels.begin()+row*Width,Width,screen.begin()+y*Width);}
     for(int i=15;i>=0;--i){const auto& e=entities[i];if(e.alive&&!e.hidden)drawFrame(e.frame,e.x/16-256,e.y/16-camera/16,e.flags);}
-    char hud[32];snprintf(hud,sizeof(hud),"%06d   %02d  %02d",std::clamp(money,0,999999),seconds,std::max(0,breaksNeeded+1));text(0,136,hud);
+    drawHud();
     if(paused||result){
         for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);
         text(40,56,paused?"PAUSED":"STUNT END");

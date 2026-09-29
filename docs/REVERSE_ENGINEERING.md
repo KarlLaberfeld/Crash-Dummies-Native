@@ -100,12 +100,34 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
 - `01:5778` falls through to timeout movement on the same update; `01:59b6`
   similarly performs the first countdown decrement immediately.
 
-Validation: ten Python tests (including independent OAM-coordinate projection),
+Validation: eleven Python tests (including independent OAM-coordinate projection),
 native regression checks and deterministic replays for all four roof lists.
 Windows x64 GUI executable (PE subsystem 2), hidden-window smoke test and
 local image capture passed. This is static source-derived validation, **not**
 a frame-by-frame comparison to original hardware. No CPU emulator was run
 for this continuation.
+
+## Original roof HUD and clouds
+
+`00:03a2` selects thirteen font tiles for tile IDs F3–FF. `00:2e54` supplies
+the original 20-column window layout (`00:2ef5`), the 13 destination columns
+(`00:2edb`) and bar/icon tiles (`03:5780/5800`). These are decoded locally into
+an atlas; data format is now `TICDNAT3` (which also includes the sprite-origin
+correction from version 2). No ROM code is included in this atlas.
+
+`00:2e9b` formats player number, low four decimal score digits, remaining time
+and a six-tile height bar. Its fill is `48 - floor(cameraRow * 48 / (mapRows-10))`.
+`00:3198` copies just one of the thirteen changing tiles each update; the source
+buffer is refreshed after a complete cycle. Native HUD updates preserve that
+lag instead of immediately redrawing new numbers. The port currently fixes the
+player number to 1 because the campaign and multiplayer loop are still absent.
+
+`00:0997` creates cloud object 15. `01:5f40–5f8e` alternates two saved X positions
+through one live slot, selecting it by frame parity; Y is -0x10 or 0x90 fixed
+units. Speeds come from `01:5f8f`, and a saved position resets from 0x0d80 to
+0x1a00 while advancing its speed index. Both motion and alternation are native
+game logic. The initial global frame phase still starts at zero in this build;
+the original menu/briefing duration determines it in the complete game.
 
 ## Unverified or incomplete
 
@@ -117,9 +139,9 @@ The runtime is not yet a matching reconstruction. In particular:
   invariants and selected translated rules.
 - The corrected plane/landing rules above still need reference timing checks;
   balloon/rope interactions and several entity flags need further analysis.
-- Decorative cloud entities and some transient effects are absent.
-- Palette register changes, original status-bar layout and intro/menu text
-  are not fully reconstructed; the launcher explicitly identifies the build
+- Some transient effects and original sprite priority/capacity are absent.
+- Palette register changes and intro/menu text are not fully reconstructed;
+  the launcher explicitly identifies the build
   as work in progress.
 - No original sound driver, other four stunts, campaign or ending.
 

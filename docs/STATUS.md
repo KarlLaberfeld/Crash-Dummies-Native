@@ -30,14 +30,16 @@ das Fünfstundenfenster war zu 5 % genutzt. Kein Reset-Guthaben verbraucht.
 Neu rekonstruiert und korrigiert:
 
 - Sprite-Ursprung und Spiegelzentrum aus dem Originalrenderer; Grafiken passen
-  jetzt zu den Kollisionspositionen. Neues lokales Datenformat `TICDNAT2`.
+  jetzt zu den Kollisionspositionen. Aktuelles lokales Datenformat `TICDNAT3`.
 - Sichtbarkeitsgrenzen, Wiedererscheinen von Objekten und dauerhafte Zielentnahme.
 - Aktivierung der Flugzeuge/Ballons nach dem Kameraschwenk, Sprungeingabereihenfolge.
 - Aufwärtskollision an Markisen, Flugzeugbetäubung und gleichzeitige Haltungstasten.
 - Landung mit Original-Zerlegeanimation, Kopfaufprall, verzögertem Ergebnis und
   Unterscheidung zwischen Erfolg, perfektem Ergebnis und zu wenigen Treffern.
+- Originale Statuszeile mit vierstelliger Punktanzeige, Zeit, Höhenbalken und
+  schrittweiser Aktualisierung ihrer Felder; originale alternierende Wolkenbewegung.
 
-Prüfung: 10 Python-Tests und 48.853 native Prüfungen erfolgreich; alle vier
+Prüfung: 11 Python-Tests und 48.863 native Prüfungen erfolgreich; alle vier
 Schwierigkeitslisten erreichen ein Stuntende ohne ungültige Animationsbefehle.
 Die Zahl enthält wiederholte Invariantenprüfungen, keine ebenso große Zahl
 unabhängiger Testfälle. Fensterstart und Bildausgabe erfolgreich. Kein Beleg

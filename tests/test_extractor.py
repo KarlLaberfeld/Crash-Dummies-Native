@@ -80,7 +80,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([l['objects'] for l in manifest['roof_difficulties']],[36,39,49,46])
             self.assertEqual([l['height'] for l in manifest['roof_difficulties']],[1888,1696,1952,1952])
             pack=(Path(directory)/'crash.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDNAT2')
+            self.assertEqual(pack[:8],b'TICDNAT3')
             self.assertNotIn(self.rom,pack)
             first=pack
             extract.extract(self.rom,directory)
@@ -115,5 +115,14 @@ class LocalCartridge(unittest.TestCase):
                     if shade:expected[origin_x-8+col,origin_y-16+row]=shade
         actual={(x-48,y-48):pixels[y*96+x] for y in range(96) for x in range(96) if pixels[y*96+x]!=255}
         self.assertEqual(actual,expected)
+
+    def test_roof_status_tiles(self):
+        atlas,layout,columns=extract.roof_hud(self.rom)
+        self.assertEqual(len(atlas),256*64)
+        self.assertEqual(len(layout),20)
+        self.assertEqual(list(columns),[1,3,4,6,7,10,11,14,15,16,17,18,19])
+        self.assertEqual(atlas[0xf6*64:0xf7*64],extract.tile(self.rom,0xc010))
+        self.assertEqual(atlas[0xf1*64:0xf2*64],extract.tile(self.rom,0xd800))
+        self.assertTrue(set(atlas)<={0,1,2,3})
 
 if __name__=='__main__':unittest.main()

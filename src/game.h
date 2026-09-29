@@ -25,6 +25,10 @@ struct Assets {
     std::array<Definition,16> definitions{};
     std::vector<int> animationStarts;
     std::vector<Command> commands;
+    std::array<uint8_t,256*64> hudTiles{};
+    std::array<uint8_t,20> hudMap{};
+    std::array<uint8_t,13> hudColumns{};
+    std::array<uint8_t,8> cloudSpeeds{};
     static Assets load(const std::wstring& path);
 };
 struct Entity {
@@ -33,6 +37,7 @@ struct Entity {
     int vy=0,pose=0,vx=0,counter=0,parent=-1,offsetX=0,offsetY=0;
     Handler handler=Handler::Idle;
     int anim=0,delay=0,period=0,loop=0,loopStart=0;
+    std::array<int,2> cloudX{},cloudSpeed{};
 };
 struct Game {
     const Assets& assets;
@@ -44,6 +49,9 @@ struct Game {
     int held=0,pressed=0,previous=0,animationFaults=0;
     bool launched=false,hazardsActive=false,paused=false,started=false,targetReached=false;
     std::array<uint8_t,Width*Height> screen{};
+    std::array<uint8_t,20> hudMap{};
+    std::array<uint8_t,13> hudValues{};
+    int hudCursor=0;
     explicit Game(const Assets& a):assets(a){}
     void start(int level);
     void step(int buttons);
@@ -64,6 +72,9 @@ struct Game {
     void land(int i);
     void tickTimer();
     void updateVisibility();
+    void refreshHud();
+    void tickHud();
+    void drawHud();
     void drawFrame(int number,int x,int y,int flags=0);
     void text(int x,int y,const std::string& value);
 };

@@ -146,15 +146,26 @@ def title_image(rom):
                     image[out:out+8]=t[py*8:py*8+8]
     return image
 
+def roof_hud(rom):
+    """Decoded tile atlas and placement lists from 00:03a2 / 00:2e54."""
+    atlas=bytearray(256*64)
+    atlas[:64]=tile(rom,address(4,0x4000))
+    for i in range(8):atlas[(0x78+i)*64:(0x79+i)*64]=tile(rom,address(3,0x5780)+i*16)
+    for i in range(2):atlas[(0xf1+i)*64:(0xf2+i)*64]=tile(rom,address(3,0x5800)+i*16)
+    for i,index in enumerate(rom[0x3ac:0x3b9]):
+        atlas[(0xf3+i)*64:(0xf4+i)*64]=tile(rom,address(3,0x4000)+index*16)
+    columns=bytes(rom[0x2edc+i*2] for i in range(13))
+    return atlas,rom[0x2ef5:0x2f09],columns
+
 def extract(rom, output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     frames=roof_frames(rom)
-    payload=bytearray(b'TICDNAT2')
+    payload=bytearray(b'TICDNAT3')
     payload+=title_image(rom)
     # Font is a standalone decoded tile atlas; no ROM instruction bytes.
     for i in range(52):payload+=tile(rom,0xc000+i*16)
     for header,pixels in frames:payload+=header+pixels
-    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT2','roof_difficulties':[]}
+    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT3','roof_difficulties':[]}
     for difficulty in range(4):
         ptr,repeats,quota,timer,fire_hits=struct.unpack_from('<HBBBB',rom,0x9b1+difficulty*6)
         height,pixels=roof_map(rom,repeats)
@@ -175,6 +186,8 @@ def extract(rom, output):
     payload+=struct.pack('<HH',len(starts),len(commands))
     for start in starts:payload+=struct.pack('<H',start)
     for command in commands:payload+=struct.pack('<BhhhH',*command)
+    for data in roof_hud(rom):payload+=data
+    payload+=rom[0x5f8f:0x5f97]
     (output/'crash.dat').write_bytes(payload)
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

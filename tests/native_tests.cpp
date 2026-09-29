@@ -83,6 +83,25 @@ int runSelfTests(const Assets& assets) {
         g.start(0);g.entities[0].handler=Handler::Falling;g.entities[0].frame=9;
         g.pressed=Up|Down;g.update(0);
         require(g.entities[0].pose==20,"Simultaneous posture presses respect animation busy check");
+        g.start(0);g.camera=0;g.money=123456;g.seconds=42;g.refreshHud();
+        require(g.hudValues[1]==0xf9&&g.hudValues[2]==0xfa&&g.hudValues[3]==0xfb&&g.hudValues[4]==0xfc,"Original HUD shows low four score digits");
+        require(g.hudValues[5]==0xfa&&g.hudValues[6]==0xf8,"Original HUD timer digit tiles");
+        require(g.hudValues[7]==0x78&&g.hudValues[12]==0x78,"Height bar full at roof");
+        g.camera=54*256;g.refreshHud();
+        require(g.hudValues[9]==0x78&&g.hudValues[10]==0,"Height bar half at original midpoint ratio");
+        g.camera=27*256;g.refreshHud();
+        require(g.hudValues[10]==0x78&&g.hudValues[11]==0x7b&&g.hudValues[12]==0,"Height bar partial tile uses original fill table");
+        g.start(0);auto oldHud=g.hudMap;g.money=3456;
+        for(int n=0;n<13;++n)g.tickHud();
+        require(g.hudMap==oldHud,"HUD completes previous buffer before refreshing score");
+        for(int n=0;n<13;++n)g.tickHud();
+        require(g.hudMap[3]==0xf9&&g.hudMap[7]==0xfc,"HUD copies score through original column mapping");
+        g.start(0);g.ticks=1;g.update(1);
+        require(g.entities[1].x==0x19f0&&g.entities[1].y==0x90,"Odd frame advances second cloud");
+        g.ticks=2;g.update(1);
+        require(g.entities[1].x==0x19e0&&g.entities[1].y==-0x10,"Even frame advances first cloud");
+        g.entities[1].cloudX[0]=0x0da0;g.update(1);
+        require(g.entities[1].x==0x0d80&&g.entities[1].cloudX[0]==0x1a00&&g.entities[1].cloudSpeed[0]==1,"Cloud wraps its saved position after reaching original endpoint");
         for(int difficulty=0;difficulty<4;++difficulty){
             Game first(assets),second(assets);first.start(difficulty);second.start(difficulty);
             for(int i=0;i<12000;++i){
