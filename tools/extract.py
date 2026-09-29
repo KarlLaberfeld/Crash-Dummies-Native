@@ -22,11 +22,13 @@ ANIMATIONS = [0x560e,0x5674,0x56a9,0x56cb,0x5a27,0x5a40,0x5a61,0x5a7a,
               0x5abd,0x5b46,0x5b2c,0x5b16,0x5b93,0x5cfC,0x5ccf,0x5da9,
               0x5e45,0x5e55,0x5e58,0x57cf,0x585e,0x58aa,0x58f6,0x592c,0x5978]
 
-def animation_records(rom):
+def animation_records(rom, entries=None, handlers=None):
     """Decode only the game's animation language, not SM83 instructions."""
     sizes=[1,1,2,2,2,2,1,1,2,1,3,3,2,2,1,1,6,1,1,2,3]
     records={}
-    todo=list(ANIMATIONS)
+    entries=ANIMATIONS if entries is None else entries
+    handlers=HANDLERS if handlers is None else handlers
+    todo=list(entries)
     while todo:
         pos=todo.pop()
         if pos in records:continue
@@ -37,7 +39,7 @@ def animation_records(rom):
         if op==10:
             a=struct.unpack_from('<H',rom,pos+1)[0];todo.append(a);next_pos=0
         elif op==11:
-            a=HANDLERS[struct.unpack_from('<H',rom,pos+1)[0]];next_pos=0
+            a=handlers[struct.unpack_from('<H',rom,pos+1)[0]];next_pos=0
         elif op==16:
             a,b,c=struct.unpack_from('<hhB',rom,pos+1)
         elif op==20:raise ValueError('Unported native animation callback')
@@ -50,7 +52,7 @@ def animation_records(rom):
         op,a,b,c,nxt=records[pos]
         if op==10:a=indices[a]
         output.append((op,a,b,c,indices.get(nxt,0)))
-    return [indices[x] for x in ANIMATIONS],output
+    return [indices[x] for x in entries],output
 
 def read_rom(path):
     data = Path(path).read_bytes()
@@ -74,9 +76,12 @@ def tile(data, base):
                  for y in range(8) for x in range(8))
 
 def roof_frames(rom):
+    return sprite_frames(rom,69,0xd95c,0xd8d0,35,address(4,0x4610))
+
+def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
     result=[]
-    for number in range(69):
-        ptr=struct.unpack_from('<H',rom,0xd95c+number*2)[0]
+    for number in range(count):
+        ptr=struct.unpack_from('<H',rom,pointers+number*2)[0]
         pos=address(3,ptr)
         header=rom[pos:pos+8]
         pieces=[]
@@ -88,12 +93,12 @@ def roof_frames(rom):
         else: raise ValueError('Unterminated sprite')
         pixels=bytearray([255])*(96*96)
         for x,y,idx,flags in pieces:
-            if number<35:
-                desc=0xd8d0+number*4
+            if number<dynamic_count:
+                desc=descriptors+number*4
                 _,bank,ptr=struct.unpack_from('<BBH',rom,desc)
                 base=address(bank,ptr)+(idx & ~1)*16
             else:
-                base=address(4,0x4610)+(idx & ~1)*16
+                base=static_base+(idx & ~1)*16
             for py in range(16):
                 sy=15-py if flags&64 else py
                 row=tile(rom,base+(sy//8)*16)

@@ -51,17 +51,17 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
 
 ## Roof behavior translated so far
 
-- `01:55da–563a`: flyover, waiting and roof start sequence.
+- `01:55daâ€“563a`: flyover, waiting and roof start sequence.
 - `01:56de`: main falling update, held lateral input and pressed posture input.
-- `01:5748`: Q12.4 position updates and X clamp to 0x1040–0x1880.
+- `01:5748`: Q12.4 position updates and X clamp to 0x1040â€“0x1880.
 - `01:59cc/59d2`: lateral velocity -10/+10 fixed-point units.
-- `01:5a0e–5a81`: neutral/spread/head-first target velocities 24/20/28.
+- `01:5a0eâ€“5a81`: neutral/spread/head-first target velocities 24/20/28.
 - `01:5a8b`: vertical velocity moves one unit toward pose target.
 - `01:5c8b`: awning damage count; head-first/spread break, neutral bounces.
 - `01:5ef3`: solid balcony breaks once; neutral bounce -4, reward 5/10.
 - `01:5f29`: landing target, reward 100, one-time removal.
 - `00:312d`: BCD timer decremented after 60 updates.
-- `00:3b80–3cfa`: animation commands, loops, positions, frame changes and native-handler transitions.
+- `00:3b80â€“3cfa`: animation commands, loops, positions, frame changes and native-handler transitions.
 - `00:3e75`: camera tracking expressed directly in native integer arithmetic.
 
 ## Corrections verified against static routines, 2026-09-29
@@ -72,14 +72,14 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
   same center. The previous extraction omitted the half extents, displacing
   graphics relative to their collision boxes. Data format `TICDNAT2` prevents
   silently loading old images; regenerate `crash.dat` after updating.
-- `00:1cb6–1cf6`: padded visibility bounds, after display offset, are
+- `00:1cb6â€“1cf6`: padded visibility bounds, after display offset, are
   X [-2*halfWidth-16, 176], Y [-2*halfHeight-16, 152], inclusive.
   Offscreen flags are updated after entity handlers and before placement scans.
   Native repaint frequency does not affect this state. Original OAM capacity,
   per-scanline sprite limits and alternating priority are still unimplemented.
 - `00:3da5` removes a live entity without resetting its placement's active
   byte. Only visibility eviction with flag bits 4 and 2 clears that byte
-  (`00:1c91–1cb2`). A collected target therefore cannot reappear on a later scan.
+  (`00:1c91â€“1cb2`). A collected target therefore cannot reappear on a later scan.
 - `01:55fe` activates balloons/planes at the end of the intro camera rise;
   this is separate from animation command 0x92 (`00:3cf1`, sound-driver gate).
   `01:563a` processes walking before the jump button. Held lateral input can
@@ -89,7 +89,7 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
   rebounds have velocities -41, -37, -33, -29; the fifth breaks the awning.
 - `01:5dbd/5dd7`: plane stun retains the definition's 0x40 countdown rather
   than resetting it to 0x20. Collision stays disabled after the plane resumes.
-- `01:5722–584d`: only the main fall handler checks the ground row, snaps
+- `01:5722â€“584d`: only the main fall handler checks the ground row, snaps
   Y to the next tile row, and chooses a landing sequence. Bounce/rope-release
   handlers have their own updates. A head-first miss plays script `01:57cf`.
   A target landing spawns five body pieces; the upward piece's script reaches
@@ -109,7 +109,7 @@ for this continuation.
 
 ## Original roof HUD and clouds
 
-`00:03a2` selects thirteen font tiles for tile IDs F3–FF. `00:2e54` supplies
+`00:03a2` selects thirteen font tiles for tile IDs F3â€“FF. `00:2e54` supplies
 the original 20-column window layout (`00:2ef5`), the 13 destination columns
 (`00:2edb`) and bar/icon tiles (`03:5780/5800`). These are decoded locally into
 an atlas; data format is now `TICDNAT3` (which also includes the sprite-origin
@@ -122,7 +122,7 @@ buffer is refreshed after a complete cycle. Native HUD updates preserve that
 lag instead of immediately redrawing new numbers. The port currently fixes the
 player number to 1 because the campaign and multiplayer loop are still absent.
 
-`00:0997` creates cloud object 15. `01:5f40–5f8e` alternates two saved X positions
+`00:0997` creates cloud object 15. `01:5f40â€“5f8e` alternates two saved X positions
 through one live slot, selecting it by frame parity; Y is -0x10 or 0x90 fixed
 units. Speeds come from `01:5f8f`, and a saved position resets from 0x0d80 to
 0x1a00 while advancing its speed index. Both motion and alternation are native
@@ -162,3 +162,47 @@ The stage initialization table is at `00:33ce`:
 The instruction/briefing table is `00:33b0`. Sound entry points include
 `00:362a` (music selection) and `00:3711` (effect selection). Full reverse
 engineering and validation are still required.
+
+
+## Air Bumper extraction and native entry points
+
+Initialization `00:0b31` installs twelve dynamic sprite descriptors from
+`03:608f`, 59 frame pointers from `03:60bf`, and static sprites from `05:4000`.
+The background has 128 planar tiles at `04:688c`, collision flags at `04:784c`,
+and four 128-byte metatile quadrant tables at `04:78cc`.
+
+The four eight-byte records at `00:0c1f` supply camera X/Y, BCD time, quota,
+map pointer and placement pointer. `00:1d41` expands pairs of circular X offset
+and 16-by-4-metatile template index; `00:1d78` is the template pointer table.
+Maps wrap at sixteen columns and occupy 184, 236, 256 and 256 metatile rows.
+The original one-byte row count wraps at 256; native code must retain 256.
+Placement lists contain 78, 131, 143 and 143 entries, kinds 18 through 30.
+Their X coordinates receive a fixed-point offset of `0x4000`.
+
+`tools/extract_air.py` writes the local-only `TICDAIR1` data pack. It includes
+59 sprite composites, the four maps, 18 semantic object definitions, thirteen
+animation graph roots, six collision probes for each of five tilt positions
+(`01:648c`), a 32-entry signed speed curve (`01:6554`), and five motion/frame
+records (`01:65f8`). The shared extraction helpers do not execute SM83 code.
+Tests check template rotation, overflow rejection, deterministic extraction,
+known map/list sizes and animation graph references. These are extraction
+checks, not evidence of a playable or fully faithful second stunt.
+
+Player states start at `01:5fa6`: rise (`5fae`), wait (`5fc9`), then gameplay
+(`5fd6`). Gameplay updates the camera before movement (`659c`), damage (`6041`),
+time, input, speed lookup (`6548`), map probes (`6459`), collision response
+(`63de`), conveyors (`63af`), speed tiles (`6392`), walls (`6163`), finish gates
+(`60a4`) and object collisions. The initial rise velocity is -40 fixed units,
+increasing by one to zero, followed by a 224-tick wait. Tilt ranges from -2 to
+2; speed index ranges from -20 to 11. Tilt input depends on the previous frame's
+nonzero vertical rate. Held A reduces the index every four ticks; B increases
+it every two. These details must not be replaced with guessed acceleration.
+
+Other states are wall slide (`61c4`), crash (`6246`), explosion (`62a9`), hidden
+return (`6336`), and finish motion (`6103`). Terrain impact adds 16 to an
+unsigned damage byte, failing on overflow; bounce selects speed index -4 when
+falling and +9 when rising. Finish gates award 50, or 150 for the bonus gate,
+and compare collected items with the full quota and half-quota for result flags.
+The ordinary global finish countdown is 128 updates. Native integration remains
+in progress; original Air Bumper HUD, graphics-transfer delays, audio, full
+object interactions and reference timing still need implementation/validation.

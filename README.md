@@ -1,74 +1,72 @@
 # The Incredible Crash Dummies — native Windows port
 
-**Unvollständige Portierung in Arbeit. Keine fertige Vollversion.**
+**Work in progress. This is not a complete port.**
 
-Ziel ist eine möglichst originalgetreue Windows-Neuimplementierung der
-Game-Boy-Fassung. Der aktuelle Entwicklungsstand enthält den ersten Stunt
-**Roof Jump** mit rekonstruierten Originalgrafiken, vier Objektlisten und
-einer ersten nativen Umsetzung seiner Spielregeln. Die übrigen vier Stunts,
-Originalmenüs, Ton und ein vollständiger Abgleich fehlen noch.
+This project aims to faithfully reimplement the Game Boy release as a native
+Windows game. The current build contains **Roof Jump**, with reconstructed
+original graphics, four difficulty layouts, and a partial translation of the
+original game logic. The other four stunts, original menus, audio, and full
+behavioral validation remain unfinished. Air Bumper reconstruction is underway.
 
-Die Windows-EXE besteht aus C++ und Win32. Sie enthält keinen Game-Boy-
-CPU-Interpreter, keinen JIT-Recompiler, keinen Emulator-Kern und benötigt
-keinen separat installierten Emulator. Die ROM wird ausschließlich offline
-als Quelle identifizierter Grafiken und Spieldaten gelesen. Zur Laufzeit wird
-das daraus erzeugte Datenpaket `crash.dat` geladen.
+The Windows application uses C++ and Win32. It contains no Game Boy CPU
+interpreter, JIT recompiler, or emulator core. The cartridge is read offline
+only to extract identified graphics and game data. At runtime, the application
+loads the generated `crash.dat` asset package.
 
-## Lokal starten
+## Running locally
 
-Nach dem Build `build/CrashDummies.exe` öffnen. `crash.dat` muss daneben liegen.
-Die erzeugte EXE läuft direkt unter Windows x64; Python und Zig werden nur
-zum Erzeugen der Dateien benötigt.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat` beside it.
+The executable runs directly on Windows x64. Python and Zig are needed only
+for extraction and compilation.
 
-| Taste | Funktion |
+| Key | Action |
 |---|---|
-| Enter | Stunt starten / pausieren |
-| Pfeile links / rechts | Seitwärts bewegen |
-| Pfeile oben / unten | Fallhaltung ändern |
-| Z oder A | Erste Aktion / Abspringen |
-| X oder S | Zweite Aktion |
-| Esc | Pause / fortsetzen |
-| R | Stunt neu starten |
-| 1–4 | Schwierigkeitsstufe auswählen und neu starten |
+| Enter | Start or pause the stunt |
+| Left / Right | Move sideways |
+| Up / Down | Change falling posture |
+| Z or A | Primary action / jump |
+| X or S | Secondary action |
+| Esc | Pause / resume |
+| R | Restart the stunt |
+| 1–4 | Select difficulty and restart |
 
-Der Dachstunt beginnt mit dem rekonstruierten Kameraschwenk. Das ist kein
-Ladebildschirm. Fokusverlust pausiert das Spiel.
+Roof Jump begins with the reconstructed camera flyover. Losing window focus
+pauses the game. The development window currently uses German labels.
 
-## Bauen
+## Building
 
-Voraussetzungen: Windows x64, Python 3.10+ und [Zig 0.16.0](https://ziglang.org/download/).
-Python-Zusatzpakete sind nicht nötig. Zig kann im PATH liegen oder per
-`-Compiler` angegeben werden.
+Requirements: Windows x64, Python 3.10+, and [Zig 0.16.0](https://ziglang.org/download/).
+No additional Python packages are required. Put Zig on PATH or pass its path
+using `-Compiler`.
 
 ```powershell
-.\build.ps1 -Rom 'Pfad\zur\Originaldatei.gb' -Test
+./build.ps1 -Rom 'path/to/original.gb' -Test
 ```
 
-Liegt genau eine `.gb`-Datei im Projektordner, genügt `./build.ps1 -Test`.
-Akzeptiert wird nur die US/EU-ROM mit 131072 Bytes und SHA-256
-`ef563c4a4b063ea045d71b435dd078c19d0738f85079928803167cee8f34a4ec`.
+If the project directory contains exactly one `.gb` file, `./build.ps1 -Test`
+is sufficient. Only the documented US/EU revision is accepted: 131072 bytes,
+SHA-256 `ef563c4a4b063ea045d71b435dd078c19d0738f85079928803167cee8f34a4ec`.
 
 ```powershell
 python -m unittest discover -s tests -p 'test_*.py'
-.\build\CrashDummies.exe --self-test
-.\build\CrashDummies.exe --capture
+./build/CrashDummies.exe --self-test
+./build/CrashDummies.exe --capture
 ```
 
-Die nativen Tests prüfen einzelne aus dem Original abgeleitete Regeln,
-deterministische Wiederholungen und abgeschlossene Stunt-Durchläufe. Sie sind
-**kein Nachweis vollständiger Originaltreue**. Automatisch erzeugte Bilder
-werden nur lokal im Buildordner abgelegt.
+Native tests cover selected rules derived from the original, deterministic
+replays, and completed roof-stunt runs. They **do not establish full fidelity**
+to the original game. Captured images remain local in the build directory.
 
-## Projektstruktur
+## Project layout
 
-- `src/`: native Spiellogik, Renderer und Windows-Fenster.
-- `tools/extract.py`: reproduzierbare, hashgeprüfte Datenextraktion.
-- `tools/disassemble.py`: rein statisches Analysewerkzeug; führt keine ROM aus.
-- `tests/`: synthetische Formatprüfungen und native Regeln-/Ablauftests.
-- [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md): belegte Datenstrukturen und Routinen.
-- [docs/STATUS.md](docs/STATUS.md): aktueller Stand und nächste Schritte.
+- `src/`: native game logic, renderer, and Windows application.
+- `tools/extract.py`: reproducible extraction with cartridge hash validation.
+- `tools/disassemble.py`: static inspection only; does not execute the ROM.
+- `tests/`: synthetic format checks and native rule/replay tests.
+- [Reverse-engineering notes](docs/REVERSE_ENGINEERING.md): documented structures and routines.
+- [Project status](docs/STATUS.md): current progress and remaining work.
 
-ROM, extrahierte Originalgrafiken, Datenpakete und lokale Analysedumps werden
-nicht ins Repository aufgenommen. Sie müssen aus der eigenen Originaldatei
-erzeugt werden. Marken und Originalspielinhalte gehören ihren jeweiligen
-Rechteinhabern. Das Projekt ist inoffiziell.
+ROMs, extracted original graphics, asset packages, and local analysis dumps
+are excluded from the repository. Generate assets from your own original
+cartridge file. Original game content and trademarks belong to their respective
+owners. This is an unofficial project.

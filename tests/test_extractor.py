@@ -10,6 +10,7 @@ TEMP_ROOT=PROJECT/'build'/'test-temp'
 TEMP_ROOT.mkdir(parents=True,exist_ok=True)
 sys.path.insert(0,str(PROJECT/'tools'))
 import extract
+import extract_air
 from disassemble import decode
 
 @contextmanager
@@ -21,11 +22,30 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
 class BinaryFormats(unittest.TestCase):
+    def test_air_map_rotates_each_template_row(self):
+        data=bytearray(131072)
+        struct.pack_into('<H',data,0x1d78,0x7000)
+        source=extract.address(4,0x7000)
+        data[source:source+64]=bytes(range(64))
+        start=extract.address(4,0x7acc)
+        data[start:start+5]=bytes([3,0,15,0,255])
+        cells,rows=extract_air.air_map(data,0x7acc)
+        self.assertEqual(rows,8)
+        self.assertEqual(list(cells[:16]),list(range(13,16))+list(range(13)))
+        self.assertEqual(list(cells[16:32]),list(range(29,32))+list(range(16,29)))
+        self.assertEqual(list(cells[64:80]),list(range(1,16))+[0])
+        self.assertEqual(cells[128:],bytes(4096-128))
+
+    def test_air_map_rejects_excess_bands(self):
+        data=bytearray(131072)
+        struct.pack_into('<H',data,0x1d78,0x7000)
+        with self.assertRaisesRegex(ValueError,'exceeds'):extract_air.air_map(data,0x7acc)
+
     def test_planar_tile_bit_order(self):
         data=bytes([0b10100000,0b01100000]+[0]*14)
         self.assertEqual(extract.tile(data,0)[:8],bytes([1,2,3,0,0,0,0,0]))
@@ -85,6 +105,28 @@ class LocalCartridge(unittest.TestCase):
             first=pack
             extract.extract(self.rom,directory)
             self.assertEqual(first,(Path(directory)/'crash.dat').read_bytes())
+
+    def test_air_pack_and_graph(self):
+        with scratch_directory() as directory:
+            result=extract_air.extract_air(self.rom,directory)
+            levels=result['difficulties']
+            self.assertEqual([x['rows'] for x in levels],[184,236,256,256])
+            self.assertEqual([x['objects'] for x in levels],[78,131,143,143])
+            self.assertEqual([x['seconds'] for x in levels],[40,60,70,70])
+            self.assertEqual([x['quota'] for x in levels],[14,15,24,16])
+            pack=(Path(directory)/'air.dat').read_bytes()
+            self.assertEqual(pack[:8],b'TICDAIR1')
+            extract_air.extract_air(self.rom,directory)
+            self.assertEqual(pack,(Path(directory)/'air.dat').read_bytes())
+        roots,commands=extract.animation_records(self.rom,extract_air.ANIMATIONS,extract_air.HANDLERS)
+        self.assertEqual(len(roots),13)
+        for op,a,b,c,nxt in commands:
+            self.assertLessEqual(nxt,len(commands))
+            if op==10:self.assertTrue(1<=a<=len(commands))
+            if op==11:self.assertIn(a,extract_air.HANDLERS.values())
+            if op==16:self.assertTrue(17<=c<=34)
+        frames=extract.sprite_frames(self.rom,59,0xe0bf,0xe08f,12,extract.address(5,0x4000))
+        for _,pixels in frames:self.assertTrue(set(pixels)<={0,1,2,3,255})
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)
