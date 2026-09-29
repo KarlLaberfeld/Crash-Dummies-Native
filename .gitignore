@@ -1,0 +1,15 @@
+*.gb
+*.gbc
+*.rom
+*.sav
+*.state
+*.zip
+.tools/
+local/
+build/
+dist/
+assets/generated/
+__pycache__/
+*.pyc
+.zig-cache/
+zig-out/
