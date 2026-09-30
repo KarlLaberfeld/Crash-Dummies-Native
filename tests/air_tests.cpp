@@ -90,6 +90,7 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         g.start(0);g.speed=-8;g.probes={1,0,0,0,0,0};g.terrainBounce();
         require(g.tilt==1&&g.lastForce==12&&g.speed==-8,"Rising left contact turns right before bouncing");
         g.tilt=2;g.terrainBounce();require(g.speed==9&&g.entities[0].params[5]==16,"Maximum tilt impact adds damage and reverses upward motion");
+        require(g.pendingSound==10,"Air impact queues original effect 10");
         g.probes={0,0,0,0,0,1};g.terrainBounce();require(g.speed==-4&&g.entities[0].params[5]==32,"Falling center impact selects upward bounce");
         g.entities[0].params[3]=64;g.speed=-10;g.probes={1,0,0,0,0,0};g.terrainBounce();
         require(g.speed==-10&&g.entities[0].params[3]==0&&g.entities[0].params[5]==32,"First boost collision cancels boost without damage");

@@ -37,6 +37,7 @@ int runBombTests(const BombAssets& assets,const Assets& shared){
         g.entities[0].y=1280;g.movePlayer(true);require(g.entities[0].y==1280,"Down stops at row five");
         g.start(0);int obj=g.spawn(48,256,512);g.action=2;g.collideWith(obj);
         require(g.entities[obj].frame==23&&g.entities[obj].collision==23&&g.money==10,"A removes fuse and awards ten");
+        g.pendingSound=-1;g.explode(obj);require(g.pendingSound==14,"Bomb explosion queues original effect 14");
         g.collideWith(obj);require(g.money==10,"A cannot score on the same disarmed bomb twice");
         g.entities[obj].y=1279;g.entities[obj].params[0]=0;g.fall(obj);
         require(!g.entities[obj].alive&&g.totals[0]==1&&g.money==15,"Disarmed bomb reaching bottom counts and awards five");

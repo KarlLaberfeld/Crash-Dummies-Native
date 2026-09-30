@@ -14,6 +14,8 @@
 #include "cruise.h"
 #include "campaign.h"
 #include "ui.h"
+#include "audio.h"
+#include "windows_audio.h"
 
 namespace ticd { int runPlaythroughTests(const Assets&,const AirAssets&,const SkiAssets&,const BombAssets&,const CruiseAssets&,const UiAssets&); }
 
@@ -30,13 +32,15 @@ std::unique_ptr<ticd::CruiseAssets> cruiseAssets;
 std::unique_ptr<ticd::CruiseGame> cruise;
 std::unique_ptr<ticd::UiAssets> uiAssets;
 std::unique_ptr<ticd::UiFlow> ui;
+std::unique_ptr<ticd::AudioAssets> audioAssets;
+std::unique_ptr<ticd::NativeAudio> sound;
 bool developerMode=false;
-int selectedStunt=0;
+int selectedStunt=0,musicGeneration=0;
 bool started(){return selectedStunt==4?cruise->started:selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
 bool& paused(){return selectedStunt==4?cruise->paused:selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
 int& difficulty(){return selectedStunt==4?cruise->difficulty:selectedStunt==3?bomb->difficulty:selectedStunt==2?ski->difficulty:selectedStunt==1?air->difficulty:game->difficulty;}
 int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->terminalFlags();}
-void restart(){int player=developerMode?0:ui->campaign.current;if(selectedStunt==4)cruise->start(cruise->difficulty,player);else if(selectedStunt==3)bomb->start(bomb->difficulty,player);else if(selectedStunt==2)ski->start(ski->difficulty,player);else if(selectedStunt==1)air->start(air->difficulty,player);else game->start(game->difficulty,player);}
+void restart(){++musicGeneration;int player=developerMode?0:ui->campaign.current;if(selectedStunt==4)cruise->start(cruise->difficulty,player);else if(selectedStunt==3)bomb->start(bomb->difficulty,player);else if(selectedStunt==2)ski->start(ski->difficulty,player);else if(selectedStunt==1)air->start(air->difficulty,player);else game->start(game->difficulty,player);}
 bool keys[256]{};
 HFONT headingFont,bodyFont,smallFont;
 uint32_t pixels[ticd::Width*ticd::Height];
@@ -83,7 +87,7 @@ void paint(HWND hwnd,HDC dc) {
             L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F5         Stunt waehlen",RGB(193,207,197),bodyFont);
         label(dc,sx,322,232,32,L"ORIGINALDATEN",RGB(224,238,205),smallFont);
         label(dc,sx,353,232,96,L"Grafiken und Objektlisten stammen aus deiner ROM. Die Spiellogik wird als C++ direkt unter Windows ausgefuehrt.",RGB(149,175,162),bodyFont);
-        label(dc,sx,465,232,96,L"Noch unvollstaendig: Bilduebergaenge, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
+        label(dc,sx,465,232,96,L"Noch unvollstaendig: Bilduebergaenge, Klangtreue und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
     }
 }
 LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -130,12 +134,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bomb=std::make_unique<ticd::BombGame>(*bombAssets,*assets);
         cruiseAssets=std::make_unique<ticd::CruiseAssets>(ticd::CruiseAssets::load(directory+L"cruise.dat"));
         cruise=std::make_unique<ticd::CruiseGame>(*cruiseAssets,*assets);
+        audioAssets=std::make_unique<ticd::AudioAssets>(ticd::AudioAssets::load(directory+L"audio.dat"));
+        sound=std::make_unique<ticd::NativeAudio>(*audioAssets);
         int argc=0;LPWSTR* argv=CommandLineToArgvW(GetCommandLineW(),&argc);
         bool tests=argc>1&&std::wstring(argv[1])==L"--self-test";
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
-        bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke-test";
+        bool audioSmoke=argc>1&&std::wstring(argv[1])==L"--audio-smoke-test";
+        bool smoke=audioSmoke||(argc>1&&std::wstring(argv[1])==L"--smoke-test");
         LocalFree(argv);
-        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:playthroughResult;}
+        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int audioResult=ticd::runAudioTests(*audioAssets);int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:audioResult?audioResult:playthroughResult;}
         if(capture){
             for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(*uiAssets,page,false,0));
             ticd::saveBmp(directory+L"title-transition.bmp",ticd::renderTitle(*uiAssets,1,false,0,-40,false));
@@ -162,6 +169,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);
             cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
+        ticd::WindowsAudio audioDevice;std::vector<int16_t> audioSamples;
+        int lastMusic=-1,lastMusicGeneration=-1;auto lastAudioPhase=ui->phase;
         SetProcessDPIAware();
         headingFont=CreateFontW(-24,0,0,0,FW_BOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
         bodyFont=CreateFontW(-16,0,0,0,FW_NORMAL,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
@@ -199,11 +208,27 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         ui->finishStunt(result(),pay,seconds,lives,selectedStunt==2?ski->collected:0);
                     }
                 }
-                accumulator-=step;changed=true;if(smoke&&++smokeTicks==10)DestroyWindow(window);
+                int music=1;
+                if(developerMode){if(started())music=8+selectedStunt;}
+                else switch(ui->phase){
+                case ticd::UiPhase::Title:music=1;break;
+                case ticd::UiPhase::Instructions:music=2;break;
+                case ticd::UiPhase::Playing:music=8+selectedStunt;break;
+                case ticd::UiPhase::Result:music=ui->campaign.last.gameOver?13:ui->campaign.last.success?(ui->campaign.last.perfect?5:4):3;break;
+                case ticd::UiPhase::Ending:music=13;break;
+                case ticd::UiPhase::NameEntry:music=6;break;
+                }
+                if(music!=lastMusic||ui->phase!=lastAudioPhase||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastAudioPhase=ui->phase;lastMusicGeneration=musicGeneration;}
+                if(developerMode||ui->phase==ticd::UiPhase::Playing){int effect=selectedStunt==4?cruise->pendingSound:selectedStunt==3?bomb->pendingSound:selectedStunt==2?ski->pendingSound:selectedStunt==1?air->pendingSound:game->pendingSound;
+                    if(effect>=0)sound->queueEffect(effect);}
+                if(!developerMode&&ui->pendingSound>=0)sound->queueEffect(ui->pendingSound);
+                sound->tick();sound->render(audioSamples);audioDevice.submit(audioSamples);
+                accumulator-=step;changed=true;if(smoke&&++smokeTicks==(audioSmoke?300:10))DestroyWindow(window);
             }
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
         }
+        if(smoke){FILE* log=_wfopen((directory+L"audio-output.txt").c_str(),L"w");if(log){fprintf(log,"Windows output device: %s; dropped buffers: %u\n",audioDevice.available()?"available":"unavailable",audioDevice.droppedFrames);fclose(log);}}
         DeleteObject(headingFont);DeleteObject(bodyFont);DeleteObject(smallFont);return 0;
     }catch(const std::exception& e){MessageBoxA(nullptr,e.what(),"Crash Dummies - Startfehler",MB_ICONERROR);return 1;}
 }

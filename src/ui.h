@@ -35,6 +35,7 @@ struct UiFlow {
     Campaign campaign;
     UiPhase phase=UiPhase::Title;
     bool twoPlayers=false,textDone=false;
+    int pendingSound=-1;
     int titleScroll=0,titleDirection=0,nextPage=0;
     int page=0,ticks=0,phaseTicks=0,previous=0,stunt=0,level=0;
     int scroll=0,position=0,anchor=0,row=0,speed=0,delay=0,scrollStep=-1,pendingGlyph=-1;

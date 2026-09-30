@@ -83,7 +83,7 @@ void SkiGame::animate(int i){
         case 16:spawn(c.c,e.x+c.a,e.y+c.b);break;
         case 17:e.flags|=32;break;
         case 18:break; // Original stage activation event; unused by Ski graphs.
-        case 19:break; // Sound event retained; native sound driver remains pending.
+        case 19:pendingSound=c.a;break;
         default:++animationFaults;e.animDone=true;return;
         }
     }
@@ -175,7 +175,7 @@ SkiAssets SkiAssets::load(const std::wstring& path){
     check(r.pos==r.data.size());return a;
 }
 void SkiGame::start(int level,int player){
-    playerNumber=player&1;
+    playerNumber=player&1;pendingSound=-1;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];entities={};placements=l.objects;
     cameraX=l.cameraX;cameraY=0;seconds=l.seconds;remaining=l.quota;needed=l.quota/2;collected=0;
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -194,8 +194,8 @@ void SkiGame::input(){
         if(!p.animDone)return;int pose=s8(p.params[0]);if(pose==direction*2)return;
         pose+=direction;if(!pose)pose+=direction;p.params[0]=static_cast<uint8_t>(pose);
         startAnimation(0,(pose==2||pose==-2)?3:2);
-        if(pose==2){spawn(42,p.x+528,p.y+400);spawn(42,p.x+656,p.y+272);}
-        if(pose==-2){spawn(43,p.x,p.y+400);spawn(43,p.x-144,p.y+272);}
+        if(pose==2){spawn(42,p.x+528,p.y+400);spawn(42,p.x+656,p.y+272);pendingSound=22;}
+        if(pose==-2){spawn(43,p.x,p.y+400);spawn(43,p.x-144,p.y+272);pendingSound=22;}
     };
     if(held&Left)turn(1);if(held&Right)turn(-1);
     if((held&Down)&&p.animDone&&p.params[0]){int pose=s8(p.params[0]);startAnimation(0,(pose==2||pose==-2)?0:1);p.params[0]=0;}
@@ -209,7 +209,7 @@ void SkiGame::movePlayer(){
 }
 void SkiGame::jump(){
     auto& p=entities[0];spawn(44,p.x+128,p.y+256);p.handler=SkiHandler::Jump;p.params[0]=p.params[1]=0;
-    jumpVelocity=-64;setFrame(0,7);
+    jumpVelocity=-64;setFrame(0,7);pendingSound=24;
 }
 void SkiGame::jumpMotion(int i){auto& e=entities[i];if(held&Left)e.move(-16,0);if(held&Right)e.move(16,0);e.move(0,24);}
 void SkiGame::depth(int i){
@@ -219,7 +219,7 @@ void SkiGame::depth(int i){
 void SkiGame::terrain(){
     auto& p=entities[0];if((p.y>>8)>assets.levels[difficulty].rows-3)return;
     if(!jumpContact){int bits=terrainAt(p.x+assets.probe[0],p.y+assets.probe[1]);if(bits&4){jump();return;}if(!(bits&11))return;}
-    setFrame(0,12);beginFinish(0x21);
+    setFrame(0,12);pendingSound=14;beginFinish(0x21);
 }
 void SkiGame::finishLine(){
     if((entities[0].y>>8)!=assets.levels[difficulty].rows)return;
@@ -231,7 +231,7 @@ void SkiGame::collideWith(int other){
     auto& p=entities[0];auto& o=entities[other];if(!o.alive||o.collision==255)return;
     switch(o.collision){
     case 16:case 17:{int sequence=o.collision==16?4:5;money+=o.collision==16?10:5;o.collision=255;remaining=(remaining-1)&255;needed=(needed-1)&255;++collected;startAnimation(other,sequence);break;}
-    case 18:setFrame(0,5);p.x=o.x;p.y=o.y;beginFinish(0x21);break;
+    case 18:setFrame(0,5);p.x=o.x;p.y=o.y;pendingSound=10;beginFinish(0x21);break;
     case 19:money+=100;o.collision=255;spawn(41,o.x,o.y-128);startAnimation(other,6);break;
     case 20:o.alive=false;p.handler=SkiHandler::Crash;p.params[3]=255;returnX=p.x&0xfff0;returnY=p.y&0xfff0;startAnimation(0,10,true);break;
     default:break;
@@ -253,7 +253,7 @@ void SkiGame::update(int i){
         followCamera();e.move(0,jumpVelocity>>1);jumpMotion(i);
         setFrame(i,assets.jumpFrames.at(((jumpVelocity+64)&240)>>4));e.flags&=~128;
         finishLine();tickTimer();jumpVelocity=s8(jumpVelocity+(jumpContact?8:2));
-        if(jumpVelocity>=68){spawn(42,e.x+528,e.y+400);spawn(43,e.x,e.y+400);e.handler=SkiHandler::Play;}break;}
+        if(jumpVelocity>=68){spawn(42,e.x+528,e.y+400);spawn(43,e.x,e.y+400);pendingSound=4;e.handler=SkiHandler::Play;}break;}
     case SkiHandler::Shadow:
         depth(i);if(terrainAt(e.x+assets.probe[0],e.y+assets.probe[1])&11)jumpContact=1;
         if(entities[0].frame!=7&&entities[0].frame!=8){e.alive=false;break;}jumpMotion(i);break;
@@ -273,6 +273,7 @@ void SkiGame::update(int i){
     }
 }
 void SkiGame::step(int buttons){
+    pendingSound=-1;
     if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);

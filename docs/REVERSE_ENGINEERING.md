@@ -458,3 +458,34 @@ These counts do not establish waveform or exact playback equivalence. Native
 synthesis/output, envelopes/modulation, register behavior and event wiring remain
 unimplemented; the executable is still silent. Reports contain extracted data
 and are written only locally (`local/audio-analysis.json` by default).
+
+
+## Native sound driver and output
+
+The extracted runtime commands are semantic records keyed by voice, stream
+position and fixed-duration mode. Calls have three return slots; loop counts,
+note durations and parameter arithmetic retain byte wrapping. The frequency
+lookup preserves all 256 resolved indices: transposed silent notes can read past
+the 97 musical entries in the original. Those resolved numbers are local data,
+not executable instructions or a runtime ROM mapping.
+
+02:404c/4330/4613/47ec update the four music voices; 49de/4cc8 update the two
+effect voices afterward. Pulse envelopes (4165 onward), noise envelopes (48cc),
+instrument hold/release tables, arpeggios, portamento and vibrato have initial
+native translations. 46e3 unconditionally bypasses the wave modulation block;
+the port retains that behavior. Wave volume selects a digital right shift.
+00:3714 resets only specified effect fields. A missing effect root leaves its
+other voice running, and 00:3711 is a single pending slot, not an event FIFO.
+
+Sound generation uses pulse duty counters, a wave sample buffer and the noise
+LFSR, integrating waveform edges over PCM samples before stereo mixing and a
+DMG-style high-pass filter. Hardware basis: [Pan Docs audio details](https://github.com/gbdev/pandocs/blob/master/src/Audio_details.md)
+and [audio registers](https://github.com/gbdev/pandocs/blob/master/src/Audio_Registers.md).
+This does not reproduce every hardware quirk or intra-frame write timestamp;
+precise reference audio comparison remains required. Buffer timing carries the
+fractional 48 kHz sample count at 70,224 / 4,194,304 seconds per game update.
+
+Music IDs come from 0261 (title), 031e (instructions), 09aa/0c1c/0e99/10cc/1312
+(stunts), 0474/052e (success/perfect), 05ac (failure), 0694 (game over) and 32a6
+(name entry). Animation opcode 93 queues effects. Direct stunt effect calls are
+annotated by their associated original routines and use the same pending slot.

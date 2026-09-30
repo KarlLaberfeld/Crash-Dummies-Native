@@ -65,6 +65,7 @@ int runSelfTests(const Assets& assets) {
         int remaining=g.remaining;g.collideWith(0,awning);require(g.remaining==remaining,"Broken awning cannot score twice");
         g.start(0);int balcony=g.spawn(8,0x1400,0x1000,0);g.entities[0].pose=24;g.collideWith(0,balcony);
         require(g.entities[0].vy==-4&&g.money==5&&g.placements[0].state==1,"Neutral balcony break from 01:5ef3");
+        require(g.pendingSound==3,"Balcony break queues original effect 3");
         g.start(0);int target=g.spawn(14,0x1400,0x1000);g.collideWith(0,target);
         require(g.targetReached&&g.pendingResult==0&&g.money==100&&!g.entities[target].alive,"Target flags landing without prematurely choosing result");
         g.start(0);awning=g.spawn(3,0x1400,0x1000,0);

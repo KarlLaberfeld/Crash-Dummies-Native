@@ -50,4 +50,10 @@ class MusicLanguage(unittest.TestCase):
                 self.assertLessEqual(channel['max_stack'],3)
                 self.assertGreater(channel['notes'],0)
 
+    def test_note_must_not_read_the_next_bank(self):
+        rom=bytearray(131072);rom[address(2,0x7fff)]=24
+        with self.assertRaisesRegex(ValueError,'bank end'):
+            analyze_audio.command(rom,0x7fff,0,0)
+        self.assertEqual(analyze_audio.command(rom,0x7fff,0,8),('note',[24,8],0x8000))
+
 if __name__=='__main__':unittest.main()

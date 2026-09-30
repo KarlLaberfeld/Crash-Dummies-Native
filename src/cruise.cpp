@@ -72,7 +72,7 @@ void CruiseGame::animate(int i){
         case 16:spawn(c.c,e.x+c.a,e.y+c.b);break;
         case 17:e.flags|=32;break;
         case 18:break; // Original stage activation event; unused by Cruise graphs.
-        case 19:break; // Sound event retained; native sound driver remains pending.
+        case 19:pendingSound=c.a;break;
         default:++animationFaults;e.animDone=true;return;
         }
     }
@@ -152,10 +152,11 @@ CruiseAssets CruiseAssets::load(const std::wstring& path){
 int CruiseGame::spawn(int kind,int x,int y,int placement){
     if(kind!=49&&kind!=50&&(kind<57||kind>65))return -1;
     for(int j=0;j<16;++j)if(!entities[j].alive){const auto& d=assets.definitions[kind];CruiseEntity e;e.alive=true;e.kind=kind;e.frame=d.frame;
-        e.flags=d.flags;e.collision=d.collision;e.handler=d.handler;e.params=d.params;e.x=x&65535;e.y=y&65535;e.placement=placement;entities[j]=e;return j;}return -1;
+        e.flags=d.flags;e.collision=d.collision;e.handler=d.handler;e.params=d.params;e.x=x&65535;e.y=y&65535;e.placement=placement;entities[j]=e;return j;}
+    return -1;
 }
 void CruiseGame::start(int level,int player){
-    playerNumber=player&1;
+    playerNumber=player&1;pendingSound=-1;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;rewarded.assign(placements.size(),false);
     seconds=assets.levels[difficulty].seconds;cameraX=0;cameraY=1920;
     ticks=secondTicks=money=introTimer=balls=randomState=extraLives=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -183,7 +184,7 @@ int CruiseGame::randomByte(){
 void CruiseGame::introBob(){if(!(introTimer&3))entities[0].move(0,(introTimer&4)?-16:16);}
 void CruiseGame::ignition(){
     introBob();if(introTimer>=128&&!(introTimer&7)){int dx=randomByte()+32;spawn(49,entities[0].x+dx,entities[0].y+192);}
-    introTimer=(introTimer+1)&255;if(introTimer==192)entities[0].handler=CruiseHandler::Fly;
+    introTimer=(introTimer+1)&255;if(introTimer==192){entities[0].handler=CruiseHandler::Fly;pendingSound=8;}
 }
 void CruiseGame::thrustSmoke(){if(!(ticks&15))spawn(49,entities[0].x+192,entities[0].y+128);}
 void CruiseGame::movePlayer(){
@@ -206,8 +207,8 @@ void CruiseGame::collideWith(int other){
     case 21:case 28:case 35:case 37:p.handler=CruiseHandler::Crash;break;
     case 25:break; // Magnet applies attraction in its own update.
     case 30:
-        if(p.params[0]!=12){crashFrame();beginFinish(0x23);}else{resultFlags=0x27;p.handler=CruiseHandler::Success;update(0);}break;
-    case 34:++extraLives;o.alive=false;break;
+        if(p.params[0]!=12){crashFrame();beginFinish(0x23);pendingSound=14;}else{resultFlags=0x27;p.handler=CruiseHandler::Success;update(0);}break;
+    case 34:++extraLives;o.alive=false;pendingSound=9;break;
     case 38:reward(other,50);o.collision=37;o.frame=20;o.handler=CruiseHandler::Animation;startAnimation(other,7,true);break;
     default:break;
     }
@@ -229,7 +230,7 @@ void CruiseGame::update(int i){
         if(!(ticks&3)){if(held&Left)e.params[0]=(e.params[0]-1)&15;if(held&Right)e.params[0]=(e.params[0]+1)&15;}
         tickTimer();if(!seconds){resultFlags=0x11;if(--finishTimer==0)result=resultFlags;break;}
         collide();int bits=0;for(const auto& probe:assets.probes)bits|=terrainAt(e.x+probe[0],e.y+probe[1]);
-        if(bits&3){crashFrame();beginFinish(0x21);}break;}
+        if(bits&3){crashFrame();beginFinish(0x21);pendingSound=14;}break;}
     case CruiseHandler::Smoke:animate(i);startAnimation(i,0);break;
     case CruiseHandler::Ball:{
         if(e.offscreen){--balls;e.alive=false;}
@@ -241,7 +242,7 @@ void CruiseGame::update(int i){
     case CruiseHandler::RocketDown:animate(i);startAnimation(i,4);break;
     case CruiseHandler::RocketWait:
         if(!e.offscreen&&(e.x>>8)==(((entities[0].x>>8)+1)&255)){
-            e.handler=CruiseHandler::RocketFlight;e.collision=21;money+=25;update(i);}break;
+            e.handler=CruiseHandler::RocketFlight;e.collision=21;money+=25;pendingSound=12;update(i);}break;
     case CruiseHandler::RocketFlight:
         if(!(ticks&7))spawn(49,e.x+64,e.y);e.move(0,s8(e.params[0]));break;
     case CruiseHandler::Magnet:{
@@ -269,6 +270,7 @@ void CruiseGame::update(int i){
     }
 }
 void CruiseGame::step(int buttons){
+    pendingSound=-1;
     if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);

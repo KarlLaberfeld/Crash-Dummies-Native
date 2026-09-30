@@ -70,7 +70,7 @@ void BombGame::animate(int i){
         case 17:e.flags|=32;break;
         case 18:break; // Original stage activation event; unused by Bomb graphs.
         case 20:collide();break;
-        case 19:break; // Sound event retained; native sound driver remains pending.
+        case 19:pendingSound=c.a;break;
         default:++animationFaults;e.animDone=true;return;
         }
     }
@@ -117,10 +117,11 @@ int BombGame::spawn(int kind,int x,int y){
     if(kind<45||kind>53||kind==49||kind==50)return -1;
     for(int j=0;j<16;++j)if(!entities[j].alive){const auto& d=assets.definitions[kind-45];BombEntity e;
         e.alive=true;e.kind=kind;e.frame=d.frame;e.flags=d.flags;e.collision=d.collision;e.handler=d.handler;e.params=d.params;
-        e.x=x&65535;e.y=y&65535;entities[j]=e;return j;}return -1;
+        e.x=x&65535;e.y=y&65535;entities[j]=e;return j;}
+    return -1;
 }
 void BombGame::start(int level,int player){
-    playerNumber=player&1;
+    playerNumber=player&1;pendingSound=-1;
     difficulty=std::clamp(level,0,3);entities={};speeds=assets.levels[difficulty].speeds;totals={};spawnPending={};displayTotals={};
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
@@ -165,14 +166,14 @@ void BombGame::emitObjects(){
 }
 int BombGame::lane(int i)const {int x=entities[i].x>>8;return x==1?0:x==4?1:2;}
 void BombGame::speedUp(int i){int& speed=speeds[lane(i)];if(speed&&speed!=127)++speed;}
-void BombGame::explode(int i){entities[i].handler=BombHandler::Animation;startAnimation(i,5,true);}
+void BombGame::explode(int i){pendingSound=14;entities[i].handler=BombHandler::Animation;startAnimation(i,5,true);}
 void BombGame::moveObject(int i){
     auto& e=entities[i];int speed=speeds[lane(i)];e.move(0,s8(speed));
     if((e.y>>8)==4){e.handler=BombHandler::Fall;e.params[0]=static_cast<uint8_t>(speed);fall(i);}
 }
 void BombGame::fall(int i){
     auto& e=entities[i];e.params[0]+=2;e.move(0,s8(e.params[0]));if((e.y>>8)<5)return;
-    int l=lane(i);
+    int l=lane(i);pendingSound=4;
     if(e.frame==23){e.alive=false;totals[l]=(totals[l]+1)%100;money+=5;return;}
     if(e.frame==25||e.frame==31||e.frame==32){entities[0].params[2]=0;e.alive=false;speedUp(i);return;}
     entities[0].params[2]=0;
@@ -186,7 +187,7 @@ void BombGame::collideWith(int other){
         if(action!=1){o.frame=23;o.handler=BombHandler::Disarmed;o.collision=23;money+=10;break;}
         explode(other);speedUp(other);break;
     case 23:if(action==1){explode(other);speedUp(other);}break;
-    case 31:case 32:case 33:if(action==1){money+=o.collision==31?25:o.collision==32?15:10;o.alive=false;}break;
+    case 31:case 32:case 33:if(action==1){pendingSound=9;money+=o.collision==31?25:o.collision==32?15:10;o.alive=false;}break;
     default:break;
     }
 }
@@ -228,6 +229,7 @@ void BombGame::update(int i){
     }
 }
 void BombGame::step(int buttons){
+    pendingSound=-1;
     if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);

@@ -67,7 +67,7 @@ AirAssets AirAssets::load(const std::wstring& path){
 }
 
 void AirGame::start(int level,int player){
-    playerNumber=player&1;
+    playerNumber=player&1;pendingSound=-1;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];
     entities={};placements=l.objects;cameraX=l.cameraX;cameraY=l.cameraY;
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
@@ -134,7 +134,7 @@ void AirGame::animate(int i){
         case 16:spawn(c.c,e.x+c.a,e.y+c.b);break;
         case 17:e.flags|=32;break;
         case 18:break; // Original stage activation event; unused by Air graphs.
-        case 19:break; // Sound event retained; native sound driver remains pending.
+        case 19:pendingSound=c.a;break;
         default:++animationFaults;e.animDone=true;return;
         }
     }
@@ -207,7 +207,7 @@ void AirGame::damage(int amount){
     auto& value=entities[0].params[5];int sum=value+amount;value=static_cast<uint8_t>(sum);
     if(sum>255)beginFinish(0x21);
 }
-void AirGame::impact(){damage(16);speed=speed<0?9:-4;}
+void AirGame::impact(){damage(16);pendingSound=10;speed=speed<0?9:-4;}
 void AirGame::terrainBounce(){
     auto& p=entities[0];
     if(p.params[3]){if((probes[0]|probes[1]|probes[2]|probes[3]|probes[4]|probes[5])&0x43)p.params[3]=0;return;}
@@ -216,7 +216,7 @@ void AirGame::terrainBounce(){
     if(probes[base]&mask)turn=speed<0?1:-1;
     else if(probes[base+1]&mask)turn=speed<0?-1:1;
     else if(probes[base+2]&mask){impact();return;}
-    if(turn){if(tilt+turn<-2||tilt+turn>2)impact();else{tilt+=turn;lastForce=12;}}
+    if(turn){if(tilt+turn<-2||tilt+turn>2)impact();else{tilt+=turn;lastForce=12;pendingSound=12;}}
 }
 void AirGame::walls(){
     if(speed>=0)return;
@@ -234,7 +234,7 @@ void AirGame::finishGate(){
     if(speed>=0)return;
     int flags=(probes[0]|probes[1]|probes[2])&0x18;if(!flags)return;
     auto& p=entities[0];if(flags&8)money+=100;
-    p.handler=AirHandler::FinishMotion;impact();money+=50;setFrame(0,(p.params[5]&128)?11:7);
+    pendingSound=(flags&8)?9:4;p.handler=AirHandler::FinishMotion;impact();money+=50;setFrame(0,(p.params[5]&128)?11:7);
     int quota=assets.levels[difficulty].quota,collected=p.params[1];
     resultFlags=collected==quota?7:collected>quota/2?3:1;
 }
@@ -252,17 +252,17 @@ void AirGame::collideWith(int other){
     if(o.collision!=34&&o.collision!=13&&p.params[2])return;
     switch(o.collision){
     case 7:o.flags&=~4;o.collision=255;o.params[0]=static_cast<uint8_t>((ticks&31)-15);o.params[1]=224;++o.params[2];money+=2;startAnimation(other,2);break;
-    case 8:++p.params[1];o.alive=false;money+=10;break;
+    case 8:++p.params[1];o.alive=false;money+=10;pendingSound=16;break;
     case 9:++o.frame;o.flags=16;o.handler=AirHandler::DebrisLeft;o.collision=255;impact();spawn(31,o.x+256,o.y);money+=10;damage(32);break;
-    case 10:money+=bcd(o.params[0]);o.alive=false;break;
-    case 11:p.params[3]=64;p.params[4]=static_cast<uint8_t>(tilt);o.collision=255;break;
-    case 12:spawn(33,o.x,o.y);o.alive=false;damage(16);break;
-    case 13:if(p.params[2]){++p.params[1];o.alive=false;money+=20;}break;
+    case 10:money+=bcd(o.params[0]);o.alive=false;pendingSound=18;break;
+    case 11:p.params[3]=64;p.params[4]=static_cast<uint8_t>(tilt);o.collision=255;pendingSound=19;break;
+    case 12:spawn(33,o.x,o.y);o.alive=false;damage(16);pendingSound=10;break;
+    case 13:if(p.params[2]){++p.params[1];o.alive=false;money+=20;pendingSound=16;}break;
     case 14:
         if(speed==0){o.params[0]=static_cast<uint8_t>(-s8(o.params[0]));o.flags^=32;}
         else{money=std::max(0,money-50);o.handler=AirHandler::Animation;o.collision=255;startAnimation(other,10,true);}break;
-    case 15:money+=bcd(o.params[0]);o.alive=false;p.params[5]=static_cast<uint8_t>(std::max(0,p.params[5]-32));break;
-    case 34:++livesEarned;o.alive=false;break;
+    case 15:money+=bcd(o.params[0]);o.alive=false;p.params[5]=static_cast<uint8_t>(std::max(0,p.params[5]-32));pendingSound=17;break;
+    case 34:++livesEarned;o.alive=false;pendingSound=9;break;
     default:break;
     }
 }
@@ -300,7 +300,7 @@ void AirGame::update(int i){
     case AirHandler::FinishMotion:
         followCamera();e.move(0,s8(2*rate));if(!(ticks&15))speed=approach(speed,0);
         lookupRate();sampleProbes(tilt);terrainBounce();if(--finishTimer==0)result=resultFlags;
-        if(!(finishTimer&7)){int dx=(randomByte()&15)*16,dy=((randomByte()&15)+16)*16;spawn(33,e.x+dx,e.y+dy);}break;
+        if(!(finishTimer&7)){int dx=(randomByte()&15)*16,dy=((randomByte()&15)+16)*16;spawn(33,e.x+dx,e.y+dy);}if(!(ticks&15))pendingSound=14;break;
     case AirHandler::WallSlide:
         cameraLead=approach(cameraLead,cameraLeadTarget);followCamera();lookupRate();sampleProbes(0);terrainBounce();
         if((probes[0]|probes[1]|probes[2])&0x7d){e.handler=AirHandler::Play;break;}
@@ -315,7 +315,7 @@ void AirGame::update(int i){
         if(!((probes[0]|probes[1]|probes[2]|probes[3]|probes[4]|probes[5])&1)){e.handler=AirHandler::Play;break;}
         e.handler=AirHandler::Exploding;e.params[0]=64;setFrame(i,6);[[fallthrough]];
     case AirHandler::Exploding:
-        if(--e.params[0]){if(!(e.params[0]&7)){int dx=(randomByte()&15)*16,dy=(randomByte()&31)*16;spawn(33,e.x+dx,e.y+dy);}break;}
+        if(--e.params[0]){if(!(e.params[0]&7)){int dx=(randomByte()&15)*16,dy=(randomByte()&31)*16;spawn(33,e.x+dx,e.y+dy);}if(!(e.params[0]&15))pendingSound=14;break;}
         [[fallthrough]];
     case AirHandler::Hide:e.flags|=8;e.handler=AirHandler::Return;setFrame(i,0);break;
     case AirHandler::Return:{
@@ -355,6 +355,7 @@ void AirGame::updateVisibility(){
     }
 }
 void AirGame::step(int buttons){
+    pendingSound=-1;
     if(!started||paused||result)return;
     held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();tickHud();
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;

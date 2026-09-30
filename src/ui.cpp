@@ -45,7 +45,8 @@ std::array<uint8_t,Width*Height> renderMap(const UiTiles& tiles,const UiMap& map
     for(int y=0;y<Height;++y)for(int x=0;x<Width;++x){
         int wy=(y+(y>=96?scroll:0))&255;
         int tile=map[(wy/8)*32+x/8];screen[y*Width+x]=tiles[tile*64+(wy&7)*8+(x&7)];
-    }return screen;
+    }
+    return screen;
 }
 void scoreRows(UiMap& canvas,const std::array<uint8_t,48>& records,int top){
     for(int n=0;n<8;++n){int row=(top+n)*32;canvas[row+3]=n+2;
@@ -101,7 +102,7 @@ void UiFlow::advanceText(){
     while(!textDone){int op=byte();
         if(op<128){if(op&&speed){pendingGlyph=op;delay=speed;return;}put(op);}
         else switch(op){
-        case 0x80:for(int glyph:assets.startPrompt)put(glyph);textDone=true;return;
+        case 0x80:{for(int glyph:assets.startPrompt){put(glyph);}textDone=true;return;}
         case 0x81:anchor=byte();row=byte();position=row*32+anchor;break;
         case 0x82:if(byte()!=0)throw std::runtime_error("Unexpected instruction text layer");break;
         case 0x84:position=(++row)*32+anchor;break;
@@ -156,6 +157,7 @@ void UiFlow::enterHighScore(){
 }
 void UiFlow::queueTitlePage(int next){nextPage=next;titleDirection=-1;}
 void UiFlow::step(int buttons){
+    pendingSound=-1;
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
     case UiPhase::Title:
@@ -192,9 +194,9 @@ void UiFlow::step(int buttons){
         if(!nameMotion){if(buttons&Left)nameMotion=-8;else if(buttons&Right)nameMotion=8;}
         if(pressed&(A|B)){
             int letter=((nameScroll+76)&248)>>3;
-            if(letter==31)continueCampaign();
-            else if(letter==30){if(nameLength)scores[scoreRank*6+--nameLength]=0;}
-            else if(nameLength<3)scores[scoreRank*6+nameLength++]=assets.nameMaps[0][15*32+letter];
+            if(letter==31){pendingSound=9;continueCampaign();}
+            else if(letter==30){if(nameLength){scores[scoreRank*6+--nameLength]=0;pendingSound=4;}}
+            else if(nameLength<3){scores[scoreRank*6+nameLength++]=assets.nameMaps[0][15*32+letter];pendingSound=17;}
         }
         break;}
 

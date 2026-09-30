@@ -26,6 +26,7 @@ def command(rom,pointer,channel,fixed):
     op=rom[offset]
     if op<128:
         size=1 if fixed else 2
+        if pointer+size>0x8000:raise ValueError('Music note crosses bank end')
         return 'note',[op,fixed if fixed else rom[offset+1]],pointer+size
     index=op-128
     if not 0<=index<26:raise ValueError(f'Unknown music command {op:02x} at {pointer:04x}')
@@ -59,7 +60,7 @@ def inspect_track(rom,start,channel):
                         commands=list(commands.values()),references=sorted(references))
         seen[state]=frames
         name,args,nxt=command(rom,pointer,channel,fixed)
-        commands[(pointer,fixed!=0)]=dict(address=pointer,operation=name,args=args)
+        commands[(pointer,fixed!=0)]=dict(address=pointer,fixed=bool(fixed),operation=name,args=args,next_address=nxt)
         pointer=nxt
         if name=='note':frames+=args[1] or 256;notes+=1
         elif name=='fixed_duration':fixed=args[0]

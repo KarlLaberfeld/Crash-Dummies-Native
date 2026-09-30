@@ -344,3 +344,47 @@ window consumed, 15% weekly. No reset credit was invoked. Keep continuation
 active. Next priority: native audio sequencing/synthesis/event wiring, then
 remaining fades/boot, sprite limits/priority and timing/reference validation.
 The executable is still silent and the port remains unfinished.
+
+
+## Native music and sound output - September 30, 17:00 continuation
+
+The five-hour limit reset; the resuming check showed 0% used, weekly 16%.
+No reset credit was invoked. Previous published source:
+`4871891e7837a83ca76757782b785fcbaeac727e` (local `93513cc`),
+tree `55985b62b527475e70d4e39183a71c7c6dfb5449`.
+
+The executable is no longer silent. `tools/extract_audio.py` creates local-only
+`audio.dat` (`TICDAUD1`, 53,021 bytes): 5,335 identified music commands, seven
+instrument envelopes, two wave tables, resolved frequency lookup values and
+song/effect roots. No CPU code or cartridge memory bus is used at runtime.
+`src/audio.*` translates the music data language, six software voices, original
+software envelope/modulation state, and pulse/wave/noise sound generation.
+`src/windows_audio.h` submits stereo PCM through the Windows audio device.
+
+Title, instructions, all five stunts, success/perfect/failure, game-over/ending
+and name-entry music are connected. Animation sound commands and the identified
+landing, impact, break, pickup, jump, explosion and launch calls now queue their
+original effect IDs. Same-update calls preserve the original last-request-wins
+slot. Effects override pulse 1/noise output while underlying music advances.
+Name entry queues add/delete/end effects. Development restart restarts music.
+
+Validation: 23 Python tests; 109 native audio assertions; all five stunt suites,
+UI/campaign tests and the complete 20-win campaign harness pass. Native counts:
+Roof 48,896; Air 449,078; Ski 297,304; Bomb 407,578; Cruise 297,049; campaign 59;
+UI 227. All 14 songs run 12,000 updates without an unknown command; all 26
+effects terminate. Title PCM is nonzero and its fractional sample count matches
+the original frame cadence. A hidden Windows output run over 300 updates reports
+an available device and zero dropped buffers. Generated previews stay local.
+
+This is an initial native sound implementation, NOT verified waveform fidelity.
+Driver writes are currently coalesced at video-update boundaries; exact
+intra-update register timing, low timer bits, hardware envelope quirks and DMG
+wave-RAM behavior have not been matched. Noise attack transition edge cases,
+rare modulation carry behavior, UI fade/audio phase and any remaining effect
+call sites still need comparison. Optional register-list/stereo-motion commands
+are rejected; they do not occur in the identified original streams. No human
+listening/reference capture equivalence is claimed.
+
+The Air animation stall, boot/fades, hidden password page, global event phase,
+OAM limits/priority and broader original-reference checks remain open. Keep the
+continuation automation active; the full port is still unfinished.

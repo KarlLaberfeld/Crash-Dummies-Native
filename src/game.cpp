@@ -58,7 +58,7 @@ Assets Assets::load(const std::wstring& path) {
 }
 
 void Game::start(int level,int player) {
-    playerNumber=player&1;
+    playerNumber=player&1;pendingSound=-1;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;
     const auto& l=assets.levels[difficulty];
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
@@ -126,7 +126,7 @@ void Game::animate(int i) {
         case 16:spawn(c.c,e.x+c.a,e.y+c.b);break;
         case 17:e.flags|=32;break;
         case 18:launched=true;break;
-        case 19:break; // Audio event retained in data; sound driver not ported yet.
+        case 19:pendingSound=c.a;break;
         default:++animationFaults;e.animDone=true;return;
         }
     }
@@ -179,7 +179,7 @@ void Game::land(int i) {
     if((e.y>>8)!=row)return;
     e.y=(row+1)*256;
     if(targetReached){
-        e.frame=29;e.flags&=31;e.animDone=true;e.handler=Handler::Idle;
+        pendingSound=9;e.frame=29;e.flags&=31;e.animDone=true;e.handler=Handler::Idle;
         resultFlags=breaksNeeded>=0?0x81:remaining!=0?0x03:0x07;
         pendingResult=(resultFlags&2)?3:5;
         spawn(4,e.x,e.y);
@@ -187,7 +187,7 @@ void Game::land(int i) {
         spawn(11,e.x,e.y-128); // This piece starts the result countdown at 01:591b.
         spawn(12,e.x+128,e.y-96);spawn(13,e.x-96,e.y-96);
     }else{
-        resultFlags=1;pendingResult=1;
+        pendingSound=4;resultFlags=1;pendingResult=1;
         if(e.pose==28){
             spawn(4,e.x,e.y);e.handler=Handler::Animation;startAnimation(i,19,true);
         }else{
@@ -209,23 +209,23 @@ void Game::collideWith(int player,int other) {
             if(state>=5)break;
             if(p.pose==20||p.pose==28){
                 if(p.pose==20){p.pose=24;startAnimation(player,7,true);}
-                state=5;--remaining;--breaksNeeded;money+=10;
+                state=5;--remaining;--breaksNeeded;money+=10;pendingSound=3;
             }else{
                 if(p.vy<0)break;
                 int old=state++;
-                if(old==4){--remaining;--breaksNeeded;money+=5;}
-                else{p.vy=-((4-old)*4+24)-1;startAnimation(other,13);startAnimation(player,14,true);p.handler=Handler::Bounce;money+=2;}
+                if(old==4){--remaining;--breaksNeeded;money+=5;pendingSound=3;}
+                else{p.vy=-((4-old)*4+24)-1;startAnimation(other,13);startAnimation(player,14,true);p.handler=Handler::Bounce;money+=2;pendingSound=1;}
             }
         }break;
     case 1: // 01:5bdb, balloon ride only in neutral posture.
         if(p.pose!=24)break;
         p.frame=18;p.handler=Handler::BalloonRide;p.vy=0;p.vx=0;p.counter=192;
         p.parent=other;p.offsetX=2;p.offsetY=31;o.collision=255;o.vy=12;
-        decrementGoal(other);cameraLeadTarget=48;money+=5;break;
+        decrementGoal(other);cameraLeadTarget=48;money+=5;pendingSound=7;break;
     case 2: // 01:5ad9, fire extinguishes on contact and costs money.
         if(o.placement>=0&&placements[o.placement].state)break;
         if(o.placement>=0)placements[o.placement].state=1;
-        o.collision=255;startAnimation(other,10,true);spawn(4,o.x,o.y);money=std::max(0,money-10);
+        pendingSound=2;o.collision=255;startAnimation(other,10,true);spawn(4,o.x,o.y);money=std::max(0,money-10);
         if(--fireHits==0){p.handler=Handler::Animation;p.vy=-32;startAnimation(player,11,true);}
         break;
     case 3: // 01:5df4, pole/rope catch requires lateral movement in neutral pose.
@@ -235,13 +235,13 @@ void Game::collideWith(int player,int other) {
             p.frame=19;p.flags=(p.flags&~32)|((held&Right)?32:0);p.vx=(held&Right)?17:-17;
             p.handler=Handler::Rope;p.parent=other;p.offsetX=2;p.offsetY=0;
             startAnimation(player,16,true);startAnimation(other,17,true);money+=25;decrementGoal(other);
-        }else{startAnimation(other,18,true);o.collision=255;decrementGoal(other);money+=10;}
+        }else{startAnimation(other,18,true);o.collision=255;decrementGoal(other);money+=10;pendingSound=5;}
         break;
     case 4: // 01:5dbd, plane hit and temporary stun.
-        o.frame=53;o.handler=Handler::PlaneStun;o.collision=255;money=std::max(0,money-20);break;
+        o.frame=53;o.handler=Handler::PlaneStun;o.collision=255;money=std::max(0,money-20);pendingSound=6;break;
     case 5: // 01:5ef3, solid balcony breaks on first collision.
         if(o.placement>=0&&!placements[o.placement].state){
-            decrementGoal(other);spawn(4,o.x+128,o.y);
+            decrementGoal(other);spawn(4,o.x+128,o.y);pendingSound=3;
             if(p.pose==24){p.vy=-4;money+=5;}
             else{if(p.pose==20){p.pose=24;startAnimation(player,7,true);}money+=10;}
         }break;
@@ -328,7 +328,7 @@ void Game::update(int i) {
         if((held&(A|B))||(!(ticks&1)&&--e.counter==0)){
             e.handler=Handler::Falling;
             if(e.parent>=0){entities[e.parent].handler=Handler::Burst;entities[e.parent].vy=16;}
-            cameraLeadTarget=24;
+            cameraLeadTarget=24;pendingSound=8;
         }break;
     case Handler::Rope:
         animate(i);followCamera(e);followParent(e);
@@ -362,6 +362,7 @@ void Game::update(int i) {
     }
 }
 void Game::step(int buttons) {
+    pendingSound=-1;
     if(!started||paused||result)return;
     held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();
     tickHud();

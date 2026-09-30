@@ -8,17 +8,19 @@ reconstructed original graphics, four difficulty layouts, and a partial native
 translation of the original game logic. The original title/options pages, stage
 instructions, campaign progression, result portraits and ending are connected.
 High-score name entry and pay/time counting are implemented. Remaining presentation
-timing, audio, and full behavioral validation
-remain unfinished.
+timing, exact sound fidelity, and full behavioral validation remain unfinished.
+Native music and sound output now cover the original 14 songs and 26 effects,
+with animation and key gameplay events connected; exact audio equivalence is
+not yet established.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, and `ui.dat` asset packages.
+loads the generated `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, `ui.dat`, and `audio.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, and `ui.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, `ui.dat`, and `audio.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 
@@ -62,6 +64,7 @@ SHA-256 `ef563c4a4b063ea045d71b435dd078c19d0738f85079928803167cee8f34a4ec`.
 python -m unittest discover -s tests -p 'test_*.py'
 ./build/CrashDummies.exe --self-test
 ./build/CrashDummies.exe --capture
+./build/CrashDummies.exe --audio-smoke-test
 ```
 
 Native tests cover selected rules derived from the original, deterministic
@@ -71,7 +74,9 @@ their recorded button streams are replayed from fresh starts. These controllers
 inspect native state and forecast moves. A campaign harness also completes all
 20 stunts with carried timer/random phase and reaches the ending. These are not
 human playthroughs or comparisons against the original. Tests **do not establish full fidelity**
-to the original game. Captured images remain local in the build directory.
+to the original game. Captured images and the generated title-music WAV remain local in the build
+directory. The audio smoke test checks Windows output over 300 updates; its
+device/drop report is saved locally as `audio-output.txt`.
 
 ## Project layout
 
