@@ -3,30 +3,30 @@
 **Work in progress. This is not a complete port.**
 
 This project aims to faithfully reimplement the Game Boy release as a native
-Windows game. The current build contains **Roof Jump**, **Air Bumper**, and **Ski Slope**, each with
+Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, and **Bomb Factory**, each with
 reconstructed original graphics, four difficulty layouts, and a partial native
-translation of the original game logic. The other two stunts, original menus,
+translation of the original game logic. Cruise Missile, original menus,
 audio, and full behavioral validation remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat`, `air.dat`, and `ski.dat` asset packages.
+loads the generated `crash.dat`, `air.dat`, `ski.dat`, and `bomb.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, and `ski.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, and `bomb.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 
 | Key | Action |
 |---|---|
-| F1 / F2 / F3 | Select Roof Jump / Air Bumper / Ski Slope |
+| F1 / F2 / F3 / F4 | Select Roof Jump / Air Bumper / Ski Slope / Bomb Factory |
 | Enter | Start or pause the stunt |
-| Left / Right | Roof: move sideways; Air: tilt |
-| Up / Down | Roof: change falling posture |
-| Z or A | Roof: jump; Air: ascend |
-| X or S | Roof: secondary action; Air: descend |
+| Left / Right | Roof: move sideways; Air: tilt; Ski: steer; Bomb: change belt |
+| Up / Down | Roof: change falling posture; Ski Down: straighten; Bomb: move |
+| Z or A | Roof/Ski: jump; Air: ascend; Bomb: defuse |
+| X or S | Roof: secondary action; Air: descend; Ski: accelerate; Bomb: punch |
 | Esc | Pause / resume |
 | R | Restart the stunt |
 | 1–4 | Select difficulty and restart |
@@ -61,7 +61,7 @@ to the original game. Captured images remain local in the build directory.
 ## Project layout
 
 - `src/`: native game logic, renderer, and Windows application.
-- `tools/extract.py`, `tools/extract_air.py`: reproducible extraction with cartridge hash validation.
+- `tools/extract*.py`: reproducible extraction with cartridge hash validation.
 - `tools/disassemble.py`: static inspection only; does not execute the ROM.
 - `tests/`: synthetic format checks and native rule/replay tests.
 - [Reverse-engineering notes](docs/REVERSE_ENGINEERING.md): documented structures and routines.

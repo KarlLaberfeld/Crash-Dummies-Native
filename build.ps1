@@ -22,8 +22,10 @@ if (-not $SkipExtract) {
     if ($LASTEXITCODE -ne 0) { throw 'Air Bumper extraction failed.' }
     & python tools/extract_ski.py $Rom --out build
     if ($LASTEXITCODE -ne 0) { throw 'Ski Slope extraction failed.' }
+    & python tools/extract_bomb.py $Rom --out build
+    if ($LASTEXITCODE -ne 0) { throw 'Bomb Factory extraction failed.' }
 }
-& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
+& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp src/bomb.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp tests/bomb_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
 if ($Test) {
     & python -m unittest discover -s tests -p 'test_*.py'
@@ -34,6 +36,7 @@ if ($Test) {
         Get-Content self-test.txt
         Get-Content air-test.txt
         Get-Content ski-test.txt
+        Get-Content bomb-test.txt
         if ($process.ExitCode -ne 0) { throw 'Native tests failed.' }
     } finally { Pop-Location }
 }

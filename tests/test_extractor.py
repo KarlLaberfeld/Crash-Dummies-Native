@@ -12,6 +12,7 @@ sys.path.insert(0,str(PROJECT/'tools'))
 import extract
 import extract_air
 import extract_ski
+import extract_bomb
 from disassemble import decode
 
 @contextmanager
@@ -23,7 +24,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -148,6 +149,22 @@ class LocalCartridge(unittest.TestCase):
             self.assertLessEqual(nxt,len(commands))
             if op==10:self.assertTrue(1<=a<=len(commands))
             if op==4:self.assertTrue(0<=a<39)
+
+    def test_bomb_pack_and_explicit_animation_callbacks(self):
+        with scratch_directory() as directory:
+            result=extract_bomb.extract_bomb(self.rom,directory)
+            self.assertEqual([x['quota'] for x in result['levels']],[40,50,60,70])
+            self.assertEqual([x['speeds'] for x in result['levels']],[[3,3,3],[3,4,3],[5,4,3],[5,3,5]])
+            pack=(Path(directory)/'bomb.dat').read_bytes()
+            self.assertEqual(pack[:8],b'TICDBOM1')
+            extract_bomb.extract_bomb(self.rom,directory)
+            self.assertEqual(pack,(Path(directory)/'bomb.dat').read_bytes())
+        with self.assertRaisesRegex(ValueError,'Unported native animation callback'):
+            extract.animation_records(self.rom,extract_bomb.ANIMATIONS,extract_bomb.HANDLERS)
+        roots,commands=extract.animation_records(self.rom,extract_bomb.ANIMATIONS,extract_bomb.HANDLERS,{0x1747:0})
+        self.assertEqual(len(roots),6)
+        callbacks=[a for op,a,b,c,nxt in commands if op==20]
+        self.assertEqual(callbacks,[0]*6)
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

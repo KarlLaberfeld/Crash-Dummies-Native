@@ -272,3 +272,32 @@ Collision handlers 6c45/6cbe collect flags, 6d1a kills, 6d39 awards a bonus,
 and 6df8 starts crash/return. Return coordinates align to pixels to avoid
 overshoot. HUD initialization/update is 00:2fb6/2fe7, with seven gradual fields.
 Native tests derive from these rules but do not establish original equivalence.
+
+
+## Bomb Factory
+
+Initialization `00:0fce` loads 20 dynamic frame transfer descriptors at
+`03:6aed`, 33 frame pointers at `03:6b3d`, static actor tiles `06:51a0`,
+87 background tiles `06:57e0`, and a 7-by-17-tile belt room at `06:5d50`
+repeated at columns 0, 7 and 14. Four six-byte records at `00:10cf` contain
+three initial speeds, a BCD quota (40/50/60/70) and a 32-entry random-object
+lookup table. Six marker actors advance with belt speed; wrapping from y=0x580
+to y=0x180 requests one spawn for that lane on the next player update.
+
+`01:6ef2` handles player input and quota. Left/right are press edges; vertical
+walking and actions wait for a four-update cooldown. `01:6ff0` installs the
+selected lane position only on the sprite-transfer completion handshake.
+Punch/defuse sequences call collision only at their original animation events
+(`0x94`, allowlisted callback `00:1747`). A defuses an armed bomb for 10 points;
+a defused bomb reaching the end adds one to its belt count and five points.
+B explodes a bomb and increases that belt's speed. B removes the three bonus
+objects for 25/15/10; letting those fall increases speed and clears perfect.
+The first missed armed bomb stops its belt and adds half its speed plus one
+to both others. A second lost belt fails; reaching the quota returns 0x43 or
+0x47 depending on the preserved perfect flag. The result delay is 64 updates.
+Armed bombs on a stopped belt enter their original staggered explosion delay.
+
+`tools/extract_bomb.py` produces local `TICDBOM1`; no ROM instructions are
+executed. Native tests cover selected state transitions, bounds, replay
+termination and synthetic success; they do not prove equivalence or a complete
+successful run. Random state currently starts at zero until menus are ported.

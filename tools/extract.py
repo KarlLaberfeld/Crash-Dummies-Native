@@ -22,7 +22,7 @@ ANIMATIONS = [0x560e,0x5674,0x56a9,0x56cb,0x5a27,0x5a40,0x5a61,0x5a7a,
               0x5abd,0x5b46,0x5b2c,0x5b16,0x5b93,0x5cfC,0x5ccf,0x5da9,
               0x5e45,0x5e55,0x5e58,0x57cf,0x585e,0x58aa,0x58f6,0x592c,0x5978]
 
-def animation_records(rom, entries=None, handlers=None):
+def animation_records(rom, entries=None, handlers=None, callbacks=None):
     """Decode only the game's animation language, not SM83 instructions."""
     sizes=[1,1,2,2,2,2,1,1,2,1,3,3,2,2,1,1,6,1,1,2,3]
     records={}
@@ -42,7 +42,10 @@ def animation_records(rom, entries=None, handlers=None):
             a=handlers[struct.unpack_from('<H',rom,pos+1)[0]];next_pos=0
         elif op==16:
             a,b,c=struct.unpack_from('<hhB',rom,pos+1)
-        elif op==20:raise ValueError('Unported native animation callback')
+        elif op==20:
+            callback=struct.unpack_from('<H',rom,pos+1)[0]
+            if callbacks is None or callback not in callbacks:raise ValueError('Unported native animation callback')
+            a=callbacks[callback]
         if op in (0,14):next_pos=0
         records[pos]=(op,a,b,c,next_pos)
         if next_pos:todo.append(next_pos)

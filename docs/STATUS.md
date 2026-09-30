@@ -7,7 +7,7 @@ without CPU emulation or replacing the original rules with a loose remake.
 Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 
 **The overall task is not complete.** The Windows executable is a development
-build of Roof Jump, Air Bumper and Ski Slope, not a complete game.
+build of Roof Jump, Air Bumper, Ski Slope and Bomb Factory, not a complete game.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -20,7 +20,7 @@ conversation remains in German. Continue development until the port is complete.
 - Partial translation of roof physics, animation scripts, and object interactions.
 - Compiler: `.tools/zig-x86_64-windows-0.16.0/zig.exe`.
 - Build: `powershell -NoProfile -ExecutionPolicy Bypass -File ./build.ps1 -Test`.
-- Local outputs: `build/CrashDummies.exe`, `build/crash.dat`, `build/air.dat`, and `build/ski.dat`.
+- Local outputs: `build/CrashDummies.exe`, `build/crash.dat`, `build/air.dat`, and `build/ski.dat`, and `build/bomb.dat`.
 - Source and documentation published to the private GitHub repository.
 - Windows x64 GUI executable verified as PE subsystem 2 (no console window).
 
@@ -92,7 +92,7 @@ Original audio and campaign/life integration are absent.
    reference timing and successful runs beyond the easy steering replay.
 2. Continue roof fidelity checks: animation transfer timing, lifecycle,
    plane/balloon/rope interactions, and landing. See `REVERSE_ENGINEERING.md`.
-3. Reconstruct the other two stunts from their initialization and handlers.
+3. Reconstruct Cruise Missile from its initialization and handlers.
 4. Port original menus, campaign, ending, and music/sound.
 5. Validate full playthroughs and fidelity, then prepare a portable distribution.
 
@@ -133,3 +133,23 @@ Graphics-queue checkpoint on GitHub: 7b262277afb73cd64829db17b12f5f353dce34d1.
 The September 30, 03:06 UTC heartbeat found normal usage available (5% used).
 Development resumed without consuming a reset credit. The previous Ski upload
 had failed before its commit was created; local source and tested build survived.
+
+## Bomb Factory native integration - September 30
+
+Ski checkpoint is published as `db6107646cd89afc79ad8f815501156084cc41d8`.
+Bomb Factory is selectable with F4. The extractor reads the fixed room,
+33 sprite frames, four original spawn distributions, and six animation graphs.
+The native implementation includes three belt speeds, six spawn markers,
+press-edge lane changes, frame-transfer-gated positioning, walking, defusing,
+punching, bomb falling/explosion, bonuses, quota and failure/perfect results.
+Animation callbacks are decoded through an explicit allowlist into native
+collision events; no cartridge instruction execution has been added.
+
+The native Bomb suite passes 407,564 assertions (mostly replay invariants).
+Twelve replays end in belt-loss failure; successful natural play remains
+unverified. Synthetic tests cover success thresholds separately. Frame capture
+shows the original room and actors. Menu-derived random seed/frame phase,
+sprite hardware priorities and exact original timing remain open. Continue
+with Cruise Missile (00:1245, kind 57, 01:73ed), then original menus, campaign,
+ending, audio and fidelity validation. The complete port remains unfinished.
+Keep automatic continuation active.
