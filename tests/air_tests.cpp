@@ -1,8 +1,38 @@
 #include "air.h"
+#include <algorithm>
+#include <memory>
 #include <cstdio>
 #include <stdexcept>
 
 namespace ticd {
+namespace {
+// Test pilot observes native state; only ordinary buttons reach the actual run.
+double airScore(const AirGame& g){
+ auto& p=g.entities[0];if(g.resultFlags&1)return (g.resultFlags&2)?1e9:-1e9;
+ int need=g.assets.levels[g.difficulty].quota/2+1;
+ double value=std::min<int>(p.params[1],need)*20000-p.y*.6-p.params[5]*2;
+ if(p.params[1]<need){double target=1e9;
+  for(auto& e:g.entities)if(e.alive&&e.collision==8&&e.y<=p.y+512){
+   int dx=static_cast<int16_t>(e.x-p.x);dx=((dx+2048)&4095)-2048;
+   target=std::min(target,std::abs(dx)*1.8+std::abs(e.y-p.y)*.3);
+  }
+  if(target<1e9)value-=target*(g.difficulty==3?0:1);
+ }
+ return value;
+}
+struct Node{std::unique_ptr<AirGame> game;int first;double value;};
+int airInput(const AirGame& initial){
+ if(initial.difficulty==0)return A|((initial.ticks/44)%2?Left:Right);
+ std::vector<Node> beam;beam.push_back({std::make_unique<AirGame>(initial),0,0});int inputs[]={A,A|Left,A|Right,0,Left,Right,B,B|Left,B|Right};
+ for(int depth=0;depth<5;++depth){std::vector<Node> next;
+  for(const auto& node:beam)for(int input:inputs){auto g=std::make_unique<AirGame>(*node.game);for(int f=0;f<32&&!g->result;++f)g->step(input);
+   next.push_back({std::move(g),depth?node.first:input,0});next.back().value=airScore(*next.back().game);}
+  std::stable_sort(next.begin(),next.end(),[](const Node&a,const Node&b){return a.value>b.value;});if(next.size()>16)next.resize(16);beam=std::move(next);
+ }return beam[0].first;
+}
+}
+
+int airTestInput(const AirGame& game){return airInput(game);}
 int runAirTests(const AirAssets& assets,const Assets& shared){
     FILE* log=fopen("air-test.txt","w");if(!log)return 2;
     int assertions=0;
@@ -108,6 +138,15 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
                 if(d==0&&pattern==2)require(g.result==3&&g.entities[0].params[1]>7,"Easy steering replay reaches successful quota result");
                 g.render();for(int shade:g.screen)require(shade>=0&&shade<4,"Air frame palette bounds");
             }
+        }
+        for(int d=0;d<4;++d){
+            AirGame run(assets,shared);run.start(d);std::vector<int> inputs;
+            while(run.ticks<10000&&!run.result){int input=airInput(run);int batch=d==0?1:8;for(int j=0;j<batch&&!run.result;++j){inputs.push_back(input);run.step(input);}}
+            require((run.result&3)==3,"Air input-only controller reaches success on every difficulty");
+            AirGame replay(assets,shared);replay.start(d);for(int input:inputs)replay.step(input);
+            require(replay.result==run.result&&replay.money==run.money&&replay.entities[0].params[1]==run.entities[0].params[1],"Air recorded buttons reproduce completed outcome");
+            require(run.animationFaults==0&&replay.animationFaults==0,"Air successful replay uses valid animation graph");
+            fprintf(log,"input-only success difficulty=%d ticks=%d flags=%02x money=%d collected=%d\n",d,run.ticks,run.result,run.money,run.entities[0].params[1]);
         }
         AirGame secondPlayer(assets,shared);secondPlayer.start(0,1);require(secondPlayer.hudValues[0]==0xf8,"air HUD identifies second campaign player");
         fprintf(log,"PASS: %d assertions. Static rule checks and native replays; full original equivalence remains unverified.\n",assertions);

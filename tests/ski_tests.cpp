@@ -32,6 +32,7 @@ int skiInput(const SkiGame& initial){
  }return beam[0].first;
 }
 }
+int skiTestInput(const SkiGame& game){return skiInput(game);}
 int runSkiTests(const SkiAssets& assets,const Assets& shared){
     FILE* log=fopen("ski-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool value,const char* message){++count;if(!value)throw std::runtime_error(message);};

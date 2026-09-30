@@ -20,6 +20,7 @@ int bombInput(const BombGame& game){
     return player.y>goal+8?Up:player.y<goal-8?Down:0;
 }
 }
+int bombTestInput(const BombGame& game){return bombInput(game);}
 int runBombTests(const BombAssets& assets,const Assets& shared){
     FILE* log=fopen("bomb-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool value,const char* message){++count;if(!value)throw std::runtime_error(message);};

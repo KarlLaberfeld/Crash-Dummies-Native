@@ -308,3 +308,39 @@ Next: successful Roof/Air inputs across all difficulties, native music/effects,
 initial boot/fades and exact global frame phase, sprite hardware rules and
 original-reference validation. Audio is still absent; the complete port is
 unfinished. The continuation automation remains active.
+
+
+## All twenty stunt variants and native campaign completion - latest checkpoint
+
+Previous published checkpoint: `7a9c8ff86f7c83f47cd0167d835b9f7b6e34a231`
+(tree `d68a08c0d794d83ad7e856109d83b300fc5f4bb2`, local `03cc4af`).
+Roof and Air now also have successful input-only tests on all four difficulties,
+including fresh recorded-input replay. Roof ticks: 1848/1713/1887/1921;
+Air: 2628/2401/2737/2657. Roof actual result flags also settle successfully
+through the campaign model. Counts: Roof 48,895; Air 449,077; other suites
+unchanged. All 22 Python tests pass; build has no compiler warnings.
+
+New `tests/playthrough_tests.cpp` runs the native campaign through twenty actual
+successful stunts, carrying timer remainder and menu-derived random seeds.
+It reaches Ending with savings 7,875 in 49,007 native global updates; no failed
+attempts. Instructions and result counting are skipped with inputs. The harness
+inserts one UI tick between starting a stage and its first gameplay update, so
+it is a model integration check, not an exact Windows input/timing replay or an
+original-game reference. Pilots inspect state and forecast copies but modify
+actual stunt state only through button inputs. Included in `build.ps1 -Test`.
+
+Open Air issue discovered by broader exploration: normal difficulty with
+`A | (((tick+24)/24)%2 ? Left : Right)` can remain in Animation after a crash
+(frame 5, animDone true, no timer updates). Local reproduction:
+`local/air_stuck.cpp` / `local/air-stuck.txt`. At 01:6307 the ROM installs the
+Animation handler and conditionally starts 6315 via 00:3b84; the native version
+also rejects the follow-up if the preceding animation is still busy. Do not
+force-start or clamp the return position speculatively. Audit original transfer/
+animation timing and confirm a reference trace before changing this behavior.
+The actual hidden return at 6336 compares full coordinates and moves +/-16.
+
+At checkpoint preparation, ordinary usage was allowed with 94% of the five-hour
+window consumed, 15% weekly. No reset credit was invoked. Keep continuation
+active. Next priority: native audio sequencing/synthesis/event wiring, then
+remaining fades/boot, sprite limits/priority and timing/reference validation.
+The executable is still silent and the port remains unfinished.

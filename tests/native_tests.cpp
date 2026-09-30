@@ -1,8 +1,41 @@
 #include "game.h"
+#include "campaign.h"
+#include <algorithm>
+#include <memory>
 #include <cstdio>
 #include <stdexcept>
 
 namespace ticd {
+namespace {
+// Forecast copies choose ordinary buttons; the measured run is never patched.
+double roofScore(const Game& g){
+ auto& p=g.entities[0];if(g.resultFlags&1)return (g.resultFlags&2)?1e9:-1e9;
+ double value=-std::max(-1,g.breaksNeeded)*20000+p.y*.4+g.fireHits*400;
+ if(p.handler==Handler::Burning)return -1e9;
+ double target=1e9;
+ for(auto& e:g.entities)if(e.alive&&e.y>=p.y-256&&(((e.collision==0||e.collision==1||e.collision==3||e.collision==5)&&g.breaksNeeded>=0)||e.collision==6)){
+  if(e.placement>=0&&g.placements[e.placement].state)continue;
+  auto& m=g.assets.frames[e.frame].meta;auto& pm=g.assets.frames[p.frame].meta;
+  int tx=e.x+(static_cast<int8_t>(m[0])+m[2]+m[4]/2)*16,px=p.x+(static_cast<int8_t>(pm[0])+pm[2]+pm[4]/2)*16;
+  target=std::min(target,std::abs(tx-px)*2.+std::max(0,e.y-p.y)*.3);
+ }
+ if(target<1e9)value-=target;
+ if(g.targetReached)value+=50000;
+ return value;
+}
+struct Node{std::unique_ptr<Game> game;int first;double value;};
+int roofInput(const Game& initial){
+ if(!initial.launched)return A;
+ std::vector<Node> beam;beam.push_back({std::make_unique<Game>(initial),0,0});int inputs[]={0,Left,Right,Down,Down|Left,Down|Right,Up,Up|Left,Up|Right,A};
+ for(int depth=0;depth<4;++depth){std::vector<Node> next;
+  for(const auto& node:beam)for(int input:inputs){auto g=std::make_unique<Game>(*node.game);for(int f=0;f<24&&!g->result;++f)g->step(input);
+   next.push_back({std::move(g),depth?node.first:input,0});next.back().value=roofScore(*next.back().game);}
+  std::stable_sort(next.begin(),next.end(),[](const Node&a,const Node&b){return a.value>b.value;});if(next.size()>12)next.resize(12);beam=std::move(next);
+ }return beam[0].first;
+}
+}
+
+int roofTestInput(const Game& game){return roofInput(game);}
 int runSelfTests(const Assets& assets) {
     FILE* log=fopen("self-test.txt","w");if(!log)return 2;
     int assertions=0;
@@ -129,6 +162,17 @@ int runSelfTests(const Assets& assets) {
             Game terminal(assets);terminal.start(0);terminal.resultFlags=pair[1];
             require(terminal.terminalFlags()==0,"Pending Roof result cannot settle a campaign early");
             terminal.result=pair[0];require(terminal.terminalFlags()==pair[1],"Roof development result maps to original terminal flags");
+        }
+        for(int d=0;d<4;++d){
+            Game run(assets);run.start(d);std::vector<int> inputs;
+            while(run.ticks<10000&&!run.result){int input=roofInput(run);for(int j=0;j<8&&!run.result;++j){inputs.push_back(input);run.step(input);}}
+            require((run.terminalFlags()&3)==3,"Roof input-only controller reaches success on every difficulty");
+            Game replay(assets);replay.start(d);for(int input:inputs)replay.step(input);
+            require(replay.terminalFlags()==run.terminalFlags()&&replay.money==run.money&&replay.breaksNeeded==run.breaksNeeded,"Roof recorded buttons reproduce completed outcome");
+            require(run.animationFaults==0&&replay.animationFaults==0,"Roof successful replay uses valid animation graph");
+            Campaign campaign;campaign.start(false,0,d);auto settlement=campaign.settle(run.terminalFlags(),run.money,run.seconds);
+            require(settlement.success&&campaign.players[0].day==1&&campaign.players[0].lives==5,"Actual Roof success advances campaign without losing a life");
+            fprintf(log,"input-only success difficulty=%d ticks=%d flags=%02x money=%d breaks_needed=%d\n",d,run.ticks,run.terminalFlags(),run.money,run.breaksNeeded);
         }
         Game secondPlayer(assets);secondPlayer.start(0,1);require(secondPlayer.hudValues[0]==0xf8,"Roof HUD identifies second campaign player");
         fprintf(log,"PASS: %d assertions. These validate the native implementation, not complete equivalence to the original.\n",assertions);fclose(log);return 0;

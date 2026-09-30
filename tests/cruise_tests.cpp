@@ -48,6 +48,8 @@ int cruiseInput(const CruiseGame& initial){
  }return beam[0].first;
 }
 }
+int cruiseTestInput(const CruiseGame& game){return cruiseInput(game);}
+void prepareCruiseTestInput(const CruiseGame& game){prepare(game);}
 int runCruiseTests(const CruiseAssets& assets,const Assets& shared){
     FILE* log=fopen("cruise-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool value,const char* message){++count;if(!value)throw std::runtime_error(message);};
