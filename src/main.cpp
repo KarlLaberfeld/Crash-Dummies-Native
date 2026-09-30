@@ -26,6 +26,9 @@ std::unique_ptr<ticd::BombAssets> bombAssets;
 std::unique_ptr<ticd::BombGame> bomb;
 std::unique_ptr<ticd::CruiseAssets> cruiseAssets;
 std::unique_ptr<ticd::CruiseGame> cruise;
+std::unique_ptr<ticd::UiAssets> uiAssets;
+std::unique_ptr<ticd::UiFlow> ui;
+bool developerMode=false;
 int selectedStunt=0;
 bool started(){return selectedStunt==4?cruise->started:selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
 bool& paused(){return selectedStunt==4?cruise->paused:selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
@@ -54,7 +57,8 @@ void paint(HWND hwnd,HDC dc) {
     label(dc,24,18,w-48,36,L"THE INCREDIBLE CRASH DUMMIES",RGB(224,238,205),headingFont);
     label(dc,24,57,w-48,26,L"Native Windows-Portierung  /  Entwicklungsstand 0.1",RGB(149,175,162),smallFont);
     if(selectedStunt==4)cruise->render();else if(selectedStunt==3)bomb->render();else if(selectedStunt==2)ski->render();else if(selectedStunt==1)air->render();else game->render();
-    const auto& screen=selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
+    const auto uiScreen=ui->render();
+    const auto& screen=(!developerMode&&ui->phase!=ticd::UiPhase::Playing)?uiScreen:selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
     for(size_t i=0;i<screen.size();++i)pixels[i]=palette[screen[i]&3];
     BITMAPINFO info={};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=160;info.bmiHeader.biHeight=-144;
     info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
@@ -62,11 +66,14 @@ void paint(HWND hwnd,HDC dc) {
     StretchDIBits(dc,gx,gy,160*scale,144*scale,0,0,160,144,pixels,&info,DIB_RGB_COLORS,SRCCOPY);
     const wchar_t* difficulties[]={L"LEICHT",L"NORMAL",L"SCHWER",L"SEHR SCHWER"};
     std::wstring status=selectedStunt==4?L"CRUISE MISSILE   /   ":selectedStunt==3?L"BOMB FACTORY   /   ":selectedStunt==2?L"SKI SLOPE   /   ":selectedStunt==1?L"AIR BUMPER   /   ":L"ROOF JUMP   /   ";status+=difficulties[difficulty()];
+    if(!developerMode&&ui->phase==ticd::UiPhase::Title)status=L"THE INCREDIBLE CRASH DUMMIES";
     label(dc,gx,gy+144*scale+16,600,28,status.c_str(),RGB(224,238,205),smallFont);
     if(side){
         int sx=w-side;
         label(dc,sx,102,240,30,selectedStunt==4?L"CRUISE MISSILE":selectedStunt==3?L"BOMB FACTORY":selectedStunt==2?L"SKI SLOPE":selectedStunt==1?L"AIR BUMPER":L"ROOF JUMP",RGB(224,238,205),headingFont);
-        label(dc,sx,148,232,162,selectedStunt==4?
+        label(dc,sx,148,232,162,!developerMode&&ui->phase!=ticd::UiPhase::Playing?
+            L"Enter                 Start / Weiter\nTab                     Select / Optionen\nZ / X                  A / B\nPfeiltasten       Auswahl\nF1 - F5             Stunt-Testmodus\nF6                       Zur Titelseite":!developerMode?
+            L"Pfeiltasten        Bewegen\nZ oder A             A-Taste\nX oder S             B-Taste\nEnter / Esc        Pause\nF1 - F5                Stunt-Testmodus\nF6                          Zur Titelseite":selectedStunt==4?
             L"Links / rechts  Drehen\nZ oder A          Schub\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":selectedStunt==3?
             L"Links / rechts  Band waehlen\nOben / unten  Bewegen\nZ oder A          Entschaerfen\nX oder S          Schlagen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==2?
             L"Links / rechts  Lenken\nPfeil unten      Geradeaus\nZ oder A          Springen\nX oder S          Beschleunigen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==1?
@@ -74,7 +81,7 @@ void paint(HWND hwnd,HDC dc) {
             L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F5         Stunt waehlen",RGB(193,207,197),bodyFont);
         label(dc,sx,322,232,32,L"ORIGINALDATEN",RGB(224,238,205),smallFont);
         label(dc,sx,353,232,96,L"Grafiken und Objektlisten stammen aus deiner ROM. Die Spiellogik wird als C++ direkt unter Windows ausgefuehrt.",RGB(149,175,162),bodyFont);
-        label(dc,sx,465,232,96,L"Noch unvollstaendig: Originalmenues, Spielablauf, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
+        label(dc,sx,465,232,96,L"Noch unvollstaendig: Ergebnisanimation, Bestenliste, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
     }
 }
 LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -85,16 +92,19 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         paint(hwnd,back);BitBlt(dc,0,0,r.right,r.bottom,back,0,0,SRCCOPY);SelectObject(back,old);DeleteObject(bitmap);DeleteDC(back);EndPaint(hwnd,&ps);return 0;}
     case WM_SIZE:InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_GETMINMAXINFO:{auto* m=reinterpret_cast<MINMAXINFO*>(lp);m->ptMinTrackSize={420,450};return 0;}
-    case WM_KILLFOCUS:std::fill(std::begin(keys),std::end(keys),false);if(started())paused()=true;return 0;
+    case WM_KILLFOCUS:std::fill(std::begin(keys),std::end(keys),false);if(started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=true;return 0;
     case WM_KEYUP:if(wp<256)keys[wp]=false;return 0;
     case WM_KEYDOWN:
         if(wp<256)keys[wp]=true;
         if(lp&(1LL<<30))return 0;
-        if(wp==VK_RETURN){if(!started()||result())restart();else paused()=!paused();}
-        if(wp=='R')restart();
-        if(wp==VK_ESCAPE&&started())paused()=!paused();
-        if(wp>='1'&&wp<='4'){difficulty()=static_cast<int>(wp-'1');if(started())restart();}
-        if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
+        if(developerMode){
+            if(wp==VK_RETURN){if(!started()||result())restart();else paused()=!paused();}
+            if(wp=='R')restart();
+            if(wp>='1'&&wp<='4'){difficulty()=static_cast<int>(wp-'1');if(started())restart();}
+        }else if(wp==VK_RETURN&&ui->phase==ticd::UiPhase::Playing)paused()=!paused();
+        if(wp==VK_ESCAPE&&started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=!paused();
+        if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;developerMode=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
+        if(wp==VK_F6){developerMode=false;ui=std::make_unique<ticd::UiFlow>(*uiAssets);std::fill(std::begin(keys),std::end(keys),false);}
         InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_DESTROY:PostQuitMessage(0);return 0;
     }
@@ -106,7 +116,8 @@ int buttons(){return (keys[VK_RIGHT]?ticd::Right:0)|(keys[VK_LEFT]?ticd::Left:0)
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
     try {
         auto directory=appDirectory();
-        auto uiAssets=ticd::UiAssets::load(directory+L"ui.dat");
+        uiAssets=std::make_unique<ticd::UiAssets>(ticd::UiAssets::load(directory+L"ui.dat"));
+        ui=std::make_unique<ticd::UiFlow>(*uiAssets);
         assets=std::make_unique<ticd::Assets>(ticd::Assets::load(directory+L"crash.dat"));
         game=std::make_unique<ticd::Game>(*assets);
         airAssets=std::make_unique<ticd::AirAssets>(ticd::AirAssets::load(directory+L"air.dat"));
@@ -122,9 +133,19 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke-test";
         LocalFree(argv);
-        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult;}
+        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult;}
         if(capture){
-            for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(uiAssets,page,false,0));
+            for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(*uiAssets,page,false,0));
+            for(int stage=0;stage<5;++stage){
+                ticd::UiFlow sample(*uiAssets);sample.campaign.start(false,stage);sample.beginInstructions();
+                for(int i=0;i<2500&&!sample.textDone;++i)sample.step(0);
+                ticd::saveBmp(directory+L"instructions-"+std::to_wstring(stage)+L".bmp",sample.render());
+                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);
+                ticd::saveBmp(directory+L"result-"+std::to_wstring(stage)+L".bmp",sample.render());
+            }
+            ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);
+            ending.finishStunt(7,123,45);ending.step(0);ending.step(ticd::A);
+            ticd::saveBmp(directory+L"ending.bmp",ending.render());
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             game->start(0);for(int i=0;i<950;++i)game->step(i>400?ticd::A:0);
             game->render();ticd::saveBmp(directory+L"roof-jump.bmp",game->screen);
@@ -153,7 +174,21 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             if(!running)break;
             auto now=Clock::now();accumulator+=std::min(0.1,std::chrono::duration<double>(now-previousTime).count());previousTime=now;
             bool changed=false;
-            while(accumulator>=step){if(selectedStunt==4)cruise->step(buttons());else if(selectedStunt==3)bomb->step(buttons());else if(selectedStunt==2)ski->step(buttons());else if(selectedStunt==1)air->step(buttons());else game->step(buttons());accumulator-=step;changed=true;if(smoke&&++smokeTicks==10)DestroyWindow(window);}
+            while(accumulator>=step){
+                int input=buttons();
+                if(!developerMode){auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
+                    if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();}}
+                if(developerMode||ui->phase==ticd::UiPhase::Playing){
+                    if(selectedStunt==4)cruise->step(input);else if(selectedStunt==3)bomb->step(input);else if(selectedStunt==2)ski->step(input);else if(selectedStunt==1)air->step(input);else game->step(input);
+                    if(!developerMode&&(result()&1)){
+                        int pay=selectedStunt==4?cruise->money:selectedStunt==3?bomb->money:selectedStunt==2?ski->money:selectedStunt==1?air->money:game->money;
+                        int seconds=selectedStunt==4?cruise->seconds:selectedStunt==3?0:selectedStunt==2?ski->seconds:selectedStunt==1?air->seconds:game->seconds;
+                        int lives=selectedStunt==4?cruise->extraLives:selectedStunt==1?air->livesEarned:0;
+                        ui->finishStunt(result(),pay,seconds,lives,selectedStunt==2?ski->collected:0);
+                    }
+                }
+                accumulator-=step;changed=true;if(smoke&&++smokeTicks==10)DestroyWindow(window);
+            }
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
         }

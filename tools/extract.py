@@ -113,7 +113,11 @@ def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
                     dx=x+px+48+signed(header[0])+header[6]
                     dy=y+py+48+signed(header[1])+header[7]
                     if value and 0<=dx<96 and 0<=dy<96:
-                        pixels[dy*96+dx]=value
+                        # 00:210b / 20fa: BGP=e4, OBP0=c4, OBP1=e0.
+                        # Nonzero sprite indices remain opaque even when the
+                        # selected object palette maps them to background white.
+                        palette=0xe0 if flags&16 else 0xc4
+                        pixels[dy*96+dx]=(palette>>(value*2))&3
         result.append((header,pixels))
     return result
 

@@ -1,4 +1,4 @@
-# Project status â€” September 29, 2026
+# Project status â€” September 30, 2026
 
 ## Objective
 
@@ -93,7 +93,7 @@ Original audio and campaign/life integration are absent.
 2. Continue roof fidelity checks: animation transfer timing, lifecycle,
    plane/balloon/rope interactions, and landing. See `REVERSE_ENGINEERING.md`.
 3. Validate Ski Slope, Bomb Factory and Cruise Missile with successful natural playthroughs.
-4. Port original menus, campaign, ending, and music/sound.
+4. Complete presentation timing, high-score entry, and original music/sound.
 5. Validate full playthroughs and fidelity, then prepare a portable distribution.
 
 ## Automatic continuation
@@ -198,3 +198,37 @@ flow rather than inventing a replacement menu. Title transition scrolling and
 raster phase remain unported. Then high-score entry, ending and native audio.
 Continue natural-play and frame/timing fidelity validation; the port is unfinished.
 All source/docs stay English; original data stay excluded. Automation stays active.
+
+Latest source checkpoint: `46b6218383f87aed9dd0f5b19fd48652b4b12b6e`.
+A final palette audit found that composite sprites still used raw color indices.
+They now apply the original OBP0=0xc4 / OBP1=0xe0 mappings (00:210b/20fa),
+including opaque white pixels; title pointer uses OBP0. Fade phases and OAM
+capacity/priority remain open. Regenerate all local packages when rebuilding.
+
+
+## Interactive campaign presentation - September 30 continuation
+
+The default application now opens the original title page. Tab maps Select;
+Enter maps Start. Original options select one or two players. Instructions,
+all five stunts, result screens, alternating players and the ending are wired
+through the native campaign model. F1-F5 retains standalone stunt testing;
+F6 abandons that session/campaign and returns to title. R and 1-4 are limited
+to the development mode. `ui.dat` now requires `TICDUI02`; rebuild all assets.
+
+Original instruction portraits, headers, text, player-name and quota macros,
+five-frame glyph delay and 1/2/3/1/1 two-frame scroll steps are reconstructed.
+Result portraits and sixteen success/failure message variants come from the
+ROM. Ending graphics/text are extracted locally. Source includes no ROM data.
+The sprite-palette correction from the preceding checkpoint is included.
+
+Validation: 18 Python tests and all prior stunt suites pass, alongside 59
+campaign assertions and 206 UI assertions. UI tests cover both players, all
+forty instruction variants, input edges, exact text/scroll waits, synthetic
+20-stunt progression and five-life failure. Hidden Windows startup and native
+capture succeed; instruction/result/ending images were inspected locally.
+These are not successful natural full-game runs or proof of original fidelity.
+
+Remaining: result money-count animation (currently immediate), high-score name
+entry, original page transitions/fades and frame phase, audio, global random
+seed/timer continuity, hardware sprite limits/priority and natural playthrough
+validation. The full port remains unfinished; keep the continuation active.

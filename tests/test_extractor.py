@@ -190,11 +190,11 @@ class LocalCartridge(unittest.TestCase):
         with scratch_directory() as directory:
             extract_ui.extract_ui(self.rom,directory)
             pack=(Path(directory)/'ui.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDUI01')
-            self.assertEqual(len(pack),8+16384+23040+6144+48)
+            self.assertEqual(pack[:8],b'TICDUI02')
+            self.assertGreater(len(pack),250000)
             maps=pack[39432:45576]
             self.assertEqual(maps[14*32:14*32+20],self.rom[0x1db0e:0x1db0e+20])
-            self.assertEqual(pack[-48:],self.rom[0xa3:0xd3])
+            self.assertEqual(pack[45576:45624],self.rom[0xa3:0xd3])
             options=maps[5*1024:6*1024]
             self.assertEqual(options[18*32+3:18*32+6],bytes([25,24,15])) # ONE
             extract_ui.extract_ui(self.rom,directory)
@@ -228,7 +228,7 @@ class LocalCartridge(unittest.TestCase):
                 for col in range(8):
                     bit=col if flags&32 else 7-col
                     shade=((low>>bit)&1)+2*((high>>bit)&1)
-                    if shade:expected[origin_x-8+col,origin_y-16+row]=shade
+                    if shade:expected[origin_x-8+col,origin_y-16+row]=([0,0,2,3] if flags&16 else [0,1,0,3])[shade]
         actual={(x-48,y-48):pixels[y*96+x] for y in range(96) for x in range(96) if pixels[y*96+x]!=255}
         self.assertEqual(actual,expected)
 

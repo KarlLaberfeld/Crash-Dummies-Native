@@ -350,7 +350,7 @@ savings, twice when bit 2 is set. Bit 6 suppresses time bonus. 00:0500 advances
 through five days, then four difficulty levels. Players alternate at 00:0523;
 inactive players are skipped. Completing difficulty four clears that player's
 lives and shows the ending before returning to the remaining player.
-`Campaign` translates these rules and is tested independently, pending GUI wiring.
+`Campaign` translates these rules and is now wired to `UiFlow` and the Windows application.
 
 Title scripts: 29ad,29bb,2a97,2a1b,2ade; options 2750. Durations at 2735 are
 480/480/960/480/960 updates. A/B advances a title page; Select opens options;
@@ -366,3 +366,29 @@ Result portraits load 07:72d2/76d2/7ad2 into tile 0x74; layout rectangles are
 success/failure text at 00:33ba/33c4. Text-language macros 89/8b insert player
 name/number, 8a inserts Ski quota and 8c Bomb quota. This is a distinct layout
 language, not CPU code. Unknown commands fail extraction.
+
+
+## Native instruction and campaign presentation
+
+`TICDUI02` retains five instruction atlases/maps/text streams, forty player/day/
+difficulty headers, three result portrait atlases, sixteen result text maps,
+result labels and both player variants of the ending. All content remains local.
+Instruction tile ranges begin at 0x34; graphics are at 07:5f02/62d2/66d2/6ad2/6ed2.
+Portrait layouts/text scripts are 06b7/06c5, 09fd/0a0b, 0c6d/0c7b,
+0eea/0ef8 and 110b/1119. The original map pitch is 32 tiles.
+
+Text routine 2154 waits five frames before each non-space glyph. Operation 85
+(2219) scrolls by 1,2,3,1,1 pixels with two frame waits, then advances the text
+row. The native renderer keeps screen lines 0-95 fixed and applies this scroll
+to lines 96-143 (2556). Player names (2271/2277), quota macros (2296/22bb),
+and the final start prompt (0332) are extracted rather than transcribed.
+Start can skip instruction typing. The fixed headers and both name variants
+are covered across every difficulty and day by native tests.
+
+Failure text dispatch: Roof prioritizes bit 4, then bit 5, then bit 7; Air and
+Cruise select by bit 4; Ski by bit 5; Bomb has one failure message. Result bit 2
+selects the perfect portrait. Ending tiles are 06:6667 (44 tiles), layout/text
+05e9 with its rectangle at 01:5526. The current native result screens show the
+settled amounts immediately. Count-up, palette fades, raster/page transitions,
+high-score name entry and exact phase timing still need implementation. The
+ending is exercised through synthetic campaign success, not natural play.

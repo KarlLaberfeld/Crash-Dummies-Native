@@ -7,7 +7,7 @@ from extract import address, read_rom, tile, title_image
 
 TITLE_SCRIPTS=[0x29ad,0x29bb,0x2a97,0x2a1b,0x2ade,0x2750]
 
-def menu_map(rom,script,initial=None):
+def menu_map(rom,script,initial=None,player=0):
     """Decode the identified static subset of the original text/layout language.
 
     Unknown operations fail rather than interpreting SM83 code or guessing.
@@ -32,6 +32,9 @@ def menu_map(rom,script,initial=None):
                 begin=position+y*32
                 if not 0<=begin<=1024-width:raise ValueError('Menu rectangle outside map')
                 result[begin:begin+width]=rom[source+y*width:source+(y+1)*width]
+        elif op==0x8b:
+            word=rom[0x22dc if player==0 else 0x22e0:0x22df if player==0 else 0x22e3]
+            result[position:position+3]=word;position+=3
         elif op==0x84:
             row+=1;position=row*32+anchor
         else:raise ValueError(f'Unported menu operation {op:02x} at {script-1:04x}')
@@ -48,6 +51,31 @@ def high_score_rows(canvas,records):
         canvas[row*32+14]=0x2c
         canvas[row*32+15:row*32+17]=bytes([digits[4]+1,digits[5]+1])
 
+INSTRUCTIONS=[(0x5f02,61,0x06b7,0x06c5),(0x62d2,64,0x09fd,0x0a0b),
+              (0x66d2,64,0x0c6d,0x0c7b),(0x6ad2,64,0x0eea,0x0ef8),
+              (0x6ed2,64,0x110b,0x1119)]
+# Native result dispatch mirrors explicit branches at 0797/0ac8/0d34/11ce.
+RESULT_SCRIPTS=[0x0756,0x0a88,0x0d08,0x0f79,0x1190,
+                0x07a9,0x0806,0x0847,0x087e,0x0ad0,0x0b0f,
+                0x0d3c,0x0da1,0x0f93,0x11d6,0x1203]
+
+def text_stream(rom,start):
+    """Copy only the recognized instruction text language, never machine code."""
+    p=start
+    for _ in range(4096):
+        op=rom[p];p+=1
+        if op==0x80:return bytes(rom[start:p])
+        if op<128 or op in (0x84,0x85,0x89,0x8a,0x8b,0x8c):continue
+        if op==0x81:p+=2
+        elif op in (0x82,0x86,0x87):p+=1
+        else:raise ValueError(f'Unported instruction text operation {op:02x}')
+    raise ValueError('Unterminated instruction text')
+
+def overlay_tiles(rom,atlas,bank,pointer,start,count):
+    result=bytearray(atlas)
+    for i in range(count):result[(start+i)*64:(start+i+1)*64]=tile(rom,address(bank,pointer)+i*16)
+    return result
+
 def extract_ui(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     atlas=b''.join(tile(rom,address(3,0x4000)+i*16) for i in range(256))
@@ -57,12 +85,41 @@ def extract_ui(rom,output):
         for dy in range(h):initial[(y+dy)*32+x:(y+dy)*32+x+w]=rom[source+dy*w:source+(dy+1)*w]
     maps=[menu_map(rom,p,initial) for p in TITLE_SCRIPTS]
     records=rom[0xa3:0xd3];high_score_rows(maps[2],records)
-    payload=bytearray(b'TICDUI01')+atlas+title_image(rom)
+    payload=bytearray(b'TICDUI02')+atlas+title_image(rom)
     for canvas in maps:payload+=canvas
     payload+=records
+    for gfx,count,layout,text in INSTRUCTIONS:
+        payload+=overlay_tiles(rom,atlas,7,gfx,52,count)
+        payload+=menu_map(rom,layout)
+        stream=text_stream(rom,text)
+        payload+=struct.pack('<H',len(stream))+stream
+    # Header maps: player, day, difficulty. Lives are inserted at runtime.
+    for player in range(2):
+        for day in range(5):
+            for difficulty in range(4):
+                canvas=menu_map(rom,0x02cf,player=player)
+                canvas=menu_map(rom,0x02f3,canvas)
+                word=text_stream(rom,[0x263d,0x2643,0x2649,0x2651,0x2658][day])[:-1]
+                canvas[36:36+len(word)]=word
+                canvas=menu_map(rom,0x0303,canvas)
+                word=text_stream(rom,[0x266d,0x2674,0x2679,0x2680][difficulty])[:-1]
+                canvas[75:75+len(word)]=word
+                payload+=canvas
+    for gfx in (0x72d2,0x76d2,0x7ad2):payload+=overlay_tiles(rom,atlas,7,gfx,116,64)
+    for index,script in enumerate(RESULT_SCRIPTS):
+        canvas=menu_map(rom,script)
+        # All three portrait maps use the same tile positions; selected separately.
+        payload+=canvas
+    for script in (0x0589,0x0548,0x0568,0x04aa,0x13b3,0x13d3,0x0493,0x065c):
+        payload+=menu_map(rom,script)
+    payload+=overlay_tiles(rom,atlas,6,0x6667,52,44)
+    for player in range(2):payload+=menu_map(rom,0x05e9,player=player)
+    # Macro expansions and final prompt remain ROM-derived local data.
+    for start,length in [(0x2271,5),(0x2277,5),(0x2296,12),(0x22bb,12),(0x0332,20)]:payload+=rom[start:start+length]
     (output/'ui.dat').write_bytes(payload)
-    manifest=dict(format='TICDUI01',title_pages=len(maps),page_durations=[480,480,960,480,960],high_scores=8)
-    (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    manifest=dict(format='TICDUI02',title_pages=len(maps),page_durations=[480,480,960,480,960],
+                  high_scores=8,instructions=5,result_texts=16,ending_players=2)
+    (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest
 
 if __name__=='__main__':

@@ -24,7 +24,7 @@ int runCampaignTests(){
         c.start(true,4,3);c.settle(3,0,0);require(c.next()&&c.current==1&&!c.players[1].completed,"Second player continues after first player's ending");
         c.start(false);c.players[0].savings=999990;c.settle(3,20,0);require(c.players[0].savings==10,"Savings preserve six-digit BCD wrap");
         bool rejected=false;try{c.settle(3,1,0);}catch(const std::logic_error&){rejected=true;}require(rejected,"Result cannot be settled twice");
-        fprintf(log,"PASS: %d campaign rule assertions. Presentation integration remains pending.\n",count);fclose(log);return 0;
+        fprintf(log,"PASS: %d campaign rule assertions. UI integration is tested separately.\n",count);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",count,e.what());fclose(log);return 1;}
 }
 }

@@ -5,8 +5,10 @@
 This project aims to faithfully reimplement the Game Boy release as a native
 Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, **Bomb Factory**, and **Cruise Missile**, each with
 reconstructed original graphics, four difficulty layouts, and a partial native
-translation of the original game logic. Original menus, campaign progression,
-audio, and full behavioral validation remain unfinished.
+translation of the original game logic. The original title/options pages, stage
+instructions, campaign progression, result portraits and ending are connected.
+Presentation timing, high-score entry, audio, and full behavioral validation
+remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
@@ -21,17 +23,22 @@ for extraction and compilation.
 
 | Key | Action |
 |---|---|
-| F1 / F2 / F3 / F4 / F5 | Select Roof Jump / Air Bumper / Ski Slope / Bomb Factory / Cruise Missile |
-| Enter | Start or pause the stunt |
+| Tab | Original Select button: open options or toggle players |
+| F1 / F2 / F3 / F4 / F5 | Development mode: select Roof / Air / Ski / Bomb / Cruise |
+| F6 | Return to the title page (abandons the current campaign) |
+| Enter | Start campaign, skip instructions, continue results, or pause gameplay |
 | Left / Right | Roof: move sideways; Air: tilt; Ski: steer; Bomb: change belt; Cruise: rotate |
 | Up / Down | Roof: change falling posture; Ski Down: straighten; Bomb: move |
 | Z or A | Roof/Ski: jump; Air: ascend; Bomb: defuse; Cruise: thrust |
 | X or S | Roof: secondary action; Air: descend; Ski: accelerate; Bomb: punch |
 | Esc | Pause / resume |
-| R | Restart the stunt |
-| 1–4 | Select difficulty and restart |
+| R | Restart the stunt in development mode |
+| 1–4 | Select difficulty and restart in development mode |
 
-Roof Jump begins with the reconstructed camera flyover. Losing window focus
+The application starts on the original title page. Press Tab for one/two-player
+options; Z/X advances title pages. Results alternate between active players.
+Result amounts currently settle immediately; the original count-up sequence and
+high-score name entry are not implemented yet. Roof Jump begins with the reconstructed camera flyover. Losing window focus
 pauses the game. The development window currently uses German labels.
 
 ## Building
