@@ -12,6 +12,8 @@
 #include "ski.h"
 #include "bomb.h"
 #include "cruise.h"
+#include "campaign.h"
+#include "ui.h"
 
 namespace {
 std::unique_ptr<ticd::Assets> assets;
@@ -104,6 +106,7 @@ int buttons(){return (keys[VK_RIGHT]?ticd::Right:0)|(keys[VK_LEFT]?ticd::Left:0)
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
     try {
         auto directory=appDirectory();
+        auto uiAssets=ticd::UiAssets::load(directory+L"ui.dat");
         assets=std::make_unique<ticd::Assets>(ticd::Assets::load(directory+L"crash.dat"));
         game=std::make_unique<ticd::Game>(*assets);
         airAssets=std::make_unique<ticd::AirAssets>(ticd::AirAssets::load(directory+L"air.dat"));
@@ -119,8 +122,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke-test";
         LocalFree(argv);
-        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult;}
+        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult;}
         if(capture){
+            for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(uiAssets,page,false,0));
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             game->start(0);for(int i=0;i<950;++i)game->step(i>400?ticd::A:0);
             game->render();ticd::saveBmp(directory+L"roof-jump.bmp",game->screen);

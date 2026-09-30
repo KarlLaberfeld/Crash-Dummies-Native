@@ -26,8 +26,10 @@ if (-not $SkipExtract) {
     if ($LASTEXITCODE -ne 0) { throw 'Bomb Factory extraction failed.' }
     & python tools/extract_cruise.py $Rom --out build
     if ($LASTEXITCODE -ne 0) { throw 'Cruise Missile extraction failed.' }
+    & python tools/extract_ui.py $Rom --out build
+    if ($LASTEXITCODE -ne 0) { throw 'UI extraction failed.' }
 }
-& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp src/bomb.cpp src/cruise.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp tests/bomb_tests.cpp tests/cruise_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
+& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp src/bomb.cpp src/cruise.cpp src/ui.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp tests/bomb_tests.cpp tests/cruise_tests.cpp tests/campaign_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
 if ($Test) {
     & python -m unittest discover -s tests -p 'test_*.py'
@@ -40,6 +42,7 @@ if ($Test) {
         Get-Content ski-test.txt
         Get-Content bomb-test.txt
         Get-Content cruise-test.txt
+        Get-Content campaign-test.txt
         if ($process.ExitCode -ne 0) { throw 'Native tests failed.' }
     } finally { Pop-Location }
 }

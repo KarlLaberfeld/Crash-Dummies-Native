@@ -11,11 +11,11 @@ audio, and full behavioral validation remain unfinished.
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, and `cruise.dat` asset packages.
+loads the generated `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, and `ui.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, and `cruise.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, `cruise.dat`, and `ui.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 

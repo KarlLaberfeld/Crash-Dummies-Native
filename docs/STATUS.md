@@ -173,3 +173,28 @@ natural playthroughs and timing. Cruise currently returns blank terrain outside
 the declared map instead of interpreting adjacent original RAM. Shared remaining
 differences include sprite hardware limits, palette phase, menu-seeded randomness
 and the development selector. Keep the automatic continuation active.
+
+## Collision audit, campaign rules and title assets - latest work
+
+Cruise checkpoint published: `4e265f254a6e9aee26d0f1fbb3f30f51aad45f84`.
+All five stunts now share the original byte-wrapped, unsigned collision rectangle
+comparisons (00:1747/1834); quantization and asymmetric edge contact have targeted
+regressions. Native Roof now passes 48,868 assertions; other stunt totals are
+unchanged. All 18 Python tests and 59 new campaign-rule assertions pass.
+
+`src/campaign.h` reconstructs the outer loop, but is NOT connected to interactive
+play yet: five starting lives, independent alternating players, failed-attempt
+pay discarded, successful pay and time transferred into six-digit savings,
+perfect doubling, Bomb time-bonus suppression, five days per difficulty, and
+ending after the twentieth successful stunt. Extra lives apply on failed runs too.
+`tools/extract_ui.py` and `src/ui.*` reconstruct the six stationary title pages,
+original font, default high scores and options pointer. `ui.dat` stays local.
+`--capture` now writes title-0.bmp through title-5.bmp using the native renderer.
+The interactive executable STILL uses its development stunt selector.
+
+Next integration work: connect campaign state, original title/options and stage
+instruction/result screens to the Windows application. Preserve actual original
+flow rather than inventing a replacement menu. Title transition scrolling and
+raster phase remain unported. Then high-score entry, ending and native audio.
+Continue natural-play and frame/timing fidelity validation; the port is unfinished.
+All source/docs stay English; original data stay excluded. Automation stays active.

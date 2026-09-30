@@ -8,6 +8,14 @@ int runSelfTests(const Assets& assets) {
     int assertions=0;
     auto require=[&](bool ok,const char* message){++assertions;if(!ok)throw std::runtime_error(message);};
     try {
+        Frame collisionFrame;collisionFrame.meta={254,253,2,3,8,16,0,0};
+        auto bounds=spriteBounds(collisionFrame,31,47,15,15);
+        require(bounds==SpriteBounds{1,9,2,18},"Collision quantizes camera and position independently");
+        bounds=spriteBounds(collisionFrame,250*16,250*16,0,0);
+        require(bounds==SpriteBounds{250,2,250,10},"Collision far edges retain original byte overflow");
+        require(!spriteOverlap(bounds,SpriteBounds{250,255,250,255}),"Wrapped rectangle does not become a conventional interval");
+        require(spriteOverlap(SpriteBounds{10,20,10,20},SpriteBounds{20,30,20,30}),"Original collision includes far-edge contact");
+        require(!spriteOverlap(SpriteBounds{20,30,20,30},SpriteBounds{10,20,10,20}),"Original collision excludes near-edge contact asymmetrically");
         require(assets.levels[0].height==1888,"Easy map height");
         require(assets.levels[0].objects.size()==36,"Easy placement count");
         require(assets.levels[3].objects.size()==46,"Very hard placement count");

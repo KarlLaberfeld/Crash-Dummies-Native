@@ -237,9 +237,9 @@ void SkiGame::collideWith(int other){
     }
 }
 void SkiGame::collide(){
-    auto box=[&](const SkiEntity& e){const auto& m=assets.frames[e.frame].meta;return std::array<int,4>{relativePixel(e.x,cameraX)+s8(m[0])+s8(m[2]),relativePixel(e.y,cameraY)+s8(m[1])+s8(m[3]),m[4],m[5]};};
+    auto box=[&](const SkiEntity& e){return spriteBounds(assets.frames[e.frame],e.x,e.y,cameraX,cameraY);};
     auto a=box(entities[0]);for(int j=1;j<16;++j){const auto& e=entities[j];if(!e.alive||e.offscreen||e.collision==255)continue;auto b=box(e);
-        if(a[0]+a[2]>=b[0]&&a[0]<b[0]+b[2]&&a[1]+a[3]>=b[1]&&a[1]<b[1]+b[3])collideWith(j);}
+        if(spriteOverlap(a,b))collideWith(j);}
 }
 void SkiGame::update(int i){
     auto& e=entities[i];

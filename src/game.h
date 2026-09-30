@@ -13,6 +13,18 @@ enum class Handler { Idle, IntroPan, IntroRise, IntroAnimation, RoofWait, Fallin
     LimbSideLeft, BackgroundCloud, Burning, Bounce, BalloonRide, Rope, RopeRelease,
     Finish };
 struct Frame { std::array<uint8_t,8> meta{}; std::array<uint8_t,96*96> pixels{}; };
+// 00:1747 quantizes world and camera independently, then stores all four
+// rectangle edges in bytes. The comparisons at 00:1834 are unsigned.
+using SpriteBounds=std::array<uint8_t,4>; // left, right, top, bottom
+inline SpriteBounds spriteBounds(const Frame& frame,int x,int y,int cameraX,int cameraY){
+    const auto& m=frame.meta;
+    int left=((static_cast<uint16_t>((x&0xfff0)-(cameraX&0xfff0))>>4)+m[0]+m[2])&255;
+    int top=((static_cast<uint16_t>((y&0xfff0)-(cameraY&0xfff0))>>4)+m[1]+m[3])&255;
+    return {static_cast<uint8_t>(left),static_cast<uint8_t>(left+m[4]),static_cast<uint8_t>(top),static_cast<uint8_t>(top+m[5])};
+}
+inline bool spriteOverlap(const SpriteBounds& a,const SpriteBounds& b){
+    return a[1]>=b[0]&&a[0]<b[1]&&a[3]>=b[2]&&a[2]<b[3];
+}
 struct Placement { int kind=0,x=0,y=0,state=0; bool active=false; };
 struct Level { int height=0,quota=0,seconds=0,fireHits=0; std::vector<uint8_t> pixels; std::vector<Placement> objects; };
 struct Definition { int frame=0,flags=0; Handler handler{}; int collision=255; std::array<int,7> params{}; };

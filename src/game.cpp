@@ -250,14 +250,11 @@ void Game::collideWith(int player,int other) {
     }
 }
 void Game::collide(int i) {
-    const auto box=[this](const Entity& e){
-        const auto& m=assets.frames[e.frame].meta;
-        return std::array<int,4>{e.x/16+s8(m[0])+s8(m[2]),e.y/16+s8(m[1])+s8(m[3]),m[4],m[5]};
-    };
+    auto box=[&](const Entity& e){return spriteBounds(assets.frames[e.frame],e.x,e.y,0x1000,camera);};
     auto a=box(entities[i]);
     for(int j=0;j<16;++j)if(j!=i&&entities[j].alive&&!entities[j].offscreen&&entities[j].collision!=255){
         auto b=box(entities[j]);
-        if(a[0]+a[2]>=b[0]&&a[0]<b[0]+b[2]&&a[1]+a[3]>=b[1]&&a[1]<b[1]+b[3])collideWith(i,j);
+        if(spriteOverlap(a,b))collideWith(i,j);
     }
 }
 void Game::update(int i) {

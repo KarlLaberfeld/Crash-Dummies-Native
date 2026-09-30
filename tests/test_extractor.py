@@ -14,6 +14,7 @@ import extract_air
 import extract_ski
 import extract_bomb
 import extract_cruise
+import extract_ui
 from disassemble import decode
 
 @contextmanager
@@ -25,7 +26,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -184,6 +185,22 @@ class LocalCartridge(unittest.TestCase):
             self.assertLessEqual(nxt,len(commands))
             if op==11:self.assertIn(a,extract_cruise.HANDLERS.values())
             if op==4:self.assertTrue(0<=a<42)
+
+    def test_original_title_menu_maps(self):
+        with scratch_directory() as directory:
+            extract_ui.extract_ui(self.rom,directory)
+            pack=(Path(directory)/'ui.dat').read_bytes()
+            self.assertEqual(pack[:8],b'TICDUI01')
+            self.assertEqual(len(pack),8+16384+23040+6144+48)
+            maps=pack[39432:45576]
+            self.assertEqual(maps[14*32:14*32+20],self.rom[0x1db0e:0x1db0e+20])
+            self.assertEqual(pack[-48:],self.rom[0xa3:0xd3])
+            options=maps[5*1024:6*1024]
+            self.assertEqual(options[18*32+3:18*32+6],bytes([25,24,15])) # ONE
+            extract_ui.extract_ui(self.rom,directory)
+            self.assertEqual(pack,(Path(directory)/'ui.dat').read_bytes())
+        with self.assertRaisesRegex(ValueError,'Unported menu operation'):
+            extract_ui.menu_map(bytes([0x94,0x80]),0)
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

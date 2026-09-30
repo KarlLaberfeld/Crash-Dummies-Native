@@ -331,3 +331,38 @@ higher layouts. Native format `TICDCRU1` retains these data and animation graphs
 The out-of-map RAM behavior is not reconstructed: accesses outside the declared
 128-by-16 cells return blank terrain. Natural successful runs and reference
 frame/timing comparisons remain unverified.
+
+
+## Shared collision rectangles
+
+00:1747 independently masks world and camera coordinates to pixels, then retains
+only byte-sized left/right/top/bottom values. 00:1834 compares unsigned edges:
+player.right >= other.left, player.left < other.right, and the same for Y.
+Far-edge overflow is not a conventional wrapping interval. All five native
+stunts now use this explicit rule in `spriteBounds` / `spriteOverlap`.
+
+## Outer loop and stationary title pages
+
+00:0272 starts five lives per active player. 00:0465 chooses success by result
+bit 1. Failure (00:059e) removes a life and retains day/difficulty without banking
+stunt pay. Success (00:04c8,13ef,1415) transfers pay and seconds to six-digit BCD
+savings, twice when bit 2 is set. Bit 6 suppresses time bonus. 00:0500 advances
+through five days, then four difficulty levels. Players alternate at 00:0523;
+inactive players are skipped. Completing difficulty four clears that player's
+lives and shows the ending before returning to the remaining player.
+`Campaign` translates these rules and is tested independently, pending GUI wiring.
+
+Title scripts: 29ad,29bb,2a97,2a1b,2ade; options 2750. Durations at 2735 are
+480/480/960/480/960 updates. A/B advances a title page; Select opens options;
+Start begins play. Options toggle one/two players with Select/Up/Down. A/B returns
+to the first title page; Start begins with the selected player count. Stable
+raster phase (2502-2535) uses the unsigned font/window-map tiles at SCY=88 between
+screen rows 24 and 103, with fixed signed-tile strips above and below. Page-change
+scrolling and the intermediate dummy image still need runtime reconstruction.
+The default eight high-score records are at 00:00a3 (three name tiles, three BCD
+bytes each). They are copied during startup, not loaded from a cartridge save.
+Result portraits load 07:72d2/76d2/7ad2 into tile 0x74; layout rectangles are
+07:5df4/5e4e/5ea8. Stage instruction routines are indexed at 00:33b0;
+success/failure text at 00:33ba/33c4. Text-language macros 89/8b insert player
+name/number, 8a inserts Ski quota and 8c Bomb quota. This is a distinct layout
+language, not CPU code. Unknown commands fail extraction.
