@@ -3,25 +3,25 @@
 **Work in progress. This is not a complete port.**
 
 This project aims to faithfully reimplement the Game Boy release as a native
-Windows game. The current build contains **Roof Jump** and **Air Bumper**, each with
+Windows game. The current build contains **Roof Jump**, **Air Bumper**, and **Ski Slope**, each with
 reconstructed original graphics, four difficulty layouts, and a partial native
-translation of the original game logic. The other three stunts, original menus,
+translation of the original game logic. The other two stunts, original menus,
 audio, and full behavioral validation remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat` and `air.dat` asset packages.
+loads the generated `crash.dat`, `air.dat`, and `ski.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat` and `air.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, and `ski.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 
 | Key | Action |
 |---|---|
-| F1 / F2 | Select Roof Jump / Air Bumper |
+| F1 / F2 / F3 | Select Roof Jump / Air Bumper / Ski Slope |
 | Enter | Start or pause the stunt |
 | Left / Right | Roof: move sideways; Air: tilt |
 | Up / Down | Roof: change falling posture |
@@ -55,7 +55,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Native tests cover selected rules derived from the original, deterministic
-replays, and terminal results on all four layouts of both implemented stunts. They **do not establish full fidelity**
+replays, and terminal results on all four layouts of the implemented stunts. They **do not establish full fidelity**
 to the original game. Captured images remain local in the build directory.
 
 ## Project layout

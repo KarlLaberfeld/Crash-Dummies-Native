@@ -21,14 +21,18 @@ def air_map(rom,pointer):
     band rotates its sixteen columns. This is data decompression, not an
     interpreter for the machine instructions implementing it.
     """
+    return template_map(rom,pointer,4,0x1d78,31)
+
+def template_map(rom,pointer,bank,table,template_count,max_rows=256):
     cells=bytearray(16*256)
-    pos=address(4,pointer);band=0
+    pos=address(bank,pointer);band=0
     while rom[pos]!=255:
+        if band*4==max_rows and max_rows<256:break
         if band>=64:raise ValueError('Air map exceeds 256 rows')
         shift,template=rom[pos:pos+2];pos+=2
-        if template>=31:raise ValueError('Invalid Air map template')
-        ptr=struct.unpack_from('<H',rom,0x1d78+template*2)[0]
-        source=address(4,ptr)
+        if template>=template_count:raise ValueError('Invalid map template')
+        ptr=struct.unpack_from('<H',rom,table+template*2)[0]
+        source=address(bank,ptr)
         for y in range(4):
             for x in range(16):cells[(band*4+y)*16+((x+shift)&15)]=rom[source+y*16+x]
         band+=1

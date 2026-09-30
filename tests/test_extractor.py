@@ -11,6 +11,7 @@ TEMP_ROOT.mkdir(parents=True,exist_ok=True)
 sys.path.insert(0,str(PROJECT/'tools'))
 import extract
 import extract_air
+import extract_ski
 from disassemble import decode
 
 @contextmanager
@@ -22,7 +23,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -127,6 +128,26 @@ class LocalCartridge(unittest.TestCase):
             if op==16:self.assertTrue(17<=c<=34)
         frames=extract.sprite_frames(self.rom,59,0xe0bf,0xe08f,12,extract.address(5,0x4000))
         for _,pixels in frames:self.assertTrue(set(pixels)<={0,1,2,3,255})
+
+    def test_ski_pack_and_declared_playable_height(self):
+        with scratch_directory() as directory:
+            result=extract_ski.extract_ski(self.rom,directory)
+            levels=result['difficulties']
+            self.assertEqual([x['rows'] for x in levels],[120,108,152,200])
+            self.assertEqual([x['objects'] for x in levels],[52,58,77,124])
+            self.assertEqual([x['flags'] for x in levels],[30,22,41,31])
+            self.assertEqual([x['seconds'] for x in levels],[80,80,90,90])
+            self.assertTrue(all(x['rows']==x['expanded_rows'] for x in levels))
+            pack=(Path(directory)/'ski.dat').read_bytes()
+            self.assertEqual(pack[:8],b'TICDSKI1')
+            extract_ski.extract_ski(self.rom,directory)
+            self.assertEqual(pack,(Path(directory)/'ski.dat').read_bytes())
+        roots,commands=extract.animation_records(self.rom,extract_ski.ANIMATIONS,extract_ski.HANDLERS)
+        self.assertEqual(len(roots),11)
+        for op,a,b,c,nxt in commands:
+            self.assertLessEqual(nxt,len(commands))
+            if op==10:self.assertTrue(1<=a<=len(commands))
+            if op==4:self.assertTrue(0<=a<39)
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

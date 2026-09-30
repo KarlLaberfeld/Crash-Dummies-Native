@@ -144,7 +144,7 @@ The runtime is not yet a matching reconstruction. In particular:
 - Palette register changes and intro/menu text are not fully reconstructed;
   the launcher explicitly identifies the build
   as work in progress.
-- No original sound driver, other three stunts, campaign or ending.
+- No original sound driver, other two stunts, campaign or ending.
 
 Do not fill these gaps using guessed gameplay and then claim equivalence.
 Record address-level evidence and add behavior comparisons as each subsystem
@@ -249,3 +249,26 @@ Targeted tests cover row priority, four-chunk copying, atomic installation,
 the completed-transfer input lock and animation delay ordering. With these rules,
 the easy Air steering replay reaches result 03 with eight items. This is a native
 regression result; no frame-by-frame original-execution comparison is claimed.
+
+
+## Ski Slope
+
+Initialization 00:0dc9 installs thirteen dynamic descriptors (03:66bc), 39
+frame pointers (03:66f0), static sprites (05:6220), 127 background tiles
+(05:67e0), four 64-entry metatile quadrants (05:7390) and collision flags
+(05:7490). Four level records are at 00:0e9c. Template expansion 00:1db6
+uses fifteen templates referenced at 00:1ded. Each list ends with an extra
+(80,1f) band referencing RAM d5c5 beyond the declared map height. The extractor
+retains only the declared playable rows: the extra band is outside the clamped
+viewport. Its history-dependent RAM contents are not invented.
+
+Player handlers: 01:697d initialization, 6986 skiing, 69fa jumping, 6e60 crash,
+6e9c return. Turns skip neutral and wait for their animation; Down explicitly
+returns to straight. Movement precedes velocity approach (6bc5); B performs
+two approach steps per tick. Jump movement combines half the signed impulse
+with +24 forward units; the shadow detects landing terrain. Finish requires
+at least floor(initial flags / 2); collecting all flags yields result 07.
+Collision handlers 6c45/6cbe collect flags, 6d1a kills, 6d39 awards a bonus,
+and 6df8 starts crash/return. Return coordinates align to pixels to avoid
+overshoot. HUD initialization/update is 00:2fb6/2fe7, with seven gradual fields.
+Native tests derive from these rules but do not establish original equivalence.
