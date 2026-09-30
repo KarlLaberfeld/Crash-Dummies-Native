@@ -78,10 +78,10 @@ def tile(data, base):
                  (((data[base+y*2+1] >> (7-x)) & 1) << 1)
                  for y in range(8) for x in range(8))
 
-def roof_frames(rom):
-    return sprite_frames(rom,69,0xd95c,0xd8d0,35,address(4,0x4610))
+def roof_frames(rom,include_pieces=False):
+    return sprite_frames(rom,69,0xd95c,0xd8d0,35,address(4,0x4610),include_pieces)
 
-def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
+def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base,include_pieces=False):
     result=[]
     for number in range(count):
         ptr=struct.unpack_from('<H',rom,pointers+number*2)[0]
@@ -95,6 +95,7 @@ def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
             pieces.append((signed(x),signed(y),idx,flags))
         else: raise ValueError('Unterminated sprite')
         pixels=bytearray([255])*(96*96)
+        decoded=[]
         for x,y,idx,flags in pieces:
             if number<dynamic_count:
                 desc=descriptors+number*4
@@ -102,6 +103,8 @@ def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
                 base=address(bank,ptr)+(idx & ~1)*16
             else:
                 base=static_base+(idx & ~1)*16
+            raw=tile(rom,base)+tile(rom,base+16)
+            decoded.append((x,y,flags,raw))
             for py in range(16):
                 sy=15-py if flags&64 else py
                 row=tile(rom,base+(sy//8)*16)
@@ -118,8 +121,15 @@ def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base):
                         # selected object palette maps them to background white.
                         palette=0xe0 if flags&16 else 0xc4
                         pixels[dy*96+dx]=(palette>>(value*2))&3
-        result.append((header,pixels))
+        result.append((header,pixels,decoded) if include_pieces else (header,pixels))
     return result
+
+def pack_frames(frames):
+    payload=bytearray()
+    for header,pixels,pieces in frames:
+        payload+=header+pixels+bytes([len(pieces)])
+        for x,y,flags,raw in pieces:payload+=struct.pack("<bbB",x,y,flags)+raw
+    return payload
 
 def roof_map(rom, repeats):
     # 00:0926 loads 5 rows, repeats 4 rows N times, appends 9 rows.
@@ -171,13 +181,13 @@ def roof_hud(rom):
 
 def extract(rom, output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    frames=roof_frames(rom)
-    payload=bytearray(b'TICDNAT4')
+    frames=roof_frames(rom,True)
+    payload=bytearray(b'TICDNAT5')
     payload+=title_image(rom)
     # Font is a standalone decoded tile atlas; no ROM instruction bytes.
     for i in range(52):payload+=tile(rom,0xc000+i*16)
-    for header,pixels in frames:payload+=header+pixels
-    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT4','roof_difficulties':[]}
+    payload+=pack_frames(frames)
+    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT5','roof_difficulties':[]}
     for difficulty in range(4):
         ptr,repeats,quota,timer,fire_hits=struct.unpack_from('<HBBBB',rom,0x9b1+difficulty*6)
         height,pixels=roof_map(rom,repeats)

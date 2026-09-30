@@ -104,7 +104,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([l['objects'] for l in manifest['roof_difficulties']],[36,39,49,46])
             self.assertEqual([l['height'] for l in manifest['roof_difficulties']],[1888,1696,1952,1952])
             pack=(Path(directory)/'crash.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDNAT4')
+            self.assertEqual(pack[:8],b'TICDNAT5')
             self.assertNotIn(self.rom,pack)
             first=pack
             extract.extract(self.rom,directory)
@@ -119,7 +119,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[40,60,70,70])
             self.assertEqual([x['quota'] for x in levels],[14,15,24,16])
             pack=(Path(directory)/'air.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDAIR3')
+            self.assertEqual(pack[:8],b'TICDAIR4')
             extract_air.extract_air(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'air.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_air.ANIMATIONS,extract_air.HANDLERS)
@@ -142,7 +142,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[80,80,90,90])
             self.assertTrue(all(x['rows']==x['expanded_rows'] for x in levels))
             pack=(Path(directory)/'ski.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDSKI1')
+            self.assertEqual(pack[:8],b'TICDSKI2')
             extract_ski.extract_ski(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'ski.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_ski.ANIMATIONS,extract_ski.HANDLERS)
@@ -158,7 +158,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['quota'] for x in result['levels']],[40,50,60,70])
             self.assertEqual([x['speeds'] for x in result['levels']],[[3,3,3],[3,4,3],[5,4,3],[5,3,5]])
             pack=(Path(directory)/'bomb.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDBOM1')
+            self.assertEqual(pack[:8],b'TICDBOM2')
             extract_bomb.extract_bomb(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'bomb.dat').read_bytes())
         with self.assertRaisesRegex(ValueError,'Unported native animation callback'):
@@ -174,7 +174,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['objects'] for x in result['levels']],[13,27,34,38])
             self.assertEqual([x['seconds'] for x in result['levels']],[60]*4)
             pack=(Path(directory)/'cruise.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDCRU1')
+            self.assertEqual(pack[:8],b'TICDCRU2')
             start=8+82*64
             self.assertEqual(pack[start:start+2048],self.rom[0x1c180:0x1c980])
             extract_cruise.extract_cruise(self.rom,directory)
@@ -209,6 +209,26 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual(len(meta),8)
             self.assertEqual(len(pixels),96*96)
             self.assertTrue(set(pixels)<={0,1,2,3,255})
+
+    def test_original_sprite_pieces_preserve_raw_colors_and_order(self):
+        # Compare source list order and unflipped 2bpp colors, independently of
+        # the flattened preview. Static frame 62 contains per-piece flips.
+        frame=62
+        meta,_,pieces=extract.roof_frames(self.rom,True)[frame]
+        pos=extract.address(3,struct.unpack_from('<H',self.rom,0xd95c+frame*2)[0])+8
+        expected=[]
+        while self.rom[pos]!=255:
+            y,x,index,flags=self.rom[pos:pos+4];pos+=4
+            colors=[];base=extract.address(4,0x4610)+(index&254)*16
+            for row in range(16):
+                low,high=self.rom[base+row*2:base+row*2+2]
+                colors.extend(((low>>bit)&1)+2*((high>>bit)&1) for bit in range(7,-1,-1))
+            expected.append((extract.signed(x),extract.signed(y),flags,bytes(colors)))
+        self.assertEqual(pieces,expected)
+        self.assertTrue(any(flags&0x60 for _,_,flags,_ in pieces))
+        packed=extract.pack_frames([(meta,bytearray(96*96),pieces)])
+        self.assertEqual(packed[8+96*96],len(pieces))
+        self.assertEqual(len(packed),8+96*96+1+131*len(pieces))
 
     def test_sprite_origin_against_oam_coordinates(self):
         # Independent direct piece projection from 00:1cdb-1d36, without the

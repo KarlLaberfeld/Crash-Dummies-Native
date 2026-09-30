@@ -1,4 +1,5 @@
 #include "cruise.h"
+#include "sprites.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -104,6 +105,7 @@ void CruiseGame::finishVideoTick(int oldFrame,int oldFlags){
 }
 
 void CruiseGame::updateVisibility(){
+    sprites=SpriteLayer(ticks&1);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -111,16 +113,7 @@ void CruiseGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }
-    }
-}
-
-void CruiseGame::drawFrame(int number,int x,int y,int flags){
-    const auto& f=assets.frames.at(number);
-    for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
-        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
-        if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
     }
 }
 
@@ -131,9 +124,9 @@ void CruiseGame::text(int x,int y,const std::string& value){
 
 
 CruiseAssets CruiseAssets::load(const std::wstring& path){
-    CruiseReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDCRU1",8));
+    CruiseReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDCRU2",8));
     CruiseAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.cells.data(),2048);r.raw(a.quadrants.data(),192);r.raw(a.collision.data(),128);
-    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
+    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){l.initial=r.byte();l.seconds=r.byte();int count=r.word();check(count<=512&&l.seconds<=99);
         for(int j=0;j<count;++j){Placement p;p.kind=r.byte();p.x=r.word();p.y=r.word();check(p.kind>=58&&p.kind<=65);l.objects.push_back(p);}}
     for(int j=0;j<11;++j){int k=r.byte();check(k==49||k==50||(k>=57&&k<=65));auto& d=a.definitions[k];
@@ -156,7 +149,7 @@ int CruiseGame::spawn(int kind,int x,int y,int placement){
     return -1;
 }
 void CruiseGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;rewarded.assign(placements.size(),false);
     seconds=assets.levels[difficulty].seconds;cameraX=0;cameraY=1920;
     ticks=secondTicks=money=introTimer=balls=randomState=extraLives=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -285,7 +278,7 @@ void CruiseGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCur
 void CruiseGame::render(){
     int cx=started?cameraX:0,cy=started?cameraY:1920;
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
-    if(started){for(int j=15;j>=0;--j){const auto& e=entities[j];if(e.alive&&!(e.flags&8))drawFrame(e.frame,relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);}
+    if(started){sprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);text(8,72,"NATIVE PORT - WIP");text(24,88,"CRUISE MISSILE");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");}
     if(paused||result){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}

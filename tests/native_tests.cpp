@@ -49,6 +49,18 @@ int runSelfTests(const Assets& assets) {
         require(!spriteOverlap(bounds,SpriteBounds{250,255,250,255}),"Wrapped rectangle does not become a conventional interval");
         require(spriteOverlap(SpriteBounds{10,20,10,20},SpriteBounds{20,30,20,30}),"Original collision includes far-edge contact");
         require(!spriteOverlap(SpriteBounds{20,30,20,30},SpriteBounds{10,20,10,20}),"Original collision excludes near-edge contact asymmetrically");
+        {
+            auto fixture=std::make_unique<Assets>(assets);auto& frame=fixture->frames[0];frame.meta={};
+            SpritePiece piece;piece.colors.fill(3);frame.pieces.assign(40,piece);
+            Game scene(*fixture);scene.start(0);scene.entities={};scene.camera=0;
+            scene.entities[0].alive=true;scene.entities[0].frame=0;scene.entities[0].x=0x1000;scene.entities[0].y=320;
+            scene.entities[1].alive=true;scene.entities[1].frame=0;scene.entities[1].x=0x1000;scene.entities[1].y=10000;scene.entities[1].flags=16;
+            scene.updateVisibility();require(scene.entities[1].alive,"Full sprite list stops later entity visibility/removal work");
+            frame.pieces.resize(1);scene.updateVisibility();require(!scene.entities[1].alive,"Available sprite capacity allows later offscreen removal");
+            scene.render();auto before=scene.screen;scene.entities[0].x+=160;scene.render();
+            require(scene.screen==before,"Repaint consumes the stored sprite list rather than changed entity state");
+            scene.updateVisibility();scene.render();require(scene.screen!=before,"Next visibility pass publishes changed sprite positions");
+        }
         require(assets.levels[0].height==1888,"Easy map height");
         require(assets.levels[0].objects.size()==36,"Easy placement count");
         require(assets.levels[3].objects.size()==46,"Very hard placement count");

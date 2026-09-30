@@ -75,8 +75,8 @@ must not blindly reject that pointer as a bank-1 address below 0x4000.
 - `00:1cb6â€“1cf6`: padded visibility bounds, after display offset, are
   X [-2*halfWidth-16, 176], Y [-2*halfHeight-16, 152], inclusive.
   Offscreen flags are updated after entity handlers and before placement scans.
-  Native repaint frequency does not affect this state. Original OAM capacity,
-  per-scanline sprite limits and alternating priority are still unimplemented.
+  Native repaint frequency does not affect this state. Capacity and priority
+  were added in the September 30 sprite composition checkpoint below.
 - `00:3da5` removes a live entity without resetting its placement's active
   byte. Only visibility eviction with flag bits 4 and 2 clears that byte
   (`00:1c91â€“1cb2`). A collected target therefore cannot reappear on a later scan.
@@ -140,7 +140,8 @@ The runtime is not yet a matching reconstruction. In particular:
   invariants and selected translated rules.
 - The corrected plane/landing rules above still need reference timing checks;
   balloon/rope interactions and several entity flags need further analysis.
-- Some transient effects and original sprite priority/capacity are absent.
+- Some transient effects and exact presentation phase still need validation;
+  sprite priority/capacity are now implemented for gameplay (see below).
 - Palette register changes and intro/menu text are not fully reconstructed;
   the launcher explicitly identifies the build
   as work in progress.
@@ -489,3 +490,43 @@ Music IDs come from 0261 (title), 031e (instructions), 09aa/0c1c/0e99/10cc/1312
 (stunts), 0474/052e (success/perfect), 05ac (failure), 0694 (game over) and 32a6
 (name entry). Animation opcode 93 queues effects. Direct stunt effect calls are
 annotated by their associated original routines and use the same pending slot.
+
+
+## Native gameplay sprite composition - September 30
+
+The former flattened composites could not preserve raw transparent colors,
+piece-level priority, or hardware sprite limits. Offline extraction now also
+retains each frame's ordered 8x16 pieces: signed X/Y offsets, attribute flags,
+and 128 unflipped color indices. No tile/code memory bus is used at runtime.
+The five gameplay package versions are now `TICDNAT5`, `TICDAIR4`, `TICDSKI2`,
+`TICDBOM2`, and `TICDCRU2`; old packages must be regenerated.
+
+`src/sprites.h` directly composes a stored native sprite list. The ROM's
+00:1bfb toggles allocation between ascending and descending slots. 00:1cfd
+combines signed piece offsets with the frame origin/half extents, applies
+entity flips, filters byte coordinates X>=168 / Y>=152, and XORs entity bits
+5-7 with piece flags. Capacity is tested after each entity at 00:1c70; excess
+pieces in the final entity fall outside the forty visible slots. This also
+stops visibility/removal processing of later entities. Hidden or rejected
+pieces do not advance allocation.
+
+Selection takes the first ten vertical matches in slot order on each row,
+then resolves opaque overlap by smaller X and smaller slot index. Color zero
+is transparent. A nonzero color mapped to white remains opaque. Background
+priority is checked only after the winning object pixel is chosen, so it can
+mask lower-priority objects too. These display rules follow
+[Pan Docs: OAM](https://github.com/gbdev/pandocs/blob/master/src/OAM.md).
+
+All five stunts publish the list during the visibility pass, after their
+handlers/resource completion and before placement scans (00:03de-03f9).
+Windows repaint consumes this stored list; it neither advances allocation nor
+makes newly scanned placements appear early. Palette selection uses OBP0=c4
+and OBP1=e0. The gameplay/HUD boundary remains at row 136. Ski's former
+whole-composite priority workaround was removed.
+
+Validation includes 23 synthetic native rendering assertions, four native
+simulation/publication assertions, raw-piece extraction compared with source
+bytes, and the existing all-difficulty/campaign runs. Native screenshots were
+inspected locally; these are not original-game image comparisons. Slot parity
+is currently based on stage update parity. Exact first displayed frame,
+menus/fades, video-transfer latency and global presentation phase remain open.

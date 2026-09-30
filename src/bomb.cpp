@@ -1,4 +1,5 @@
 #include "bomb.h"
+#include "sprites.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -77,15 +78,6 @@ void BombGame::animate(int i){
     ++animationFaults;e.animDone=true;
 }
 
-void BombGame::drawFrame(int number,int x,int y,int flags){
-    const auto& f=assets.frames.at(number);
-    for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
-        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
-        if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
-    }
-}
-
 void BombGame::text(int x,int y,const std::string& value){
     for(char c:value){int n=c==' '?0:c>='0'&&c<='9'?c-'0'+1:c>='A'&&c<='Z'?c-'A'+11:c=='-'?39:0;
         for(int py=0;py<8;++py)for(int px=0;px<8;++px)if(x+px>=0&&x+px<Width&&y+py>=0&&y+py<Height)screen[(y+py)*Width+x+px]=shared.font[n*64+py*8+px];x+=8;}
@@ -93,9 +85,9 @@ void BombGame::text(int x,int y,const std::string& value){
 
 
 BombAssets BombAssets::load(const std::wstring& path){
-    BombReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDBOM1",8));
+    BombReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDBOM2",8));
     BombAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.layout.data(),340);
-    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
+    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){for(auto& v:l.speeds)v=r.byte();l.quota=r.byte();r.raw(l.distribution.data(),32);
         for(int v:l.speeds)check(v>0&&v<128);check(l.quota>0&&l.quota<100);
         for(int v:l.distribution)check(v==0||v==47||v==48||(v>=51&&v<=53));}
@@ -121,7 +113,7 @@ int BombGame::spawn(int kind,int x,int y){
     return -1;
 }
 void BombGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
     difficulty=std::clamp(level,0,3);entities={};speeds=assets.levels[difficulty].speeds;totals={};spawnPending={};displayTotals={};
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
@@ -142,9 +134,12 @@ void BombGame::finishVideoTick(int oldFrame,int oldFlags){
     }
 }
 void BombGame::updateVisibility(){
+    sprites=SpriteLayer(ticks&1);
     for(auto& e:entities)if(e.alive){e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;int x=s16(e.x&0xfff0)/16+s8(m[0]),y=s16(e.y&0xfff0)/16+s8(m[1]);
-        if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){if(e.flags&16)e.alive=false;else e.offscreen=true;}}
+        if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){if(e.flags&16)e.alive=false;else e.offscreen=true;}
+        else {sprites.add(assets.frames[e.frame],s16(e.x&0xfff0)/16,s16(e.y&0xfff0)/16,e.flags);if(sprites.exhausted())return;}
+    }
 }
 void BombGame::movePlayer(bool down){
     if(cooldown)return;auto& p=entities[0];const auto& table=down?assets.downFrames:assets.upFrames;
@@ -242,7 +237,7 @@ void BombGame::render(){
     auto room=assets.layout;for(int l=0;l<3;++l){int x=2+7*l,total=displayTotals[l];room[15*20+x]=47+2*(total/10);room[15*20+x+1]=67+2*(total%10);
         room[16*20+x]=room[15*20+x]+1;room[16*20+x+1]=room[15*20+x+1]+1;}
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x)screen[y*Width+x]=assets.tiles[room[(y/8)*20+x/8]*64+(y&7)*8+(x&7)];
-    if(started){for(int j=15;j>=0;--j){const auto& e=entities[j];if(e.alive&&!(e.flags&8))drawFrame(e.frame,s16(e.x&0xfff0)/16,s16(e.y&0xfff0)/16,e.flags);}
+    if(started){sprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);text(8,72,"NATIVE PORT - WIP");text(32,88,"BOMB FACTORY");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");}
     if(paused||result){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}

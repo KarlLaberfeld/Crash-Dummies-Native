@@ -11,7 +11,9 @@ High-score name entry and pay/time counting are implemented. Remaining presentat
 timing, exact sound fidelity, and full behavioral validation remain unfinished.
 Native music and sound output now cover the original 14 songs and 26 effects,
 with animation and key gameplay events connected; exact audio equivalence is
-not yet established.
+not yet established. Gameplay rendering now preserves individual sprite pieces,
+original palette/overlap rules, the 40-piece total limit and the ten-piece limit
+per image row. Exact presentation phase still needs reference validation.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline

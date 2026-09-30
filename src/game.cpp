@@ -1,4 +1,5 @@
 #include "game.h"
+#include "sprites.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -25,9 +26,9 @@ struct Reader {
 };
 Assets Assets::load(const std::wstring& path) {
     Reader r(path);char magic[8];r.raw(magic,8);
-    if(memcmp(magic,"TICDNAT4",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
+    if(memcmp(magic,"TICDNAT5",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
     Assets a;r.raw(a.title.data(),a.title.size());r.raw(a.font.data(),a.font.size());
-    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
+    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& level:a.levels){
         level.height=r.word();level.quota=r.word();level.seconds=r.word();level.fireHits=r.word();int count=r.word();
         if(level.height<176||level.height>4096||level.height%16||count>512||level.seconds>99||level.fireHits>20)throw std::runtime_error("Ungueltige Leveldaten.");
@@ -58,7 +59,7 @@ Assets Assets::load(const std::wstring& path) {
 }
 
 void Game::start(int level,int player) {
-    playerNumber=player&1;pendingSound=-1;
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;
     const auto& l=assets.levels[difficulty];
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
@@ -408,6 +409,7 @@ void Game::drawHud() {
         screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
 }
 void Game::updateVisibility() {
+    sprites=SpriteLayer(ticks&1);
     // 00:1cb6-1cf6 tests the frame's padded bounds; 1c7c handles removal.
     // This belongs to the simulation tick, independent of Windows repaint rate.
     for(int i=0;i<16;++i)if(entities[i].alive){
@@ -420,20 +422,11 @@ void Game::updateVisibility() {
                 if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;
                 destroy(i);
             }else e.offscreen=true;
-        }
+        }else {sprites.add(assets.frames[e.frame],e.x/16-256,e.y/16-camera/16,e.flags);if(sprites.exhausted())return;}
     }
 }
 
-void Game::drawFrame(int number,int x,int y,int flags) {
-    if(number<0||number>=69)return;
-    const auto& f=assets.frames[number];
-    for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){
-        int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
-        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
-        if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
-    }
-}
+
 void Game::text(int x,int y,const std::string& value) {
     for(char c:value){
         int n=c==' '?0:c>='0'&&c<='9'?c-'0'+1:c>='A'&&c<='Z'?c-'A'+11:c=='-'?39:c==':'?40:c=='!'?46:0;
@@ -453,7 +446,7 @@ void Game::render() {
     }
     const auto& l=assets.levels[difficulty];
     for(int y=0;y<PlayHeight;++y){int row=camera/16+y;if(row>=0&&row<l.height)std::copy_n(l.pixels.begin()+row*Width,Width,screen.begin()+y*Width);}
-    for(int i=15;i>=0;--i){const auto& e=entities[i];if(e.alive&&!e.hidden)drawFrame(e.frame,e.x/16-256,e.y/16-camera/16,e.flags);}
+    sprites.draw(screen);
     drawHud();
     if(paused||result){
         for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);

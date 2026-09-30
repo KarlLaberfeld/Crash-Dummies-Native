@@ -1,4 +1,5 @@
 #include "ski.h"
+#include "sprites.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -124,6 +125,7 @@ void SkiGame::finishVideoTick(int oldFrame,int oldFlags){
 }
 
 void SkiGame::updateVisibility(){
+    sprites=SpriteLayer(ticks&1);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -131,16 +133,7 @@ void SkiGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }
-    }
-}
-
-void SkiGame::drawFrame(int number,int x,int y,int flags){
-    const auto& f=assets.frames.at(number);
-    for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
-        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
-        if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
     }
 }
 
@@ -150,9 +143,9 @@ void SkiGame::text(int x,int y,const std::string& value){
 }
 
 SkiAssets SkiAssets::load(const std::wstring& path){
-    SkiReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDSKI1",8));
+    SkiReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDSKI2",8));
     SkiAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.quadrants.data(),256);r.raw(a.collision.data(),128);
-    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
+    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){
         l.cameraX=r.word();l.seconds=r.byte();l.quota=r.byte();l.rows=r.word();int count=r.word();
         check(l.rows>=9&&l.rows<=256&&l.seconds<=99&&count<=512);r.raw(l.cells.data(),4096);
@@ -175,7 +168,7 @@ SkiAssets SkiAssets::load(const std::wstring& path){
     check(r.pos==r.data.size());return a;
 }
 void SkiGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];entities={};placements=l.objects;
     cameraX=l.cameraX;cameraY=0;seconds=l.seconds;remaining=l.quota;needed=l.quota/2;collected=0;
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -291,11 +284,7 @@ void SkiGame::render(){
     int cx=started?cameraX:assets.levels[difficulty].cameraX,cy=started?cameraY:0;
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
     if(started){
-        auto background=screen;
-        for(int j=15;j>=0;--j){const auto& e=entities[j];if(!e.alive||(e.flags&8))continue;
-            auto before=screen;drawFrame(e.frame,relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);
-            if(e.flags&128)for(int n=0;n<Width*PlayHeight;++n)if(background[n])screen[n]=before[n];
-        }
+        sprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);text(8,72,"NATIVE PORT - WIP");text(40,88,"SKI SLOPE");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");}
     if(paused||result){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}

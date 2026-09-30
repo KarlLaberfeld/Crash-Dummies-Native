@@ -1,4 +1,5 @@
 #include "air.h"
+#include "sprites.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -29,9 +30,9 @@ struct AirReader {
 void check(bool ok){if(!ok)throw std::runtime_error("Invalid Air Bumper asset record. Rebuild the local data.");}
 }
 AirAssets AirAssets::load(const std::wstring& path){
-    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR3",8));
+    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR4",8));
     AirAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.quadrants.data(),a.quadrants.size());r.raw(a.collision.data(),a.collision.size());
-    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());}
+    for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){
         l.cameraX=r.word();l.cameraY=r.word();l.seconds=r.byte();l.quota=r.byte();l.rows=r.word();int count=r.word();
         check(l.rows>=9&&l.rows<=256&&l.seconds<=99&&l.quota>0&&count<=512);
@@ -67,7 +68,7 @@ AirAssets AirAssets::load(const std::wstring& path){
 }
 
 void AirGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];
     entities={};placements=l.objects;cameraX=l.cameraX;cameraY=l.cameraY;
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
@@ -344,6 +345,7 @@ void AirGame::update(int i){
     }
 }
 void AirGame::updateVisibility(){
+    sprites=SpriteLayer(ticks&1);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -351,7 +353,7 @@ void AirGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
     }
 }
 void AirGame::step(int buttons){
@@ -377,14 +379,7 @@ void AirGame::refreshHud(){
     for(int j=7;j<13;++j){if(bar>=8){hudValues[j]=0xe9;bar-=8;}else if(bar){hudValues[j]=0xe9+(bar^7);bar=0;}else hudValues[j]=0;}
 }
 void AirGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];hudCursor=(hudCursor+1)%13;if(!hudCursor)refreshHud();}
-void AirGame::drawFrame(int number,int x,int y,int flags){
-    const auto& f=assets.frames.at(number);
-    for(int sy=0;sy<96;++sy)for(int sx=0;sx<96;++sx){int value=f.pixels[sy*96+sx];if(value==255)continue;
-        int dx=x+((flags&32)?2*(s8(f.meta[0])+f.meta[6])+47-sx:sx-48);
-        int dy=y+((flags&64)?2*(s8(f.meta[1])+f.meta[7])+47-sy:sy-48);
-        if(dx>=0&&dx<Width&&dy>=0&&dy<PlayHeight)screen[dy*Width+dx]=static_cast<uint8_t>(value);
-    }
-}
+
 void AirGame::text(int x,int y,const std::string& value){
     for(char c:value){int n=c==' '?0:c>='0'&&c<='9'?c-'0'+1:c>='A'&&c<='Z'?c-'A'+11:c=='-'?39:0;
         for(int py=0;py<8;++py)for(int px=0;px<8;++px)if(x+px>=0&&x+px<Width&&y+py>=0&&y+py<Height)screen[(y+py)*Width+x+px]=shared.font[n*64+py*8+px];x+=8;}
@@ -394,7 +389,7 @@ void AirGame::render(){
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;
         int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
     if(started){
-        for(int j=15;j>=0;--j){const auto& e=entities[j];if(e.alive&&!(e.flags&8))drawFrame(e.frame,relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);}
+        sprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{
         for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);

@@ -27,6 +27,7 @@ struct CruiseGame {
     std::array<CruiseEntity,16> entities{};std::vector<Placement> placements;std::vector<bool> rewarded;
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,7> hudValues{};
+    SpriteLayer sprites{false};
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,cameraX=0,cameraY=0,introTimer=0,balls=0,randomState=0,extraLives=0;
     bool started=false,paused=false;
@@ -42,7 +43,7 @@ struct CruiseGame {
     void followCamera();void movePlayer();void crashFrame();void introBob();void ignition();void thrustSmoke();
     int randomByte();void collide();void collideWith(int other);void reward(int other,int points);
     void beginFinish(int flags);void tickTimer();void refreshHud();void tickHud();
-    void drawFrame(int number,int x,int y,int flags);void text(int x,int y,const std::string& value);
+    void text(int x,int y,const std::string& value);
 };
 int runCruiseTests(const CruiseAssets& assets,const Assets& shared);
 }

@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import json
 import struct
-from extract import address, read_rom, tile, sprite_frames, animation_records, roof_hud
+from extract import pack_frames, address, read_rom, tile, sprite_frames, animation_records, roof_hud
 
 HANDLERS={0x23e2:0,0x73ed:1,0x73fd:2,0x744a:3,0x75de:4,0x76f8:5,
           0x77d3:6,0x75f6:7,0x7870:8,0x77a6:9,0x77ed:10,0x7755:11,
@@ -14,11 +14,11 @@ ANIMATIONS=[0x75e7,0x77dc,0x768f,0x7879,0x77f6,0x7763,0x76ae,0x7787,0x7856,0x78b
 
 def extract_cruise(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    payload=bytearray(b'TICDCRU1')
+    payload=bytearray(b'TICDCRU2')
     for i in range(82):payload+=tile(rom,address(7,0x4980)+i*16)
     payload+=rom[address(7,0x4180):address(7,0x4980)]
     payload+=rom[address(7,0x5940):address(7,0x5a80)]
-    for meta,pixels in sprite_frames(rom,42,0xefd8,0xefa8,12,address(7,0x4ea0)):payload+=meta+pixels
+    payload+=pack_frames(sprite_frames(rom,42,0xefd8,0xefa8,12,address(7,0x4ea0),True))
     levels=[]
     for d in range(4):
         initial,timer,pointer=struct.unpack_from('<BBH',rom,0x1315+d*4)
@@ -43,7 +43,7 @@ def extract_cruise(rom,output):
     atlas,_,_=roof_hud(rom);atlas[0xf2*64:0xf3*64]=tile(rom,address(3,0x5800))
     payload+=atlas+rom[0x30eb:0x30ff]+bytes(rom[0x30de+i*2] for i in range(7))
     (output/'cruise.dat').write_bytes(payload)
-    manifest=dict(format='TICDCRU1',frames=42,levels=levels)
+    manifest=dict(format='TICDCRU2',frames=42,levels=levels)
     (output/'cruise-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     return manifest
 

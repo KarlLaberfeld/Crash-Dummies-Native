@@ -27,6 +27,7 @@ struct BombGame {
     std::array<BombEntity,16> entities{};std::array<uint8_t,Width*Height> screen{};
     std::array<int,3> speeds{},totals{},spawnPending{},displayTotals{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,5> hudValues{};
+    SpriteLayer sprites{false};
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,money=0,cooldown=0,action=0,lostLanes=0,randomState=0;
     bool started=false,paused=false;
@@ -40,7 +41,7 @@ struct BombGame {
     void movePlayer(bool down);void startAction(int kind);void emitObjects();int randomByte();
     int lane(int i) const;void moveObject(int i);void fall(int i);void speedUp(int i);void explode(int i);
     void collide();void collideWith(int other);void beginFinish(int flags);
-    void refreshHud();void tickHud();void drawFrame(int number,int x,int y,int flags);void text(int x,int y,const std::string& value);
+    void refreshHud();void tickHud();void text(int x,int y,const std::string& value);
 };
 int runBombTests(const BombAssets& assets,const Assets& shared);
 }

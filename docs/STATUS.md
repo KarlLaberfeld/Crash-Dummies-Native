@@ -413,3 +413,37 @@ This identifies the race but does not yet prove a native timing error versus
 an original-game edge case. Do not force the follow-up animation or alter
 return coordinates without further evidence. Next audit: global frame phase,
 map-row scheduling and the original resource-transfer completion boundary.
+
+
+## Gameplay sprite limits and priority - September 30, 22:07 continuation
+
+The limit reset; initial usage was 1% primary, 31% weekly. Previous published
+checkpoint: `0946738df942d23ecc51616c213b789aa995e9ac`, tree
+`53e965413a7f81555ba9c52d39845b500cb25258`, local `bf86c78`.
+
+All five gameplay renderers now preserve ordered 8x16 pieces and raw colors,
+rather than layering complete flattened images. Implemented: original signed
+piece placement and flips, attribute XOR, alternating slot direction, forty
+visible slots, first-ten vertical selection per row, X/slot overlap priority,
+and background masking after object priority. White-mapped nonzero colors
+remain opaque. Sprite list construction occurs at the simulation visibility
+pass; capacity also stops later visibility/removal work. Repaint uses that
+stored list, so newly scanned placements wait until the next pass.
+
+Regenerate local packages: Roof/Air/Ski/Bomb/Cruise versions are now
+TICDNAT5/TICDAIR4/TICDSKI2/TICDBOM2/TICDCRU2. There are still seven runtime
+packages; original/composite/piece data remain local. Source and docs only
+may be committed/uploaded.
+
+Validation: 24 Python tests, 23 native sprite assertions and four new native
+visibility/publication assertions. All prior stunt/UI/audio/campaign tests
+pass without compiler warnings. Roof now has 48,900 assertions; other counts
+remain unchanged. The 20-win campaign still reaches Ending with savings 7,875
+at global update 49,007. Local captures for all five stunts were inspected.
+No original screenshot equivalence is claimed.
+
+The Air crash's map-row-priority and conditional animation branches were
+rechecked, with no new justified correction. Its 80-update/animation boundary
+remains unresolved. Also open: exact slot/display phase and transfer latency,
+boot/fades, hidden password page, audio edge cases, and broader original
+reference validation. The port remains unfinished; keep continuation active.

@@ -3,16 +3,15 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "sprites.h"
 
 namespace ticd {
-constexpr int Width=160, Height=144, PlayHeight=136;
 enum Button { Right=1, Left=2, Up=4, Down=8, A=16, B=32 };
 enum class Handler { Idle, IntroPan, IntroRise, IntroAnimation, RoofWait, Falling,
     Timeout, FinishDelay, Animation, Fire, Balloon, Burst, Awning, Puff, Plane,
     PlaneFly, PlaneStun, Platform, LimbLeft, LimbRight, LimbUp, LimbSideRight,
     LimbSideLeft, BackgroundCloud, Burning, Bounce, BalloonRide, Rope, RopeRelease,
     Finish };
-struct Frame { std::array<uint8_t,8> meta{}; std::array<uint8_t,96*96> pixels{}; };
 // 00:1747 quantizes world and camera independently, then stores all four
 // rectangle edges in bytes. The comparisons at 00:1834 are unsigned.
 using SpriteBounds=std::array<uint8_t,4>; // left, right, top, bottom
@@ -56,6 +55,7 @@ struct Game {
     const Assets& assets;
     std::array<Entity,16> entities{};
     std::vector<Placement> placements;
+    SpriteLayer sprites{false};
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=60,secondTicks=0,money=0,remaining=0;
     int breaksNeeded=10,fireHits=4,camera=0,cameraLead=24,cameraLeadTarget=24;
@@ -94,7 +94,6 @@ struct Game {
     void refreshHud();
     void tickHud();
     void drawHud();
-    void drawFrame(int number,int x,int y,int flags=0);
     void text(int x,int y,const std::string& value);
 };
 void saveBmp(const std::wstring& path,const std::array<uint8_t,Width*Height>& screen);
