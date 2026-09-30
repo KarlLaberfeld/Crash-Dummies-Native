@@ -388,3 +388,28 @@ listening/reference capture equivalence is claimed.
 The Air animation stall, boot/fades, hidden password page, global event phase,
 OAM limits/priority and broader original-reference checks remain open. Keep the
 continuation automation active; the full port is still unfinished.
+
+
+## Audio publication and Air crash trace follow-up
+
+Published audio source: `fb98d46dd4aa83a098478ca78fdd37c28b35292c`,
+tree `e4bdc7d5daa3899c5a6ca33282d478799343fda0`, local `e199b8d`.
+A fresh extraction/build/test run passed all 23 Python tests and all native
+suites without compiler warnings. The rebuilt executable's 300-update Windows
+audio test again exited successfully with an available device and zero drops.
+ROM, extracted packages, PCM previews and diagnostic traces remain ignored/local.
+
+The normal-difficulty Air stall is now narrowed to a one-update boundary in
+this native trace. `local/air_crash_trace.cpp` records the second crash at input
+index 1955. At index 2035 its 80-update crash counter expires, but the final
+animation delay has only just reached zero; the end command runs one update
+later. The original conditional start at 01:6312 -> 00:3b84 therefore rejects
+animation 6315 in the native state, leaving the generic animation handler idle.
+Frame transfers in this crash cost 3/3/3/3 updates; map-row work delays the
+second and fourth transfer. Original 00:0c42 explicitly gives that work priority.
+The copied animation periods (0, 8, 52, 4), delay countdown branch at 00:3bbd,
+and conditional animation start were rechecked against static disassembly.
+This identifies the race but does not yet prove a native timing error versus
+an original-game edge case. Do not force the follow-up animation or alter
+return coordinates without further evidence. Next audit: global frame phase,
+map-row scheduling and the original resource-transfer completion boundary.
