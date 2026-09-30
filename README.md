@@ -7,7 +7,8 @@ Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Sl
 reconstructed original graphics, four difficulty layouts, and a partial native
 translation of the original game logic. The original title/options pages, stage
 instructions, campaign progression, result portraits and ending are connected.
-Presentation timing, high-score entry, audio, and full behavioral validation
+High-score name entry and pay/time counting are implemented. Remaining presentation
+timing, audio, and full behavioral validation
 remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
@@ -37,8 +38,10 @@ for extraction and compilation.
 
 The application starts on the original title page. Press Tab for one/two-player
 options; Z/X advances title pages. Results alternate between active players.
-Result amounts currently settle immediately; the original count-up sequence and
-high-score name entry are not implemented yet. Roof Jump begins with the reconstructed camera flyover. Losing window focus
+Results count pay and remaining time into savings. Z/X or Enter accelerates
+counting; press again to continue. For a qualifying high score, Left/Right scrolls
+the original character strip and Z/X confirms. Select its backspace/end symbols
+to delete/finish. High scores remain in memory for the current application session. Roof Jump begins with the reconstructed camera flyover. Losing window focus
 pauses the game. The development window currently uses German labels.
 
 ## Building

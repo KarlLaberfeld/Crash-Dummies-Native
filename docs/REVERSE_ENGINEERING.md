@@ -392,3 +392,38 @@ selects the perfect portrait. Ending tiles are 06:6667 (44 tiles), layout/text
 settled amounts immediately. Count-up, palette fades, raster/page transitions,
 high-score name entry and exact phase timing still need implementation. The
 ending is exercised through synthetic campaign success, not natural play.
+
+
+## High-score input and result counting
+
+`TICDUI03` adds the name-entry font patch (03:5840 into tile 0x26) and maps
+from 322a/323c. Scores are eight six-byte records. The comparison at 31cf
+inserts a score before the first record less than or equal to it, shifts later
+records down and clears three initials. Scores survive campaigns within one
+application session; the original has no persistent cartridge save.
+
+The 32-glyph strip at 3390 contains letters, punctuation/space, backspace
+(index 30) and finish (31). Native input follows 32c3: advance a pending signed
+scroll by one pixel; approach its remaining eight-pixel motion to zero; start
+another movement for held Left/Right when idle; process A/B edges. Selection
+uses ((scroll + 76) & 248) / 8. Scroll starts at 180, selecting A. At most three
+initials are stored; finish also accepts fewer. VBlank 24a5 and raster handlers
+255d/256c horizontally scroll the lower strip and repeat its vertical lines.
+Two original pointer tiles blink at x=76, y=112/136. Exact interrupt/draw phase
+still needs reference comparison.
+
+Result counting follows 0486-04fa/13ef/1415: 15-frame introduction, optional Ski
+flag row plus 20 frames, savings plus 20 frames, one pay unit transferred each
+frame, then (except Bomb) 15 frames and one remaining second each frame.
+Perfect credit is two savings units for each consumed unit. A/B/Start accelerates
+this presentation to its final total; a later press continues. The 600-frame
+result timeout includes counting and never cuts it short. Game-over and ending
+wait 480 frames before checking for a high score. Palette fades and exact
+interrupt phase are not yet included in these counts.
+
+Global timer phase C083 survives stage initialization and title return. The
+application now carries it between timed campaign stunts; Bomb leaves it alone.
+171c copies the global frame low byte into the high byte of the random seed.
+Campaign starts now do this from the native global frame counter. Exact original
+random sequences still differ when missing transitions change frame phase;
+standalone tests retain explicit zero-phase deterministic starts.

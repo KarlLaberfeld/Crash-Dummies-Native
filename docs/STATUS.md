@@ -232,3 +232,30 @@ Remaining: result money-count animation (currently immediate), high-score name
 entry, original page transitions/fades and frame phase, audio, global random
 seed/timer continuity, hardware sprite limits/priority and natural playthrough
 validation. The full port remains unfinished; keep the continuation active.
+
+
+## High scores, count-up and shared timing - latest checkpoint
+
+Interactive campaign source was published as
+`4c354b6c3a5690b33c58b79707cec91e815eb1fb` (local `474366c`).
+The next working build adds original name entry with session high-score ranking,
+three-character limit, scrolling alphabet, backspace/end symbols and both player
+headers. Equal scores insert before existing ties. Game-over/ending waits lead
+to name entry only for qualifying scores, then the remaining player or title.
+F6 returns to title without clearing the in-memory table. Format: `TICDUI03`.
+
+Result pay/time now counts into displayed savings, including perfect doubling,
+Bomb time suppression, original row delays and skip input. Campaign money is
+committed exactly once. The stage timer remainder survives stage changes and
+random seeds now depend on the native global frame. Full original frame phase
+is still unverified because fades/transitions remain absent.
+
+Validation: 18 Python tests, all five unchanged native stunt suites, 59 campaign
+assertions and 224 UI assertions pass. Native capture and hidden window smoke
+checks passed; the high-score input image was inspected. Counts include replay
+invariants and synthetic outcomes; no full successful natural playthrough is
+claimed. All source/docs are English; generated original data stay local.
+
+Next: original sound/music reconstruction, page/fade transitions and phase
+validation, hardware sprite priority/capacity, and successful natural runs across
+all difficulties. The complete port is still unfinished. Keep automation active.

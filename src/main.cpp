@@ -72,7 +72,7 @@ void paint(HWND hwnd,HDC dc) {
         int sx=w-side;
         label(dc,sx,102,240,30,selectedStunt==4?L"CRUISE MISSILE":selectedStunt==3?L"BOMB FACTORY":selectedStunt==2?L"SKI SLOPE":selectedStunt==1?L"AIR BUMPER":L"ROOF JUMP",RGB(224,238,205),headingFont);
         label(dc,sx,148,232,162,!developerMode&&ui->phase!=ticd::UiPhase::Playing?
-            L"Enter                 Start / Weiter\nTab                     Select / Optionen\nZ / X                  A / B\nPfeiltasten       Auswahl\nF1 - F5             Stunt-Testmodus\nF6                       Zur Titelseite":!developerMode?
+            ui->phase==ticd::UiPhase::NameEntry?L"Links / rechts  Zeichen waehlen\nZ / X                  Zeichen bestaetigen\nRueckpfeil        Zeichen loeschen\nEndsymbol        Eingabe beenden":L"Enter                 Start / Weiter\nTab                     Select / Optionen\nZ / X                  A / B\nPfeiltasten       Auswahl\nF1 - F5             Stunt-Testmodus\nF6                       Zur Titelseite":!developerMode?
             L"Pfeiltasten        Bewegen\nZ oder A             A-Taste\nX oder S             B-Taste\nEnter / Esc        Pause\nF1 - F5                Stunt-Testmodus\nF6                          Zur Titelseite":selectedStunt==4?
             L"Links / rechts  Drehen\nZ oder A          Schub\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":selectedStunt==3?
             L"Links / rechts  Band waehlen\nOben / unten  Bewegen\nZ oder A          Entschaerfen\nX oder S          Schlagen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==2?
@@ -81,7 +81,7 @@ void paint(HWND hwnd,HDC dc) {
             L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F5         Stunt waehlen",RGB(193,207,197),bodyFont);
         label(dc,sx,322,232,32,L"ORIGINALDATEN",RGB(224,238,205),smallFont);
         label(dc,sx,353,232,96,L"Grafiken und Objektlisten stammen aus deiner ROM. Die Spiellogik wird als C++ direkt unter Windows ausgefuehrt.",RGB(149,175,162),bodyFont);
-        label(dc,sx,465,232,96,L"Noch unvollstaendig: Ergebnisanimation, Bestenliste, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
+        label(dc,sx,465,232,96,L"Noch unvollstaendig: Bilduebergaenge, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
     }
 }
 LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -104,7 +104,7 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         }else if(wp==VK_RETURN&&ui->phase==ticd::UiPhase::Playing)paused()=!paused();
         if(wp==VK_ESCAPE&&started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=!paused();
         if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;developerMode=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
-        if(wp==VK_F6){developerMode=false;ui=std::make_unique<ticd::UiFlow>(*uiAssets);std::fill(std::begin(keys),std::end(keys),false);}
+        if(wp==VK_F6){developerMode=false;ui->phase=ticd::UiPhase::Title;ui->page=ui->phaseTicks=ui->previous=0;ui->campaign.active=false;std::fill(std::begin(keys),std::end(keys),false);}
         InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_DESTROY:PostQuitMessage(0);return 0;
     }
@@ -140,12 +140,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 ticd::UiFlow sample(*uiAssets);sample.campaign.start(false,stage);sample.beginInstructions();
                 for(int i=0;i<2500&&!sample.textDone;++i)sample.step(0);
                 ticd::saveBmp(directory+L"instructions-"+std::to_wstring(stage)+L".bmp",sample.render());
-                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);
+                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);sample.step(0);sample.step(ticd::A);
                 ticd::saveBmp(directory+L"result-"+std::to_wstring(stage)+L".bmp",sample.render());
             }
             ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);
-            ending.finishStunt(7,123,45);ending.step(0);ending.step(ticd::A);
+            ending.finishStunt(7,123,45);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
             ticd::saveBmp(directory+L"ending.bmp",ending.render());
+            ticd::UiFlow name(*uiAssets);name.campaign.start(false);name.campaign.players[0].savings=100000;name.campaign.players[0].lives=1;
+            name.beginInstructions();name.step(ticd::UiStart);name.finishStunt(1,0,0);for(int i=0;i<480;++i)name.step(0);
+            ticd::saveBmp(directory+L"name-entry.bmp",name.render());
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             game->start(0);for(int i=0;i<950;++i)game->step(i>400?ticd::A:0);
             game->render();ticd::saveBmp(directory+L"roof-jump.bmp",game->screen);
@@ -177,10 +180,16 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             while(accumulator>=step){
                 int input=buttons();
                 if(!developerMode){auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
-                    if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();}}
+                    if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
+                        if(selectedStunt==4){cruise->secondTicks=ui->timerPhase;cruise->randomState=(ui->ticks&255)<<8;}
+                        else if(selectedStunt==3)bomb->randomState=(ui->ticks&255)<<8;
+                        else if(selectedStunt==2)ski->secondTicks=ui->timerPhase;
+                        else if(selectedStunt==1){air->secondTicks=ui->timerPhase;air->randomState=(ui->ticks&255)<<8;}
+                        else game->secondTicks=ui->timerPhase;}}
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){
                     if(selectedStunt==4)cruise->step(input);else if(selectedStunt==3)bomb->step(input);else if(selectedStunt==2)ski->step(input);else if(selectedStunt==1)air->step(input);else game->step(input);
                     if(!developerMode&&(result()&1)){
+                        if(selectedStunt!=3)ui->timerPhase=selectedStunt==4?cruise->secondTicks:selectedStunt==2?ski->secondTicks:selectedStunt==1?air->secondTicks:game->secondTicks;
                         int pay=selectedStunt==4?cruise->money:selectedStunt==3?bomb->money:selectedStunt==2?ski->money:selectedStunt==1?air->money:game->money;
                         int seconds=selectedStunt==4?cruise->seconds:selectedStunt==3?0:selectedStunt==2?ski->seconds:selectedStunt==1?air->seconds:game->seconds;
                         int lives=selectedStunt==4?cruise->extraLives:selectedStunt==1?air->livesEarned:0;

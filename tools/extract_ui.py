@@ -7,14 +7,14 @@ from extract import address, read_rom, tile, title_image
 
 TITLE_SCRIPTS=[0x29ad,0x29bb,0x2a97,0x2a1b,0x2ade,0x2750]
 
-def menu_map(rom,script,initial=None,player=0):
+def menu_map(rom,script,initial=None,player=0,position=0):
     """Decode the identified static subset of the original text/layout language.
 
     Unknown operations fail rather than interpreting SM83 code or guessing.
     Maps use the original 32-column pitch, including offscreen rows.
     """
     result=bytearray(1024) if initial is None else bytearray(initial)
-    position=0;anchor=0;row=0
+    anchor=0;row=0
     for _ in range(4096):
         op=rom[script];script+=1
         if op<128:
@@ -85,7 +85,7 @@ def extract_ui(rom,output):
         for dy in range(h):initial[(y+dy)*32+x:(y+dy)*32+x+w]=rom[source+dy*w:source+(dy+1)*w]
     maps=[menu_map(rom,p,initial) for p in TITLE_SCRIPTS]
     records=rom[0xa3:0xd3];high_score_rows(maps[2],records)
-    payload=bytearray(b'TICDUI02')+atlas+title_image(rom)
+    payload=bytearray(b'TICDUI03')+atlas+title_image(rom)
     for canvas in maps:payload+=canvas
     payload+=records
     for gfx,count,layout,text in INSTRUCTIONS:
@@ -116,8 +116,13 @@ def extract_ui(rom,output):
     for player in range(2):payload+=menu_map(rom,0x05e9,player=player)
     # Macro expansions and final prompt remain ROM-derived local data.
     for start,length in [(0x2271,5),(0x2277,5),(0x2296,12),(0x22bb,12),(0x0332,20)]:payload+=rom[start:start+length]
+    payload+=overlay_tiles(rom,atlas,3,0x5840,38,1)
+    for player in range(2):
+        canvas=menu_map(rom,0x322a)
+        canvas[39:42]=rom[0x263d:0x2640] if player==0 else rom[0x2643:0x2646]
+        payload+=menu_map(rom,0x323c,canvas,position=42)
     (output/'ui.dat').write_bytes(payload)
-    manifest=dict(format='TICDUI02',title_pages=len(maps),page_durations=[480,480,960,480,960],
+    manifest=dict(format='TICDUI03',title_pages=len(maps),page_durations=[480,480,960,480,960],
                   high_scores=8,instructions=5,result_texts=16,ending_players=2)
     (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

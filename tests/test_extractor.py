@@ -190,7 +190,7 @@ class LocalCartridge(unittest.TestCase):
         with scratch_directory() as directory:
             extract_ui.extract_ui(self.rom,directory)
             pack=(Path(directory)/'ui.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDUI02')
+            self.assertEqual(pack[:8],b'TICDUI03')
             self.assertGreater(len(pack),250000)
             maps=pack[39432:45576]
             self.assertEqual(maps[14*32:14*32+20],self.rom[0x1db0e:0x1db0e+20])

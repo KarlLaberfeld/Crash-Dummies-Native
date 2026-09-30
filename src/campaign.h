@@ -10,8 +10,8 @@ struct StuntSettlement {
     int player=0,flags=0,pay=0,timeBonus=0;
     bool success=false,perfect=false,gameOver=false,completed=false;
 };
-// Native translation of the outer game loop (00:0272-069f). Presentation
-// timing, result portraits and high-score entry are separate work in progress.
+// Native translation of the outer game loop (00:0272-069f).
+// Presentation and session high scores are managed separately by UiFlow.
 struct Campaign {
     std::array<CampaignPlayer,2> players{};
     int current=0;
