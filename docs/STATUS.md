@@ -7,7 +7,7 @@ without CPU emulation or replacing the original rules with a loose remake.
 Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 
 **The overall task is not complete.** The Windows executable is a development
-build of Roof Jump, Air Bumper, Ski Slope and Bomb Factory, not a complete game.
+build of Roof Jump, Air Bumper, Ski Slope, Bomb Factory and Cruise Missile, not a complete game.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -92,7 +92,7 @@ Original audio and campaign/life integration are absent.
    reference timing and successful runs beyond the easy steering replay.
 2. Continue roof fidelity checks: animation transfer timing, lifecycle,
    plane/balloon/rope interactions, and landing. See `REVERSE_ENGINEERING.md`.
-3. Reconstruct Cruise Missile from its initialization and handlers.
+3. Validate Ski Slope, Bomb Factory and Cruise Missile with successful natural playthroughs.
 4. Port original menus, campaign, ending, and music/sound.
 5. Validate full playthroughs and fidelity, then prepare a portable distribution.
 
@@ -153,3 +153,23 @@ sprite hardware priorities and exact original timing remain open. Continue
 with Cruise Missile (00:1245, kind 57, 01:73ed), then original menus, campaign,
 ending, audio and fidelity validation. The complete port remains unfinished.
 Keep automatic continuation active.
+
+## Cruise Missile native integration - latest checkpoint
+
+Bomb Factory was published as `7911ece7e42c2095ecab6dceb3d6a6403cc8ecb4`.
+Cruise Missile is now selectable with F5. Local `cruise.dat` (`TICDCRU1`)
+contains the original column-major 128-by-16 map, 42 frames, and four object
+lists (13/27/34/38 entries). Native logic includes launch/ignition, sixteen
+headings, thrust and gravity, camera/terrain probes, magnets, rockets,
+projectiles, spring hazards, extra lives, target success and failure states.
+All native suites pass; Cruise adds 297,036 assertions, mostly replay invariants.
+Its twelve input-pattern replays fail on collisions; synthetic target tests
+exercise both successful endings. A successful natural course remains unverified.
+Capture shows the original map and missile. The complete port is NOT finished.
+
+Next: audit original byte-wrapped collision rectangles across stunts; implement
+original menus, campaign/lives/score/results, ending and native audio. Validate
+natural playthroughs and timing. Cruise currently returns blank terrain outside
+the declared map instead of interpreting adjacent original RAM. Shared remaining
+differences include sprite hardware limits, palette phase, menu-seeded randomness
+and the development selector. Keep the automatic continuation active.

@@ -13,6 +13,7 @@ import extract
 import extract_air
 import extract_ski
 import extract_bomb
+import extract_cruise
 from disassemble import decode
 
 @contextmanager
@@ -24,7 +25,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -165,6 +166,24 @@ class LocalCartridge(unittest.TestCase):
         self.assertEqual(len(roots),6)
         callbacks=[a for op,a,b,c,nxt in commands if op==20]
         self.assertEqual(callbacks,[0]*6)
+
+    def test_cruise_pack_column_major_map_and_graphs(self):
+        with scratch_directory() as directory:
+            result=extract_cruise.extract_cruise(self.rom,directory)
+            self.assertEqual([x['objects'] for x in result['levels']],[13,27,34,38])
+            self.assertEqual([x['seconds'] for x in result['levels']],[60]*4)
+            pack=(Path(directory)/'cruise.dat').read_bytes()
+            self.assertEqual(pack[:8],b'TICDCRU1')
+            start=8+82*64
+            self.assertEqual(pack[start:start+2048],self.rom[0x1c180:0x1c980])
+            extract_cruise.extract_cruise(self.rom,directory)
+            self.assertEqual(pack,(Path(directory)/'cruise.dat').read_bytes())
+        roots,commands=extract.animation_records(self.rom,extract_cruise.ANIMATIONS,extract_cruise.HANDLERS)
+        self.assertEqual(len(roots),10)
+        for op,a,b,c,nxt in commands:
+            self.assertLessEqual(nxt,len(commands))
+            if op==11:self.assertIn(a,extract_cruise.HANDLERS.values())
+            if op==4:self.assertTrue(0<=a<42)
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

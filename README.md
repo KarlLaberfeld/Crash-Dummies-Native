@@ -3,29 +3,29 @@
 **Work in progress. This is not a complete port.**
 
 This project aims to faithfully reimplement the Game Boy release as a native
-Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, and **Bomb Factory**, each with
+Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, **Bomb Factory**, and **Cruise Missile**, each with
 reconstructed original graphics, four difficulty layouts, and a partial native
-translation of the original game logic. Cruise Missile, original menus,
+translation of the original game logic. Original menus, campaign progression,
 audio, and full behavioral validation remain unfinished.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
 only to extract identified graphics and game data. At runtime, the application
-loads the generated `crash.dat`, `air.dat`, `ski.dat`, and `bomb.dat` asset packages.
+loads the generated `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, and `cruise.dat` asset packages.
 
 ## Running locally
 
-After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, and `bomb.dat` beside it.
+After building, open `build/CrashDummies.exe`. Keep `crash.dat`, `air.dat`, `ski.dat`, `bomb.dat`, and `cruise.dat` beside it.
 The executable runs directly on Windows x64. Python and Zig are needed only
 for extraction and compilation.
 
 | Key | Action |
 |---|---|
-| F1 / F2 / F3 / F4 | Select Roof Jump / Air Bumper / Ski Slope / Bomb Factory |
+| F1 / F2 / F3 / F4 / F5 | Select Roof Jump / Air Bumper / Ski Slope / Bomb Factory / Cruise Missile |
 | Enter | Start or pause the stunt |
-| Left / Right | Roof: move sideways; Air: tilt; Ski: steer; Bomb: change belt |
+| Left / Right | Roof: move sideways; Air: tilt; Ski: steer; Bomb: change belt; Cruise: rotate |
 | Up / Down | Roof: change falling posture; Ski Down: straighten; Bomb: move |
-| Z or A | Roof/Ski: jump; Air: ascend; Bomb: defuse |
+| Z or A | Roof/Ski: jump; Air: ascend; Bomb: defuse; Cruise: thrust |
 | X or S | Roof: secondary action; Air: descend; Ski: accelerate; Bomb: punch |
 | Esc | Pause / resume |
 | R | Restart the stunt |

@@ -11,6 +11,7 @@
 #include "air.h"
 #include "ski.h"
 #include "bomb.h"
+#include "cruise.h"
 
 namespace {
 std::unique_ptr<ticd::Assets> assets;
@@ -21,12 +22,14 @@ std::unique_ptr<ticd::SkiAssets> skiAssets;
 std::unique_ptr<ticd::SkiGame> ski;
 std::unique_ptr<ticd::BombAssets> bombAssets;
 std::unique_ptr<ticd::BombGame> bomb;
+std::unique_ptr<ticd::CruiseAssets> cruiseAssets;
+std::unique_ptr<ticd::CruiseGame> cruise;
 int selectedStunt=0;
-bool started(){return selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
-bool& paused(){return selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
-int& difficulty(){return selectedStunt==3?bomb->difficulty:selectedStunt==2?ski->difficulty:selectedStunt==1?air->difficulty:game->difficulty;}
-int result(){return selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->result;}
-void restart(){if(selectedStunt==3)bomb->start(bomb->difficulty);else if(selectedStunt==2)ski->start(ski->difficulty);else if(selectedStunt==1)air->start(air->difficulty);else game->start(game->difficulty);}
+bool started(){return selectedStunt==4?cruise->started:selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
+bool& paused(){return selectedStunt==4?cruise->paused:selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
+int& difficulty(){return selectedStunt==4?cruise->difficulty:selectedStunt==3?bomb->difficulty:selectedStunt==2?ski->difficulty:selectedStunt==1?air->difficulty:game->difficulty;}
+int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->result;}
+void restart(){if(selectedStunt==4)cruise->start(cruise->difficulty);else if(selectedStunt==3)bomb->start(bomb->difficulty);else if(selectedStunt==2)ski->start(ski->difficulty);else if(selectedStunt==1)air->start(air->difficulty);else game->start(game->difficulty);}
 bool keys[256]{};
 HFONT headingFont,bodyFont,smallFont;
 uint32_t pixels[ticd::Width*ticd::Height];
@@ -48,27 +51,28 @@ void paint(HWND hwnd,HDC dc) {
     int gx=(w-side-160*scale)/2,gy=100;
     label(dc,24,18,w-48,36,L"THE INCREDIBLE CRASH DUMMIES",RGB(224,238,205),headingFont);
     label(dc,24,57,w-48,26,L"Native Windows-Portierung  /  Entwicklungsstand 0.1",RGB(149,175,162),smallFont);
-    if(selectedStunt==3)bomb->render();else if(selectedStunt==2)ski->render();else if(selectedStunt==1)air->render();else game->render();
-    const auto& screen=selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
+    if(selectedStunt==4)cruise->render();else if(selectedStunt==3)bomb->render();else if(selectedStunt==2)ski->render();else if(selectedStunt==1)air->render();else game->render();
+    const auto& screen=selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
     for(size_t i=0;i<screen.size();++i)pixels[i]=palette[screen[i]&3];
     BITMAPINFO info={};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=160;info.bmiHeader.biHeight=-144;
     info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
     SetStretchBltMode(dc,COLORONCOLOR);
     StretchDIBits(dc,gx,gy,160*scale,144*scale,0,0,160,144,pixels,&info,DIB_RGB_COLORS,SRCCOPY);
     const wchar_t* difficulties[]={L"LEICHT",L"NORMAL",L"SCHWER",L"SEHR SCHWER"};
-    std::wstring status=selectedStunt==3?L"BOMB FACTORY   /   ":selectedStunt==2?L"SKI SLOPE   /   ":selectedStunt==1?L"AIR BUMPER   /   ":L"ROOF JUMP   /   ";status+=difficulties[difficulty()];
+    std::wstring status=selectedStunt==4?L"CRUISE MISSILE   /   ":selectedStunt==3?L"BOMB FACTORY   /   ":selectedStunt==2?L"SKI SLOPE   /   ":selectedStunt==1?L"AIR BUMPER   /   ":L"ROOF JUMP   /   ";status+=difficulties[difficulty()];
     label(dc,gx,gy+144*scale+16,600,28,status.c_str(),RGB(224,238,205),smallFont);
     if(side){
         int sx=w-side;
-        label(dc,sx,102,240,30,selectedStunt==3?L"BOMB FACTORY":selectedStunt==2?L"SKI SLOPE":selectedStunt==1?L"AIR BUMPER":L"ROOF JUMP",RGB(224,238,205),headingFont);
-        label(dc,sx,148,232,162,selectedStunt==3?
-            L"Links / rechts  Band waehlen\nOben / unten  Bewegen\nZ oder A          Entschaerfen\nX oder S          Schlagen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F4             Stunt waehlen":selectedStunt==2?
-            L"Links / rechts  Lenken\nPfeil unten      Geradeaus\nZ oder A          Springen\nX oder S          Beschleunigen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F4             Stunt waehlen":selectedStunt==1?
-            L"Links / rechts  Neigen\nZ oder A          Aufsteigen\nX oder S          Absteigen\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F4             Stunt waehlen":
-            L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F4         Stunt waehlen",RGB(193,207,197),bodyFont);
+        label(dc,sx,102,240,30,selectedStunt==4?L"CRUISE MISSILE":selectedStunt==3?L"BOMB FACTORY":selectedStunt==2?L"SKI SLOPE":selectedStunt==1?L"AIR BUMPER":L"ROOF JUMP",RGB(224,238,205),headingFont);
+        label(dc,sx,148,232,162,selectedStunt==4?
+            L"Links / rechts  Drehen\nZ oder A          Schub\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":selectedStunt==3?
+            L"Links / rechts  Band waehlen\nOben / unten  Bewegen\nZ oder A          Entschaerfen\nX oder S          Schlagen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==2?
+            L"Links / rechts  Lenken\nPfeil unten      Geradeaus\nZ oder A          Springen\nX oder S          Beschleunigen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==1?
+            L"Links / rechts  Neigen\nZ oder A          Aufsteigen\nX oder S          Absteigen\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":
+            L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F5         Stunt waehlen",RGB(193,207,197),bodyFont);
         label(dc,sx,322,232,32,L"ORIGINALDATEN",RGB(224,238,205),smallFont);
         label(dc,sx,353,232,96,L"Grafiken und Objektlisten stammen aus deiner ROM. Die Spiellogik wird als C++ direkt unter Windows ausgefuehrt.",RGB(149,175,162),bodyFont);
-        label(dc,sx,465,232,96,L"Noch unvollstaendig: Cruise Missile, Originalmenues, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
+        label(dc,sx,465,232,96,L"Noch unvollstaendig: Originalmenues, Spielablauf, Ton und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
     }
 }
 LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -88,7 +92,7 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         if(wp=='R')restart();
         if(wp==VK_ESCAPE&&started())paused()=!paused();
         if(wp>='1'&&wp<='4'){difficulty()=static_cast<int>(wp-'1');if(started())restart();}
-        if(wp>=VK_F1&&wp<=VK_F4){if(started())paused()=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
+        if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
         InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_DESTROY:PostQuitMessage(0);return 0;
     }
@@ -108,12 +112,14 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         ski=std::make_unique<ticd::SkiGame>(*skiAssets,*assets);
         bombAssets=std::make_unique<ticd::BombAssets>(ticd::BombAssets::load(directory+L"bomb.dat"));
         bomb=std::make_unique<ticd::BombGame>(*bombAssets,*assets);
+        cruiseAssets=std::make_unique<ticd::CruiseAssets>(ticd::CruiseAssets::load(directory+L"cruise.dat"));
+        cruise=std::make_unique<ticd::CruiseGame>(*cruiseAssets,*assets);
         int argc=0;LPWSTR* argv=CommandLineToArgvW(GetCommandLineW(),&argc);
         bool tests=argc>1&&std::wstring(argv[1])==L"--self-test";
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke-test";
         LocalFree(argv);
-        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult;}
+        if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult;}
         if(capture){
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             game->start(0);for(int i=0;i<950;++i)game->step(i>400?ticd::A:0);
@@ -122,7 +128,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             air->start(0);for(int i=0;i<650;++i)air->step(ticd::A);
             air->render();ticd::saveBmp(directory+L"air-bumper.bmp",air->screen);
             ski->start(0);for(int i=0;i<500;++i)ski->step(0);ski->render();ticd::saveBmp(directory+L"ski-slope.bmp",ski->screen);
-            bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);return 0;
+            bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);
+            cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
         SetProcessDPIAware();
         headingFont=CreateFontW(-24,0,0,0,FW_BOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
@@ -142,7 +149,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             if(!running)break;
             auto now=Clock::now();accumulator+=std::min(0.1,std::chrono::duration<double>(now-previousTime).count());previousTime=now;
             bool changed=false;
-            while(accumulator>=step){if(selectedStunt==3)bomb->step(buttons());else if(selectedStunt==2)ski->step(buttons());else if(selectedStunt==1)air->step(buttons());else game->step(buttons());accumulator-=step;changed=true;if(smoke&&++smokeTicks==10)DestroyWindow(window);}
+            while(accumulator>=step){if(selectedStunt==4)cruise->step(buttons());else if(selectedStunt==3)bomb->step(buttons());else if(selectedStunt==2)ski->step(buttons());else if(selectedStunt==1)air->step(buttons());else game->step(buttons());accumulator-=step;changed=true;if(smoke&&++smokeTicks==10)DestroyWindow(window);}
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
         }

@@ -301,3 +301,33 @@ Armed bombs on a stopped belt enter their original staggered explosion delay.
 executed. Native tests cover selected state transitions, bounds, replay
 termination and synthetic success; they do not prove equivalence or a complete
 successful run. Random state currently starts at zero until menus are ported.
+
+
+## Cruise Missile
+
+`00:1245` loads twelve transfer descriptors (`03:6fa8`), 42 frame pointers
+(`03:6fd8`), 82 background tiles (`07:4980`), 2048 column-major map cells
+(`07:4180`), 48 metatiles with four quadrants (`07:5940`), collision flags
+(`07:5a00`), and static sprite tiles (`07:4ea0`). Four records at `00:1315`
+select 60 seconds and object lists. Camera begins at (0,0x780); the player
+begins at (0x410,0xd60), heading 4 and vertical velocity -24.
+
+`01:73ed/73fd` implement the 32-update delay and ignition through counter 192.
+Flight `01:744a` follows the camera, chooses the heading frame, moves using the
+previous heading, then applies left/right turning every fourth update.
+Sixteen records at `01:759e` contain frame, flags and thrust vector. A adds
+acceleration every fourth update; without thrust, vertical speed approaches +8.
+The original asymmetric negative saturation allows one overshoot below -16.
+Four probes at `01:74bb` test terrain after actor collisions. Target collision
+`01:7882` succeeds with result 0x23, or animated perfect result 0x27 at heading
+12. Twelve-frame sprite transfers give map-column updates priority.
+
+Actor handlers cover smoke, bouncing balls, rocket opening and launch,
+magnetic attraction with a once-per-placement 75-point reward, oscillating
+hazards, spring compression with a once-per-placement 50-point reward, and
+extra-life pickups. The emitter's original difficulty check disables emission
+when the stored byte equals one; the relevant actor only appears in the two
+higher layouts. Native format `TICDCRU1` retains these data and animation graphs.
+The out-of-map RAM behavior is not reconstructed: accesses outside the declared
+128-by-16 cells return blank terrain. Natural successful runs and reference
+frame/timing comparisons remain unverified.
