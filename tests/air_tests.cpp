@@ -109,6 +109,7 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
                 g.render();for(int shade:g.screen)require(shade>=0&&shade<4,"Air frame palette bounds");
             }
         }
+        AirGame secondPlayer(assets,shared);secondPlayer.start(0,1);require(secondPlayer.hudValues[0]==0xf8,"air HUD identifies second campaign player");
         fprintf(log,"PASS: %d assertions. Static rule checks and native replays; full original equivalence remains unverified.\n",assertions);
         fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",assertions,e.what());fclose(log);return 1;}

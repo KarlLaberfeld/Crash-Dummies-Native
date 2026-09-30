@@ -56,6 +56,7 @@ struct Game {
     const Assets& assets;
     std::array<Entity,16> entities{};
     std::vector<Placement> placements;
+    int playerNumber=0;
     int difficulty=0,ticks=0,seconds=60,secondTicks=0,money=0,remaining=0;
     int breaksNeeded=10,fireHits=4,camera=0,cameraLead=24,cameraLeadTarget=24;
     int scan=0,introCounter=128,finishTimer=64,result=0,pendingResult=0,resultFlags=0;
@@ -68,7 +69,8 @@ struct Game {
     std::array<uint8_t,13> hudValues{};
     int hudCursor=0;
     explicit Game(const Assets& a):assets(a){}
-    void start(int level);
+    void start(int level,int player=0);
+    int terminalFlags() const { return result?resultFlags:0; }
     void step(int buttons);
     void render();
     int spawn(int kind,int x,int y,int placement=-1);

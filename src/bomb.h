@@ -27,12 +27,13 @@ struct BombGame {
     std::array<BombEntity,16> entities{};std::array<uint8_t,Width*Height> screen{};
     std::array<int,3> speeds{},totals{},spawnPending{},displayTotals{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,5> hudValues{};
+    int playerNumber=0;
     int difficulty=0,ticks=0,money=0,cooldown=0,action=0,lostLanes=0,randomState=0;
     bool started=false,paused=false;
     int hudCursor=0,finishTimer=64,result=0,resultFlags=0,held=0,pressed=0,previous=0,animationFaults=0;
     int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0;
     BombGame(const BombAssets& a,const Assets& s):assets(a),shared(s){}
-    void start(int level);void step(int buttons);void render();void update(int i);
+    void start(int level,int player=0);void step(int buttons);void render();void update(int i);
     int spawn(int kind,int x,int y);void setFrame(int i,int frame,int flags=0);
     void startAnimation(int i,int sequence,bool force=false);void animate(int i);
     void beginVideoTick();void finishVideoTick(int oldFrame,int oldFlags);void updateVisibility();

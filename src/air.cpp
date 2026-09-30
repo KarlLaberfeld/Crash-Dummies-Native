@@ -66,7 +66,8 @@ AirAssets AirAssets::load(const std::wstring& path){
     check(r.pos==r.data.size());return a;
 }
 
-void AirGame::start(int level){
+void AirGame::start(int level,int player){
+    playerNumber=player&1;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];
     entities={};placements=l.objects;cameraX=l.cameraX;cameraY=l.cameraY;
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
@@ -368,7 +369,7 @@ void AirGame::step(int buttons){
     }
 }
 void AirGame::refreshHud(){
-    hudValues[0]=0xf7;int score=money%10000;
+    hudValues[0]=0xf7+playerNumber;int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;
     hudValues[5]=0xf6+seconds/10;hudValues[6]=0xf6+seconds%10;
     int bar=(entities[0].params[1]*48/assets.levels[difficulty].quota)&255;

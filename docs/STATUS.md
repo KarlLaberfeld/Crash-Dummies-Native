@@ -278,3 +278,33 @@ This is analysis infrastructure only: the Windows executable STILL HAS NO AUDIO.
 Next reconstruct native envelopes/modulation and pulse/wave/noise synthesis,
 then attach music/effect playback to the original events. Preserve channel
 priority when effects override music. All remaining fidelity work above applies.
+
+## Successful input replays and campaign fixes - September 30
+
+Previous source checkpoint: `3f20d0301a662b9db241ff652ca6d890378f2a5f`
+(local `18b67b6`). Usage was available after the reset; continuation resumed
+without requesting or consuming a reset credit through an agent action.
+
+New native test controllers complete all four difficulties of Ski Slope, Bomb
+Factory and Cruise Missile. Actual runs receive only ordinary button inputs;
+recorded inputs replay successfully from fresh zero-seed starts. Controllers use
+native state and forecast copies, so this demonstrates reachable successful
+outcomes, not human playability, original equivalence or full campaign completion.
+Ski successes take 1642/1623/2166/3120 ticks; Bomb 3481/3617/4253/4108;
+Cruise 2113/1780/1912/1893. All difficulty quotas are satisfied.
+
+Fixed the campaign adapter for Roof Jump: its development result numbers are
+not original bit flags. Timeout/fire could previously leave the transition
+waiting, and insufficient breaks could be misclassified. The adapter now waits
+for completion and returns the separate original result flags. All five stunt
+HUDs now display the current player rather than always player 1.
+
+Validation: 22 Python tests; native Roof 48,879, Air 449,065, Ski 297,304,
+Bomb 407,577, Cruise 297,049, campaign 59 and UI 227 assertions pass. Large
+counts include repeated replay invariants. Native capture and hidden Windows
+startup pass. No cartridge or generated original data are published.
+
+Next: successful Roof/Air inputs across all difficulties, native music/effects,
+initial boot/fades and exact global frame phase, sprite hardware rules and
+original-reference validation. Audio is still absent; the complete port is
+unfinished. The continuation automation remains active.

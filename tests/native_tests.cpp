@@ -125,6 +125,12 @@ int runSelfTests(const Assets& assets) {
             require(first.result!=0,"Stunt has a terminal result");
             fprintf(log,"difficulty=%d ticks=%d result=%d money=%d animation_faults=%d\n",difficulty,first.ticks,first.result,first.money,first.animationFaults);
         }
+        for(auto pair:std::array<std::array<int,2>,5>{{{1,1},{2,0x11},{3,7},{4,0x21},{5,0x81}}}){
+            Game terminal(assets);terminal.start(0);terminal.resultFlags=pair[1];
+            require(terminal.terminalFlags()==0,"Pending Roof result cannot settle a campaign early");
+            terminal.result=pair[0];require(terminal.terminalFlags()==pair[1],"Roof development result maps to original terminal flags");
+        }
+        Game secondPlayer(assets);secondPlayer.start(0,1);require(secondPlayer.hudValues[0]==0xf8,"Roof HUD identifies second campaign player");
         fprintf(log,"PASS: %d assertions. These validate the native implementation, not complete equivalence to the original.\n",assertions);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",assertions,e.what());fclose(log);return 1;}
 }

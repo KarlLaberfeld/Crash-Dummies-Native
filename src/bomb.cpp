@@ -119,7 +119,8 @@ int BombGame::spawn(int kind,int x,int y){
         e.alive=true;e.kind=kind;e.frame=d.frame;e.flags=d.flags;e.collision=d.collision;e.handler=d.handler;e.params=d.params;
         e.x=x&65535;e.y=y&65535;entities[j]=e;return j;}return -1;
 }
-void BombGame::start(int level){
+void BombGame::start(int level,int player){
+    playerNumber=player&1;
     difficulty=std::clamp(level,0,3);entities={};speeds=assets.levels[difficulty].speeds;totals={};spawnPending={};displayTotals={};
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
@@ -232,7 +233,7 @@ void BombGame::step(int buttons){
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();
 }
-void BombGame::refreshHud(){hudValues[0]=0xf7;int score=money%10000;
+void BombGame::refreshHud(){hudValues[0]=0xf7+playerNumber;int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;}
 void BombGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];hudCursor=(hudCursor+1)%5;if(!hudCursor)refreshHud();}
 void BombGame::render(){

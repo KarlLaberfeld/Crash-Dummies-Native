@@ -154,7 +154,8 @@ int CruiseGame::spawn(int kind,int x,int y,int placement){
     for(int j=0;j<16;++j)if(!entities[j].alive){const auto& d=assets.definitions[kind];CruiseEntity e;e.alive=true;e.kind=kind;e.frame=d.frame;
         e.flags=d.flags;e.collision=d.collision;e.handler=d.handler;e.params=d.params;e.x=x&65535;e.y=y&65535;e.placement=placement;entities[j]=e;return j;}return -1;
 }
-void CruiseGame::start(int level){
+void CruiseGame::start(int level,int player){
+    playerNumber=player&1;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;rewarded.assign(placements.size(),false);
     seconds=assets.levels[difficulty].seconds;cameraX=0;cameraY=1920;
     ticks=secondTicks=money=introTimer=balls=randomState=extraLives=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -275,7 +276,7 @@ void CruiseGame::step(int buttons){
     for(int n=0;n<8&&!placements.empty();++n){auto& p=placements[scan];int low=cameraX>>8,high=(low+12)&255,column=((p.x>>8)+2)&255;
         if(!p.active&&low<column&&high>=column){int slot=spawn(p.kind,p.x,p.y,scan);if(slot>=0)p.active=true;}scan=(scan+1)%static_cast<int>(placements.size());}
 }
-void CruiseGame::refreshHud(){hudValues[0]=0xf7;int score=money%10000;
+void CruiseGame::refreshHud(){hudValues[0]=0xf7+playerNumber;int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;
     hudValues[5]=0xf6+seconds/10;hudValues[6]=0xf6+seconds%10;}
 void CruiseGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];hudCursor=(hudCursor+1)%7;if(!hudCursor)refreshHud();}

@@ -65,7 +65,11 @@ python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Native tests cover selected rules derived from the original, deterministic
-replays, and terminal results on all four layouts of the implemented stunts. They **do not establish full fidelity**
+replays, and terminal results on all four layouts of the implemented stunts.
+Input-only test controllers complete Ski, Bomb and Cruise on all four difficulties;
+their recorded button streams are replayed from fresh starts. These controllers
+inspect native state and forecast moves; they are not human playthroughs or
+comparisons against the original. Tests **do not establish full fidelity**
 to the original game. Captured images remain local in the build directory.
 
 ## Project layout

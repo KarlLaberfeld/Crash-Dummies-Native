@@ -57,7 +57,8 @@ Assets Assets::load(const std::wstring& path) {
     return a;
 }
 
-void Game::start(int level) {
+void Game::start(int level,int player) {
+    playerNumber=player&1;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;
     const auto& l=assets.levels[difficulty];
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
@@ -381,7 +382,7 @@ void Game::step(int buttons) {
 void Game::refreshHud() {
     // 00:2e9b displays player number, the low four BCD score digits, seconds,
     // then six height-bar tiles. The counter is camera-based, not goal-based.
-    hudValues[0]=0xf7; // First player; campaign/multiplayer is not ported yet.
+    hudValues[0]=0xf7+playerNumber;
     int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+(score/100)%10;
     hudValues[3]=0xf6+(score/10)%10;hudValues[4]=0xf6+score%10;

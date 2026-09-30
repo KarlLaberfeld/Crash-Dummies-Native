@@ -33,8 +33,8 @@ int selectedStunt=0;
 bool started(){return selectedStunt==4?cruise->started:selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
 bool& paused(){return selectedStunt==4?cruise->paused:selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
 int& difficulty(){return selectedStunt==4?cruise->difficulty:selectedStunt==3?bomb->difficulty:selectedStunt==2?ski->difficulty:selectedStunt==1?air->difficulty:game->difficulty;}
-int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->result;}
-void restart(){if(selectedStunt==4)cruise->start(cruise->difficulty);else if(selectedStunt==3)bomb->start(bomb->difficulty);else if(selectedStunt==2)ski->start(ski->difficulty);else if(selectedStunt==1)air->start(air->difficulty);else game->start(game->difficulty);}
+int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->terminalFlags();}
+void restart(){int player=developerMode?0:ui->campaign.current;if(selectedStunt==4)cruise->start(cruise->difficulty,player);else if(selectedStunt==3)bomb->start(bomb->difficulty,player);else if(selectedStunt==2)ski->start(ski->difficulty,player);else if(selectedStunt==1)air->start(air->difficulty,player);else game->start(game->difficulty,player);}
 bool keys[256]{};
 HFONT headingFont,bodyFont,smallFont;
 uint32_t pixels[ticd::Width*ticd::Height];

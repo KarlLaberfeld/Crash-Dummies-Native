@@ -174,7 +174,8 @@ SkiAssets SkiAssets::load(const std::wstring& path){
     for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);
     check(r.pos==r.data.size());return a;
 }
-void SkiGame::start(int level){
+void SkiGame::start(int level,int player){
+    playerNumber=player&1;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];entities={};placements=l.objects;
     cameraX=l.cameraX;cameraY=0;seconds=l.seconds;remaining=l.quota;needed=l.quota/2;collected=0;
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -280,7 +281,7 @@ void SkiGame::step(int buttons){
         if(!p.active&&low<row&&high>=row){int slot=spawn(p.kind,p.x,p.y,scan);if(slot>=0)p.active=true;}scan=(scan+1)%static_cast<int>(placements.size());}
 }
 void SkiGame::refreshHud(){
-    hudValues[0]=0xf7;int score=money%10000;
+    hudValues[0]=0xf7+playerNumber;int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;
     hudValues[5]=0xf6+seconds/10;hudValues[6]=0xf6+seconds%10;
 }

@@ -1,7 +1,25 @@
 #include "bomb.h"
+#include <algorithm>
 #include <cstdio>
 #include <stdexcept>
 namespace ticd {
+namespace {
+// Planner observes state and forecasts A in a copy. The actual game receives
+// only Button inputs; no actor, score, quota or result values are injected.
+int bombInput(const BombGame& game){
+    const auto& player=game.entities[0];if(player.handler!=BombHandler::Play)return 0;
+    int target=-1,urgency=-99999;
+    for(int i=1;i<16;++i){const auto& e=game.entities[i];int y=static_cast<int16_t>(e.y);
+        if(e.alive&&e.collision==22&&game.speeds[game.lane(i)]&&y>urgency){target=i;urgency=y;}}
+    if(target<0)return 0;
+    int lane=game.lane(target),pose=player.params[0],desired=lane==0?0:lane==2?3:(pose<2?1:2);
+    if(pose!=desired){int key=((desired-pose)&3)<=2?Right:Left;return game.previous&key?0:key;}
+    BombGame forecast=game;for(int frame=0;frame<28&&!forecast.result;++frame)forecast.step(A);
+    if(forecast.entities[target].collision==23&&forecast.money>game.money)return A;
+    int goal=std::clamp(static_cast<int>(static_cast<int16_t>(game.entities[target].y)),64,1280);
+    return player.y>goal+8?Up:player.y<goal-8?Down:0;
+}
+}
 int runBombTests(const BombAssets& assets,const Assets& shared){
     FILE* log=fopen("bomb-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool value,const char* message){++count;if(!value)throw std::runtime_error(message);};
@@ -39,6 +57,16 @@ int runBombTests(const BombAssets& assets,const Assets& shared){
             fprintf(log,"difficulty=%d pattern=%d ticks=%d flags=%02x money=%d counts=%d/%d/%d\n",d,pattern,g.ticks,g.result,g.money,g.totals[0],g.totals[1],g.totals[2]);
             require(g.result!=0,"Bomb replay reaches terminal result");g.render();for(int shade:g.screen)require(shade>=0&&shade<4,"Bomb palette bounds");
         }
+        for(int d=0;d<4;++d){
+            g.start(d);std::vector<int> replay;
+            for(int t=0;t<10000&&!g.result;++t){int input=bombInput(g);replay.push_back(input);g.step(input);}
+            require(g.result==0x43,"Input-only Bomb planner completes every difficulty without injected outcomes");
+            require(g.totals[0]+g.totals[1]+g.totals[2]>=assets.levels[d].quota,"Successful replay fills original quota");
+            BombGame replayed(assets,shared);replayed.start(d);for(int input:replay)replayed.step(input);
+            require(replayed.result==g.result&&replayed.money==g.money&&replayed.totals==g.totals,"Recorded inputs reproduce success from a fresh state");
+            fprintf(log,"input-only success difficulty=%d ticks=%d flags=%02x money=%d counts=%d/%d/%d\n",d,g.ticks,g.result,g.money,g.totals[0],g.totals[1],g.totals[2]);
+        }
+        BombGame secondPlayer(assets,shared);secondPlayer.start(0,1);require(secondPlayer.hudValues[0]==0xf8,"bomb HUD identifies second campaign player");
         fprintf(log,"PASS: %d assertions. Native rule/replay checks; original equivalence remains unverified.\n",count);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",count,e.what());fclose(log);return 1;}
 }

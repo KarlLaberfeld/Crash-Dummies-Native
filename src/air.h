@@ -52,6 +52,7 @@ struct AirGame {
     std::array<uint8_t,20> hudMap{};
     std::array<uint8_t,13> hudValues{};
     std::array<int,6> probes{};
+    int playerNumber=0;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,livesEarned=0;
     int cameraX=0,cameraY=0,cameraLead=176,cameraLeadTarget=176;
     int tilt=0,speed=0,rate=0,lastForce=0,returnX=0,returnY=0;
@@ -61,7 +62,7 @@ struct AirGame {
     bool mapTransfer=true;
     bool started=false,paused=false;
     AirGame(const AirAssets& a,const Assets& s):assets(a),shared(s){}
-    void start(int level);
+    void start(int level,int player=0);
     void step(int buttons);
     void render();
     int spawn(int kind,int x,int y,int placement=-1);
