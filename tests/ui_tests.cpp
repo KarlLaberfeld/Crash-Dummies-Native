@@ -7,6 +7,26 @@ int runUiTests(const UiAssets& assets){
     FILE* log=fopen("ui-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool condition,const char* message){++count;if(!condition)throw std::runtime_error(message);};
     try{
+        UiFlow boot(assets);boot.beginBoot();
+        auto white=boot.render();bool blank=true;for(int shade:white)blank&=shade==0;
+        require(blank,"Boot starts at the original white palette");
+        for(int i=0;i<32;++i)boot.step(UiStart|A|B);
+        auto copyright=boot.render();bool ink=false;for(int shade:copyright)ink|=shade!=0;
+        require(ink&&boot.phase==UiPhase::Boot,"Copyright fades in despite held buttons");
+        for(int i=0;i<180;++i)boot.step(i%2?UiStart:0);
+        require(boot.phase==UiPhase::Boot&&boot.phaseTicks==212,"Copyright hold lasts all 180 updates and cannot be skipped");
+        for(int i=0;i<31;++i)boot.step(0);
+        auto faded=boot.render();blank=true;for(int shade:faded)blank&=shade==0;
+        require(blank&&boot.phase==UiPhase::Boot,"Copyright fade reaches white before switching maps");
+        boot.step(0);require(boot.phase==UiPhase::TitleIntro&&boot.phaseTicks==0,"Copyright exits after its 32-update fade");
+        for(int i=0;i<33;++i)boot.step(UiStart);
+        require(boot.phase==UiPhase::TitleIntro&&boot.titleScroll==0,"Title intro completes fade and one wait before closing");
+        for(int i=0;i<40;++i)boot.step(UiStart);
+        require(boot.phase==UiPhase::TitleIntro&&boot.titleScroll==-80,"Title page is installed while fully closed");
+        for(int i=0;i<40;++i)boot.step(UiStart);
+        require(boot.phase==UiPhase::Title&&boot.phaseTicks==0&&boot.titleScroll==0,"Page timer starts only after the initial opening");
+        boot.step(UiStart);require(boot.phase==UiPhase::Title,"Held boot input does not start a campaign");
+        boot.step(0);boot.step(UiStart);require(boot.phase==UiPhase::Instructions,"A fresh Start works after the boot sequence");
         UiFlow u(assets);u.step(UiSelect);for(int i=0;i<80;++i)u.step(UiSelect);require(u.page==5,"Select opens original options");
         u.step(UiSelect);require(!u.twoPlayers,"Holding Select does not toggle repeatedly");
         u.step(0);u.step(Down);require(u.twoPlayers,"Down selects two players");

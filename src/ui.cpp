@@ -7,7 +7,7 @@ namespace ticd {
 UiAssets UiAssets::load(const std::wstring& path){
     FILE* f=_wfopen(path.c_str(),L"rb");if(!f)throw std::runtime_error("ui.dat is missing. Rebuild with the original ROM.");
     std::vector<uint8_t> data(1024*1024);size_t n=fread(data.data(),1,data.size(),f);int extra=fgetc(f);fclose(f);data.resize(n);
-    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI03",8))throw std::runtime_error("Invalid UI asset package.");
+    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI04",8))throw std::runtime_error("Invalid UI asset package.");
     UiAssets a;size_t offset=8;
     auto read=[&](auto& target){if(target.size()>data.size()-offset)throw std::runtime_error("Truncated UI package");
         memcpy(target.data(),data.data()+offset,target.size());offset+=target.size();};
@@ -21,20 +21,26 @@ UiAssets UiAssets::load(const std::wstring& path){
     read(a.endingTiles);for(auto& m:a.endings)read(m);
     read(a.names);read(a.skiQuotas);read(a.bombQuotas);read(a.startPrompt);
     read(a.nameTiles);for(auto& m:a.nameMaps)read(m);
+    read(a.bootMap);read(a.initialTitleMap);read(a.fadePalettes);
     if(offset!=data.size())throw std::runtime_error("Trailing UI package data");
     auto validate=[](const auto& tiles){for(int shade:tiles)if(shade>3)throw std::runtime_error("Invalid UI palette");};
     validate(a.tiles);validate(a.titleBackground);for(const auto& i:a.instructions)validate(i.tiles);
     for(const auto& t:a.resultTiles)validate(t);validate(a.endingTiles);validate(a.nameTiles);return a;
 }
 
-std::array<uint8_t,Width*Height> renderTitle(const UiAssets& a,int page,bool twoPlayers,int ticks,int titleScroll,bool pointer){
-    if(titleScroll>0||titleScroll< -80)throw std::invalid_argument("Invalid title scroll");
-    if(page<0||page>=6)throw std::invalid_argument("Invalid title page");
+static std::array<uint8_t,Width*Height> titleImage(const UiAssets& a,const UiMap& map,int titleScroll){
     auto screen=a.titleBackground;
     // 00:2502-2535: stable phase uses unsigned window-map tiles with SCY=88
     // between the two fixed signed-tile logo strips at scanlines 24 and 104.
-    for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88+(y<24-titleScroll?titleScroll:0),tile=a.titleMaps[page][(wy/8)*32+x/8];
+    for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88+(y<24-titleScroll?titleScroll:0),tile=map[(wy/8)*32+x/8];
         screen[y*Width+x]=a.tiles[tile*64+(wy&7)*8+(x&7)];}
+    return screen;
+}
+
+std::array<uint8_t,Width*Height> renderTitle(const UiAssets& a,int page,bool twoPlayers,int ticks,int titleScroll,bool pointer){
+    if(titleScroll>0||titleScroll< -80)throw std::invalid_argument("Invalid title scroll");
+    if(page<0||page>=6)throw std::invalid_argument("Invalid title page");
+    auto screen=titleImage(a,a.titleMaps[page],titleScroll);
     if(page==5&&pointer){int tile=254+((ticks>>4)&1),py=56+(twoPlayers?16:0);
         for(int y=0;y<8;++y)for(int x=0;x<8;++x){int shade=a.tiles[tile*64+y*8+x];if(shade)screen[(py+y)*Width+16+x]=(0xc4>>(shade*2))&3;}}
     return screen;
@@ -160,6 +166,17 @@ void UiFlow::step(int buttons){
     pendingSound=-1;
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
+    case UiPhase::Boot:
+        // 280c: 32-update fade in, fixed 180-update hold, 32-update fade out.
+        // 25c4 does not inspect input, so Start cannot skip the copyright screen.
+        if(phaseTicks>=244){phase=UiPhase::TitleIntro;phaseTicks=0;titleScroll=0;page=0;}
+        break;
+    case UiPhase::TitleIntro:
+        // 0259/0264/26ea: fade in, one wait, close the blank center, install
+        // page zero, then open it. Start is accepted only by the page loop.
+        if(phaseTicks>=33)titleScroll=phaseTicks<=73?-(phaseTicks-33)*2:(phaseTicks-113)*2;
+        if(phaseTicks>=113){phase=UiPhase::Title;phaseTicks=0;titleScroll=titleDirection=0;page=0;}
+        break;
     case UiPhase::Title:
         if(titleDirection){
             titleScroll+=titleDirection*2;
@@ -204,6 +221,14 @@ void UiFlow::step(int buttons){
     }
 }
 std::array<uint8_t,Width*Height> UiFlow::render() const{
+    if(phase==UiPhase::Boot||phase==UiPhase::TitleIntro){
+        auto screen=phase==UiPhase::Boot?renderMap(assets.tiles,assets.bootMap):titleImage(assets,phaseTicks<73?assets.initialTitleMap:assets.titleMaps[0],titleScroll);
+        int palette=0xe4;
+        if(phaseTicks<32)palette=assets.fadePalettes[7-phaseTicks/4];
+        else if(phase==UiPhase::Boot&&phaseTicks>=212)palette=assets.fadePalettes[std::min(7,(phaseTicks-212)/4)];
+        for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+        return screen;
+    }
     if(phase==UiPhase::Title){
         if(page!=2)return renderTitle(assets,page,twoPlayers,ticks,titleScroll,titleDirection==0);
         auto canvas=assets.titleMaps[2];scoreRows(canvas,scores,16);auto screen=assets.titleBackground;

@@ -22,13 +22,14 @@ struct UiAssets {
     std::array<uint8_t,20> startPrompt{};
     UiTiles nameTiles{};
     std::array<UiMap,2> nameMaps{};
+    UiMap bootMap{},initialTitleMap{};
+    std::array<uint8_t,8> fadePalettes{};
     static UiAssets load(const std::wstring& path);
 };
-// Stationary title pages reconstructed from the original raster layout.
-// Page-change raster transitions remain pending.
+// Title pages and center transitions reconstructed from the original raster layout.
 std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,bool twoPlayers,int ticks,int titleScroll=0,bool pointer=true);
 constexpr int UiStart=64,UiSelect=128;
-enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry};
+enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry,Boot,TitleIntro};
 // Native presentation state machine. No CPU, memory bus or instruction dispatch.
 struct UiFlow {
     const UiAssets& assets;
@@ -48,6 +49,7 @@ struct UiFlow {
     std::array<uint8_t,48> scores{};
     int scoreRank=-1,nameLength=0,nameScroll=180,nameMotion=0;
     explicit UiFlow(const UiAssets& a):assets(a),scores(a.initialScores){}
+    void beginBoot(){phase=UiPhase::Boot;phaseTicks=0;previous=0;}
     void step(int buttons);
     void beginInstructions();
     void finishStunt(int flags,int earned,int seconds,int extraLives=0,int flagsCollected=0);

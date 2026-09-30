@@ -145,6 +145,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         LocalFree(argv);
         if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int audioResult=ticd::runAudioTests(*audioAssets);int spriteResult=ticd::runSpriteTests();int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:audioResult?audioResult:spriteResult?spriteResult:playthroughResult;}
         if(capture){
+            ticd::UiFlow opening(*uiAssets);opening.beginBoot();
+            for(int i=0;i<32;++i)opening.step(0);
+            ticd::saveBmp(directory+L"boot-copyright.bmp",opening.render());
+            for(int i=32;i<244+53;++i)opening.step(0);
+            ticd::saveBmp(directory+L"boot-title-closing.bmp",opening.render());
             for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(*uiAssets,page,false,0));
             ticd::saveBmp(directory+L"title-transition.bmp",ticd::renderTitle(*uiAssets,1,false,0,-40,false));
             for(int stage=0;stage<5;++stage){
@@ -170,6 +175,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);
             cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
+        ui->beginBoot();
         ticd::WindowsAudio audioDevice;std::vector<int16_t> audioSamples;
         int lastMusic=-1,lastMusicGeneration=-1;auto lastAudioPhase=ui->phase;
         SetProcessDPIAware();
@@ -212,6 +218,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 int music=1;
                 if(developerMode){if(started())music=8+selectedStunt;}
                 else switch(ui->phase){
+                case ticd::UiPhase::Boot:music=0;break;
+                case ticd::UiPhase::TitleIntro:music=ui->phaseTicks<33?0:1;break;
                 case ticd::UiPhase::Title:music=1;break;
                 case ticd::UiPhase::Instructions:music=2;break;
                 case ticd::UiPhase::Playing:music=8+selectedStunt;break;
@@ -219,7 +227,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 case ticd::UiPhase::Ending:music=13;break;
                 case ticd::UiPhase::NameEntry:music=6;break;
                 }
-                if(music!=lastMusic||ui->phase!=lastAudioPhase||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastAudioPhase=ui->phase;lastMusicGeneration=musicGeneration;}
+                bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title);
+                if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}
+                lastAudioPhase=ui->phase;
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){int effect=selectedStunt==4?cruise->pendingSound:selectedStunt==3?bomb->pendingSound:selectedStunt==2?ski->pendingSound:selectedStunt==1?air->pendingSound:game->pendingSound;
                     if(effect>=0)sound->queueEffect(effect);}
                 if(!developerMode&&ui->pendingSound>=0)sound->queueEffect(ui->pendingSound);

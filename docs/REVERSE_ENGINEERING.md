@@ -530,3 +530,28 @@ bytes, and the existing all-difficulty/campaign runs. Native screenshots were
 inspected locally; these are not original-game image comparisons. Slot parity
 is currently based on stage update parity. Exact first displayed frame,
 menus/fades, video-transfer latency and global presentation phase remain open.
+
+
+## Original boot presentation
+
+00:280c displays the 20x18 copyright tilemap referenced by text script 2814.
+Song 0 starts before the 20d1 fade-in. The palette table at 2118 is
+E4/E4/E4/A4/90/50/50/00: fade-in traverses it backwards, fade-out forwards,
+each entry lasting four updates. 25c4 waits a fixed 180 updates without reading
+buttons. Native Boot reproduces these 32/180/32 update sections.
+
+After that, 0217 installs the title background and blank/dummy center map.
+0259 fades in, 025c waits once, 0261 starts song 1, and 26ea closes the center
+for 40 updates, installs page zero while closed, then opens for 40 updates.
+Native TitleIntro reproduces this order; the stationary page timer begins only
+when opening finishes. Startup input is consumed and cannot skip the copyright
+or start a campaign with a button held through the transition. The music is
+not spuriously restarted when moving between these opening phases.
+
+`TICDUI04` appends the copyright map, initial title map and palette sequence.
+Normal Windows startup invokes `beginBoot`; F6 returns directly to the title,
+and isolated UI/campaign harnesses start at the title unless testing boot.
+Ten additional native UI assertions cover section boundaries and held input.
+Copyright and title-closing captures were inspected locally. LCD enable/setup
+waits, exact first-VBlank alignment and other inter-screen fades remain open;
+357 modeled opening updates are not a claimed power-on reference timestamp.

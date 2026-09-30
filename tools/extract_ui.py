@@ -85,7 +85,7 @@ def extract_ui(rom,output):
         for dy in range(h):initial[(y+dy)*32+x:(y+dy)*32+x+w]=rom[source+dy*w:source+(dy+1)*w]
     maps=[menu_map(rom,p,initial) for p in TITLE_SCRIPTS]
     records=rom[0xa3:0xd3];high_score_rows(maps[2],records)
-    payload=bytearray(b'TICDUI03')+atlas+title_image(rom)
+    payload=bytearray(b'TICDUI04')+atlas+title_image(rom)
     for canvas in maps:payload+=canvas
     payload+=records
     for gfx,count,layout,text in INSTRUCTIONS:
@@ -121,8 +121,9 @@ def extract_ui(rom,output):
         canvas=menu_map(rom,0x322a)
         canvas[39:42]=rom[0x263d:0x2640] if player==0 else rom[0x2643:0x2646]
         payload+=menu_map(rom,0x323c,canvas,position=42)
+    payload+=menu_map(rom,0x2814)+initial+rom[0x2118:0x2120]
     (output/'ui.dat').write_bytes(payload)
-    manifest=dict(format='TICDUI03',title_pages=len(maps),page_durations=[480,480,960,480,960],
+    manifest=dict(format='TICDUI04',title_pages=len(maps),page_durations=[480,480,960,480,960],
                   high_scores=8,instructions=5,result_texts=16,ending_players=2)
     (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

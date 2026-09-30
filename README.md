@@ -7,7 +7,8 @@ Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Sl
 reconstructed original graphics, four difficulty layouts, and a partial native
 translation of the original game logic. The original title/options pages, stage
 instructions, campaign progression, result portraits and ending are connected.
-High-score name entry and pay/time counting are implemented. Remaining presentation
+The original copyright screen, opening fades, high-score name entry and pay/time
+counting are implemented. Remaining presentation
 timing, exact sound fidelity, and full behavioral validation remain unfinished.
 Native music and sound output now cover the original 14 songs and 26 effects,
 with animation and key gameplay events connected; exact audio equivalence is

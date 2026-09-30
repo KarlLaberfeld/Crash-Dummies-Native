@@ -447,3 +447,25 @@ rechecked, with no new justified correction. Its 80-update/animation boundary
 remains unresolved. Also open: exact slot/display phase and transfer latency,
 boot/fades, hidden password page, audio edge cases, and broader original
 reference validation. The port remains unfinished; keep continuation active.
+
+
+## Copyright screen and initial title transition
+
+Sprite checkpoint published as `aa89ba4e2dd8a22a1d59a6bfd48d24f4a49813a9`,
+tree `018ecc3fc2500fb9806b6b034427435e4c33b1b9`, local `5591ac4`.
+
+Normal Windows startup now shows the ROM's copyright screen with the original
+eight palette steps (four updates each), fixed 180-update hold and fade-out.
+The first title appearance then fades in, waits once, changes to title music,
+closes its blank/dummy center, installs page zero and opens it. Music continues
+across phase boundaries until the identified song change. These opening phases
+do not accept Start; a held button must be released before it can start play.
+`ui.dat` is now TICDUI04 and must be regenerated.
+
+A full extraction/build/test run passed: 24 Python tests, UI assertions now
+237, all prior game/audio/sprite suites and the twenty-win campaign unchanged.
+Both new opening captures were inspected locally. Windows audio ran through
+300 opening updates with an available device, zero dropped buffers and exit 0.
+Power-on/LCD alignment and remaining menu/game/result fades are still unverified.
+The isolated campaign harness intentionally skips boot and is not a wall-clock
+reference. The Air stall and other documented fidelity gaps remain open.
