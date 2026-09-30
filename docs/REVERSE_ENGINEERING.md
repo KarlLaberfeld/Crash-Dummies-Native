@@ -427,3 +427,34 @@ application now carries it between timed campaign stunts; Bomb leaves it alone.
 Campaign starts now do this from the native global frame counter. Exact original
 random sequences still differ when missing transitions change frame phase;
 standalone tests retain explicit zero-phase deterministic starts.
+
+
+## Title transition and audio data-language audit
+
+27e6 closes the title center in 40 two-pixel updates (scroll 0 to -80); 27d4
+opens it in another 40. Text maps change while closed, and the stationary page
+timer starts only after opening. Native title changes now follow that sequence,
+including options entry/exit. In 2502/2521 the upper part of the center uses
+SCY=88+scroll until scanline 23-scroll, then SCY=88 through scanline 103. The
+intermediate dummy tiles are already retained in each title map. Initial boot
+and palette fades still need the full transition sequence. A hidden password/
+cheat screen at 2b50 is also not yet ported.
+
+Sound: 362a selects one of fourteen four-channel songs via eight 14-byte pointer
+arrays at 3783-37f2. 3714 dispatches one of 26 effects at 37f3-385a, containing
+pulse and/or noise streams (29 populated effect streams). VBlank calls the
+bank-2 music update at 4000 after queuing effects. Music and effect voices are
+separate software states; effect voices take over pulse 1/noise outputs.
+
+`tools/analyze_audio.py` decodes the identified *music data language*, not SM83
+instructions. All four music channels use commands 80-99, with separate handler
+tables at 3986/39ba/39ee/3a22; effect tables are 3a56/3a8a. Commands cover counted
+loops, duration mode, calls/returns, jumps, instrument parameters and termination.
+Calls have up to three return slots. A zero per-note duration means 256 updates.
+The tool follows all 56 music streams and 29 effect streams to termination or a
+repeated control state. Instrument/wave references are recorded separately.
+Title channel loops each span 2112 driver updates in this control analysis.
+These counts do not establish waveform or exact playback equivalence. Native
+synthesis/output, envelopes/modulation, register behavior and event wiring remain
+unimplemented; the executable is still silent. Reports contain extracted data
+and are written only locally (`local/audio-analysis.json` by default).

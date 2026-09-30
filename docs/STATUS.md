@@ -259,3 +259,22 @@ claimed. All source/docs are English; generated original data stay local.
 Next: original sound/music reconstruction, page/fade transitions and phase
 validation, hardware sprite priority/capacity, and successful natural runs across
 all difficulties. The complete port is still unfinished. Keep automation active.
+
+
+## Title transitions and audio analysis - latest local work
+
+High-score/count-up checkpoint published as
+`9798a80f7e67ff6ed8e7d2465b79bbaf1ba08602` (local `c5b0ced`).
+Title/options page changes now close/open in the original 40+40 updates, swapping
+text while closed and retaining the intermediate dummy artwork. The new page's
+hold timer begins after opening. 227 native UI assertions pass; transition image
+capture was inspected. Initial boot/fades and hidden password screen remain open.
+
+Added `tools/analyze_audio.py`: explicit decoding of all 14 four-channel music
+tracks and all 26 sound effects (29 active streams), with notes, duration mode,
+loops/calls and instrument references. It executes no cartridge CPU instructions.
+Generated report stays in `local/`. Four additional Python tests (22 total) pass.
+This is analysis infrastructure only: the Windows executable STILL HAS NO AUDIO.
+Next reconstruct native envelopes/modulation and pulse/wave/noise synthesis,
+then attach music/effect playback to the original events. Preserve channel
+priority when effects override music. All remaining fidelity work above applies.

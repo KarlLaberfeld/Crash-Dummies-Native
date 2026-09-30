@@ -27,14 +27,15 @@ UiAssets UiAssets::load(const std::wstring& path){
     for(const auto& t:a.resultTiles)validate(t);validate(a.endingTiles);validate(a.nameTiles);return a;
 }
 
-std::array<uint8_t,Width*Height> renderTitle(const UiAssets& a,int page,bool twoPlayers,int ticks){
+std::array<uint8_t,Width*Height> renderTitle(const UiAssets& a,int page,bool twoPlayers,int ticks,int titleScroll,bool pointer){
+    if(titleScroll>0||titleScroll< -80)throw std::invalid_argument("Invalid title scroll");
     if(page<0||page>=6)throw std::invalid_argument("Invalid title page");
     auto screen=a.titleBackground;
     // 00:2502-2535: stable phase uses unsigned window-map tiles with SCY=88
     // between the two fixed signed-tile logo strips at scanlines 24 and 104.
-    for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88,tile=a.titleMaps[page][(wy/8)*32+x/8];
+    for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88+(y<24-titleScroll?titleScroll:0),tile=a.titleMaps[page][(wy/8)*32+x/8];
         screen[y*Width+x]=a.tiles[tile*64+(wy&7)*8+(x&7)];}
-    if(page==5){int tile=254+((ticks>>4)&1),py=56+(twoPlayers?16:0);
+    if(page==5&&pointer){int tile=254+((ticks>>4)&1),py=56+(twoPlayers?16:0);
         for(int y=0;y<8;++y)for(int x=0;x<8;++x){int shade=a.tiles[tile*64+y*8+x];if(shade)screen[(py+y)*Width+16+x]=(0xc4>>(shade*2))&3;}}
     return screen;
 }
@@ -153,17 +154,24 @@ void UiFlow::enterHighScore(){
     for(int i=2;i>=0;--i){int b=savings%100;savings/=100;scores[scoreRank*6+3+i]=static_cast<uint8_t>(((b/10)<<4)|(b%10));}
     phase=UiPhase::NameEntry;phaseTicks=0;nameLength=0;nameScroll=180;nameMotion=0;
 }
+void UiFlow::queueTitlePage(int next){nextPage=next;titleDirection=-1;}
 void UiFlow::step(int buttons){
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
     case UiPhase::Title:
+        if(titleDirection){
+            titleScroll+=titleDirection*2;
+            if(titleScroll==-80){page=nextPage;titleDirection=1;}
+            else if(titleScroll==0){titleDirection=0;phaseTicks=0;}
+            break;
+        }
         if(pressed&UiStart){campaign.start(twoPlayers);beginInstructions();}
         else if(page==5){
             if(pressed&(UiSelect|Up|Down))twoPlayers=!twoPlayers;
-            if(pressed&(A|B)){page=0;phaseTicks=0;}
-        }else if(pressed&UiSelect){page=5;phaseTicks=0;}
+            if(pressed&(A|B))queueTitlePage(0);
+        }else if(pressed&UiSelect)queueTitlePage(5);
         else{constexpr int durations[]={480,480,960,480,960};
-            if((pressed&(A|B))||phaseTicks>=durations[page]){page=(page+1)%5;phaseTicks=0;}}
+            if((pressed&(A|B))||phaseTicks>=durations[page])queueTitlePage((page+1)%5);}
         break;
     case UiPhase::Instructions:
         if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;}else if(!textDone)advanceText();break;
@@ -195,9 +203,9 @@ void UiFlow::step(int buttons){
 }
 std::array<uint8_t,Width*Height> UiFlow::render() const{
     if(phase==UiPhase::Title){
-        if(page!=2)return renderTitle(assets,page,twoPlayers,ticks);
+        if(page!=2)return renderTitle(assets,page,twoPlayers,ticks,titleScroll,titleDirection==0);
         auto canvas=assets.titleMaps[2];scoreRows(canvas,scores,16);auto screen=assets.titleBackground;
-        for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88,tile=canvas[(wy/8)*32+x/8];screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(x&7)];}
+        for(int y=24;y<104;++y)for(int x=0;x<Width;++x){int wy=y+88+(y<24-titleScroll?titleScroll:0),tile=canvas[(wy/8)*32+x/8];screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(x&7)];}
         return screen;
     }
     if(phase==UiPhase::NameEntry){

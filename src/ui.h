@@ -26,7 +26,7 @@ struct UiAssets {
 };
 // Stationary title pages reconstructed from the original raster layout.
 // Page-change raster transitions remain pending.
-std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,bool twoPlayers,int ticks);
+std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,bool twoPlayers,int ticks,int titleScroll=0,bool pointer=true);
 constexpr int UiStart=64,UiSelect=128;
 enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry};
 // Native presentation state machine. No CPU, memory bus or instruction dispatch.
@@ -35,6 +35,7 @@ struct UiFlow {
     Campaign campaign;
     UiPhase phase=UiPhase::Title;
     bool twoPlayers=false,textDone=false;
+    int titleScroll=0,titleDirection=0,nextPage=0;
     int page=0,ticks=0,phaseTicks=0,previous=0,stunt=0,level=0;
     int scroll=0,position=0,anchor=0,row=0,speed=0,delay=0,scrollStep=-1,pendingGlyph=-1;
     size_t cursor=0;
@@ -52,6 +53,7 @@ struct UiFlow {
     std::array<uint8_t,Width*Height> render() const;
 private:
     void advanceText();
+    void queueTitlePage(int next);
     void enterHighScore();
     void advanceResult(bool skip);
     void continueCampaign();

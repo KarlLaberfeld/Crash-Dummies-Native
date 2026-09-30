@@ -104,7 +104,7 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         }else if(wp==VK_RETURN&&ui->phase==ticd::UiPhase::Playing)paused()=!paused();
         if(wp==VK_ESCAPE&&started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=!paused();
         if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;developerMode=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
-        if(wp==VK_F6){developerMode=false;ui->phase=ticd::UiPhase::Title;ui->page=ui->phaseTicks=ui->previous=0;ui->campaign.active=false;std::fill(std::begin(keys),std::end(keys),false);}
+        if(wp==VK_F6){developerMode=false;ui->phase=ticd::UiPhase::Title;ui->page=ui->phaseTicks=ui->previous=ui->titleDirection=ui->titleScroll=0;ui->campaign.active=false;std::fill(std::begin(keys),std::end(keys),false);}
         InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_DESTROY:PostQuitMessage(0);return 0;
     }
@@ -136,6 +136,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult;}
         if(capture){
             for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(*uiAssets,page,false,0));
+            ticd::saveBmp(directory+L"title-transition.bmp",ticd::renderTitle(*uiAssets,1,false,0,-40,false));
             for(int stage=0;stage<5;++stage){
                 ticd::UiFlow sample(*uiAssets);sample.campaign.start(false,stage);sample.beginInstructions();
                 for(int i=0;i<2500&&!sample.textDone;++i)sample.step(0);

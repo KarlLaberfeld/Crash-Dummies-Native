@@ -7,7 +7,7 @@ int runUiTests(const UiAssets& assets){
     FILE* log=fopen("ui-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool condition,const char* message){++count;if(!condition)throw std::runtime_error(message);};
     try{
-        UiFlow u(assets);u.step(UiSelect);require(u.page==5,"Select opens original options");
+        UiFlow u(assets);u.step(UiSelect);for(int i=0;i<80;++i)u.step(UiSelect);require(u.page==5,"Select opens original options");
         u.step(UiSelect);require(!u.twoPlayers,"Holding Select does not toggle repeatedly");
         u.step(0);u.step(Down);require(u.twoPlayers,"Down selects two players");
         u.step(UiStart);require(u.phase==UiPhase::Instructions&&u.campaign.players[1].lives==5,"Start opens first player's instructions");
@@ -34,7 +34,10 @@ int runUiTests(const UiAssets& assets){
         for(int life=0;life<5;++life){failed.step(0);failed.step(UiStart);failed.finishStunt(1,99,10);failed.step(0);failed.step(B);}
         for(int i=0;i<480;++i)failed.step(0);
         require(failed.phase==UiPhase::Title&&failed.campaign.players[0].savings==0,"Final lost life returns to title without banking failed pay");
-        UiFlow titles(assets);for(int i=0;i<480;++i)titles.step(0);require(titles.page==1,"Title page uses original 480-frame duration");
+        UiFlow titles(assets);for(int i=0;i<480;++i)titles.step(0);require(titles.page==0&&titles.titleDirection==-1,"Title starts closing after original 480-frame duration");
+        for(int i=0;i<39;++i)titles.step(0);require(titles.titleScroll==-78&&titles.page==0,"Title closes two pixels per frame");
+        titles.step(0);require(titles.titleScroll==-80&&titles.page==1&&titles.titleDirection==1,"Page changes only at closed position");
+        for(int i=0;i<40;++i)titles.step(0);require(titles.titleScroll==0&&titles.titleDirection==0&&titles.phaseTicks==0,"New page opens over forty updates before its hold timer");
         // Independent small text fixture exercises delay-before-write and each
         // two-frame scroll increment, not only final screenshot contents.
         auto fixture=std::make_unique<UiAssets>(assets);
@@ -74,7 +77,7 @@ int runUiTests(const UiAssets& assets){
         require(high.nameLength==2&&high.scores[2]==0,"Backspace symbol erases the last initial");
         high.step(Right);for(int i=0;i<8;++i)high.step(0);high.step(B);
         require(high.phase==UiPhase::Title&&high.scores[0]==11,"End symbol returns to title and preserves entered scores");
-        high.step(UiSelect);high.step(UiStart);require(high.scores[0]==11,"Starting a new campaign preserves session high scores");
+        high.step(UiSelect);for(int i=0;i<80;++i)high.step(0);high.step(UiStart);require(high.scores[0]==11,"Starting a new campaign preserves session high scores");
         fprintf(log,"PASS: %d UI flow/text assertions. Full original presentation timing remains pending.\n",count);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",count,e.what());fclose(log);return 1;}
 }
