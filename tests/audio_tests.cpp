@@ -50,6 +50,12 @@ int runAudioTests(const AudioAssets& assets){
             check(!audio.voices[4].active&&!audio.voices[5].active,"Every original sound effect terminates");
             check(audio.voices[0].notes==reference.voices[0].notes&&audio.voices[3].notes==reference.voices[3].notes,"Effects leave underlying music sequencing running");
         }
+        NativeAudio stopped(assets);stopped.playMusic(1);stopped.queueEffect(1);stopped.tick();
+        check(stopped.musicPlaying(),"Playing song exposes active music voices to the music-test UI");
+        stopped.queueEffect(2);stopped.stop();stopped.tick();stopped.render(buffer);
+        bool silent=true;for(int sample:buffer)silent&=sample==0;
+        check(silent&&!stopped.musicPlaying()&&!stopped.voices[4].active&&!stopped.voices[5].active,"Stop clears music, effects, pending request and audible output");
+        stopped.playMusic(1);stopped.tick();check(stopped.musicPlaying(),"Music can restart after explicit stop");
         NativeAudio last(assets),single(assets);last.playMusic(1);single.playMusic(1);last.queueEffect(0);last.queueEffect(1);single.queueEffect(1);last.tick();single.tick();
         check(last.voices[4].position==single.voices[4].position&&last.voices[5].position==single.voices[5].position,"Same-update effect requests use the last original queue value");
         for(int song=0;song<14;++song){NativeAudio audio(assets);audio.playMusic(song);std::vector<int16_t> pcm;

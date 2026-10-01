@@ -495,3 +495,36 @@ power-on run. Air's crash-animation boundary remains unresolved. Next work:
 remaining inter-screen fades, hidden password/music-test page, exact frame and
 audio phase/reference comparison. The native Windows port is not complete.
 Continue after the next usage reset; no reset credit was used.
+
+## Hidden password entry and music test
+
+The shared-frame checkpoint is now published as
+`c015b872aba7f29a8e00d6192e1533c507f139be`, tree
+`2d57588eb48afc343c97985e1c9fdc884bb755ef`, local `ee67de3`.
+The previous upload was deferred because automatic approval review reached
+its usage limit; retry after the reset succeeded. No reset credit was used.
+
+Reconstructed the original Up/Down/Left/Right unlock on stationary title
+pages, eight-digit password editing, fixed feedback hold, and all ten actions:
+five starting stunts, four difficulties and the music test. Both campaign
+players inherit the selected starting settings. Start returns to title after
+submission; A/B returns to fresh entry. Music-test exit preserves that choice.
+The original center close/open transitions and the password music wait are
+modeled. Digit sequences and four page maps remain local in TICDUI05.
+
+Music test wraps over all 14 tunes and 26 effects. Its displayed counters
+are hexadecimal, following the original nibble renderer. A starts the chosen
+tune or, when that same tune still has active music voices, queues the effect.
+B stops all playback. Explicit audio stop now clears queued effects as well.
+The host passes actual music voice activity to the menu state machine.
+
+Validation: 25 Python tests, 313 native UI assertions, 112 audio assertions;
+all prior stunt/campaign/sprite suites pass with no compiler warnings. The
+shared-frame campaign still reaches 20 wins in 23 attempts, savings 8,221,
+update 62,605. Password and music-test captures were inspected locally.
+These are source-derived and synthetic checks, not original-machine reference
+comparisons. ROM data and generated captures/packages are not uploaded.
+
+The port remains incomplete. Remaining work includes other lifecycle fades
+and setup waits, the Air crash-animation boundary, detailed audio behavior and
+reference validation of frame/display phase. Keep automatic continuation active.

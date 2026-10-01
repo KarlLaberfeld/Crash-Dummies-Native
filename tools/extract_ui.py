@@ -76,6 +76,20 @@ def overlay_tiles(rom,atlas,bank,pointer,start,count):
     for i in range(count):result[(start+i)*64:(start+i+1)*64]=tile(rom,address(bank,pointer)+i*16)
     return result
 
+def hidden_passwords(rom):
+    # Explicitly identified handlers: five stage choices, four difficulties,
+    # then music test. Only digit data enter the package, never code addresses.
+    handlers=[0x2d2f,0x2d35,0x2d3b,0x2d41,0x2d47,0x2d4d,0x2d53,0x2d59,0x2d5f,0x2d65]
+    result=bytearray()
+    for index,handler in enumerate(handlers):
+        pos=0x2cca+index*10
+        if struct.unpack_from('<H',rom,pos+8)[0]!=handler:raise ValueError('Unknown password action')
+        digits=rom[pos:pos+8]
+        if len(digits)!=8 or any(n<1 or n>10 for n in digits):raise ValueError('Invalid password digits')
+        result+=digits
+    if rom[0x2d2e]!=255:raise ValueError('Unknown password table end')
+    return result
+
 def extract_ui(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     atlas=b''.join(tile(rom,address(3,0x4000)+i*16) for i in range(256))
@@ -85,7 +99,7 @@ def extract_ui(rom,output):
         for dy in range(h):initial[(y+dy)*32+x:(y+dy)*32+x+w]=rom[source+dy*w:source+(dy+1)*w]
     maps=[menu_map(rom,p,initial) for p in TITLE_SCRIPTS]
     records=rom[0xa3:0xd3];high_score_rows(maps[2],records)
-    payload=bytearray(b'TICDUI04')+atlas+title_image(rom)
+    payload=bytearray(b'TICDUI05')+atlas+title_image(rom)
     for canvas in maps:payload+=canvas
     payload+=records
     for gfx,count,layout,text in INSTRUCTIONS:
@@ -122,8 +136,10 @@ def extract_ui(rom,output):
         canvas[39:42]=rom[0x263d:0x2640] if player==0 else rom[0x2643:0x2646]
         payload+=menu_map(rom,0x323c,canvas,position=42)
     payload+=menu_map(rom,0x2814)+initial+rom[0x2118:0x2120]
+    for script in (0x2b57,0x2c7f,0x2ca6,0x2d6c):payload+=menu_map(rom,script,initial)
+    payload+=hidden_passwords(rom)
     (output/'ui.dat').write_bytes(payload)
-    manifest=dict(format='TICDUI04',title_pages=len(maps),page_durations=[480,480,960,480,960],
+    manifest=dict(format='TICDUI05',title_pages=len(maps),page_durations=[480,480,960,480,960],
                   high_scores=8,instructions=5,result_texts=16,ending_players=2)
     (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

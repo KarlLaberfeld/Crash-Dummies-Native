@@ -7,8 +7,8 @@ Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Sl
 reconstructed original graphics, four difficulty layouts, and a partial native
 translation of the original game logic. The original title/options pages, stage
 instructions, campaign progression, result portraits and ending are connected.
-The original copyright screen, opening fades, high-score name entry and pay/time
-counting are implemented. Remaining presentation
+The original copyright screen, opening fades, high-score name entry, pay/time
+counting, hidden password entry and music test are implemented. Remaining presentation
 timing, exact sound fidelity, and full behavioral validation remain unfinished.
 Native music and sound output now cover the original 14 songs and 26 effects,
 with animation and key gameplay events connected; exact audio equivalence is
@@ -41,13 +41,22 @@ for extraction and compilation.
 | R | Restart the stunt in development mode |
 | 1–4 | Select difficulty and restart in development mode |
 
-The application starts on the original title page. Press Tab for one/two-player
+The application shows the original copyright sequence before the title page. Press Tab for one/two-player
 options; Z/X advances title pages. Results alternate between active players.
 Results count pay and remaining time into savings. Z/X or Enter accelerates
 counting; press again to continue. For a qualifying high score, Left/Right scrolls
 the original character strip and Z/X confirms. Select its backspace/end symbols
 to delete/finish. High scores remain in memory for the current application session. Roof Jump begins with the reconstructed camera flyover. Losing window focus
 pauses the game. The development window currently uses German labels.
+
+On a stationary title page (outside options), press Up, Down, Left, Right to
+open the original password screen. Left/Right selects a digit and Up/Down changes
+it. Enter submits and returns to the title after feedback; Z/X submits and
+returns to password entry. Original passwords select the starting stunt,
+difficulty, or music test. Password data are extracted locally from your ROM.
+In the music test, Left/Right selects a tune and Up/Down selects an effect.
+Z starts the tune, then triggers the selected effect while that tune is playing;
+X stops playback and Enter exits. The counters use the original hexadecimal display.
 
 ## Building
 

@@ -150,6 +150,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             ticd::saveBmp(directory+L"boot-copyright.bmp",opening.render());
             for(int i=32;i<244+53;++i)opening.step(0);
             ticd::saveBmp(directory+L"boot-title-closing.bmp",opening.render());
+            ticd::UiFlow hidden(*uiAssets);
+            for(int key:{ticd::Up,ticd::Down,ticd::Left,ticd::Right}){hidden.step(0);hidden.step(key);}
+            for(int i=0;i<81;++i)hidden.step(0);
+            ticd::saveBmp(directory+L"password-entry.bmp",hidden.render());
+            hidden.phase=ticd::UiPhase::MusicTest;hidden.map=uiAssets->hiddenMaps[3];hidden.testTune=13;hidden.testEffect=25;hidden.step(0);
+            ticd::saveBmp(directory+L"music-test.bmp",hidden.render());
             for(int page=0;page<6;++page)ticd::saveBmp(directory+L"title-"+std::to_wstring(page)+L".bmp",ticd::renderTitle(*uiAssets,page,false,0));
             ticd::saveBmp(directory+L"title-transition.bmp",ticd::renderTitle(*uiAssets,1,false,0,-40,false));
             for(int stage=0;stage<5;++stage){
@@ -198,7 +204,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bool changed=false;
             while(accumulator>=step){
                 int input=buttons();
-                if(!developerMode){auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
+                if(!developerMode){ui->musicActive=sound->musicPlaying();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
                     if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
                         if(selectedStunt==4){cruise->secondTicks=ui->timerPhase;cruise->randomState=(ui->ticks&255)<<8;}
                         else if(selectedStunt==3)bomb->randomState=(ui->ticks&255)<<8;
@@ -230,9 +236,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 case ticd::UiPhase::Result:music=ui->campaign.last.gameOver?13:ui->campaign.last.success?(ui->campaign.last.perfect?5:4):3;break;
                 case ticd::UiPhase::Ending:music=13;break;
                 case ticd::UiPhase::NameEntry:music=6;break;
+                default:break; // Hidden menus issue explicit music/stop commands.
                 }
                 bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title);
-                if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}
+                bool hiddenAudio=!developerMode&&(ui->phase>=ticd::UiPhase::HiddenTransition||lastAudioPhase>=ticd::UiPhase::HiddenTransition);
+                if(hiddenAudio){if(ui->pendingMusic!=-2){if(ui->pendingMusic<0)sound->stop();else sound->playMusic(ui->pendingMusic);lastMusic=ui->pendingMusic;}}
+                else if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}
                 lastAudioPhase=ui->phase;
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){int effect=selectedStunt==4?cruise->pendingSound:selectedStunt==3?bomb->pendingSound:selectedStunt==2?ski->pendingSound:selectedStunt==1?air->pendingSound:game->pendingSound;
                     if(effect>=0)sound->queueEffect(effect);}

@@ -45,6 +45,7 @@ void NativeAudio::playMusic(int index){
     for(int i=0;i<16;++i){wave[i*2]=assets.initialWave[i]>>4;wave[i*2+1]=assets.initialWave[i]&15;}
     for(int i=0;i<4;++i){voices[i].active=true;voices[i].position=assets.songs[index][i];}
 }
+void NativeAudio::stop(){voices={};outputs={};pendingEffect=-1;song=-1;enabled=false;capacitor={};}
 void NativeAudio::queueEffect(int index){if(index<0||index>=26)throw std::invalid_argument("Invalid original effect index.");pendingEffect=index;}
 void NativeAudio::startEffect(int index){
     // 00:3714 resets only selected effect parameters; envelope/duty remain until

@@ -56,6 +56,8 @@ struct NativeAudio {
     std::array<double,2> capacitor{};
     explicit NativeAudio(const AudioAssets& a):assets(a){}
     void playMusic(int index);
+    void stop();
+    bool musicPlaying() const {for(int i=0;i<4;++i)if(voices[i].active)return true;return false;}
     void queueEffect(int index);
     void tick();
     void render(std::vector<int16_t>& stereo,int sampleRate=48000);

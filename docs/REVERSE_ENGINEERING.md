@@ -574,3 +574,44 @@ its easy-Air pilot searches ordinary alternating input schedules on copies at
 the actual phase instead of assuming a zero-phase start. No measured game state
 is patched by the pilot. Missing fades/setup waits still prevent an exact
 original power-on frame phase claim.
+
+## Hidden password flow and music test (00:2b15-2e49)
+
+The title loop at 2708 calls 2b1a before Start/Select/action handling, whereas
+the options loop at 2789 does not. The recognizer compares complete newly
+pressed masks against Up/Down/Left/Right. A wrong nonzero mask resets the
+sequence without reconsidering that mask as its first element. Zero leaves
+progress intact; title transitions do not poll the recognizer.
+
+2b50 closes the center for 40 updates, replaces its map, waits once, starts
+song 7 and opens for 40 updates. 2baa publishes the selection cursor before
+processing Left, Right, Up and Down in that order. Eight initially zero data
+bytes display placeholder glyphs until edited. Digits use glyph codes 1..10;
+Up/Down wrap within that range and horizontal movement clamps to 0..7.
+The cursor is tile 45 at x=48+8*index, y=80 with background priority.
+
+Start/A/B submission saves whether Start was included, waits once, stops
+playback (3707), clears the cursor and compares all eight bytes at 2c64.
+Both feedback paths close, replace, open, then hold for 60 unskippable updates.
+The ten entries at 2cca select five stages, four difficulties, or music test;
+the extractor validates the known handler addresses but exports only digit
+bytes in this fixed semantic order. Native code does not dispatch ROM addresses.
+Stage/difficulty actions apply after the feedback hold and persist as campaign
+starting defaults. Start returns to page zero via one wait and title music;
+A/B returns to password entry. A music-test action executes before this return.
+
+2d65 closes/replaces/opens the music-test map. 2dab renders both numeric
+values before input with the hexadecimal nibble renderer 2315. Left/Right
+wrap tune 0..13 and Down/Up wrap effect 0..25. B stops playback and resets the
+last tune. A starts a changed/stopped tune; when the selected tune is the same
+and any of its four music voices is active (2dfd), A queues the effect instead.
+B precedes A, and Start returns after both. The Windows audio integration uses
+explicit commands throughout hidden transitions so it does not restart a tune
+merely because a UI phase changes.
+
+TICDUI05 appends four locally extracted maps and ten eight-byte digit records.
+New tests cover the real extracted action mappings, invalid/incomplete input,
+simultaneous directions, held keys, cursor limits, fixed feedback, both return
+paths, hexadecimal display, playback decisions and clearing audio on stop.
+The native captures show both pages with original graphics. Exact initial
+VBlank/LCD phase and audio register timing remain outside this evidence.

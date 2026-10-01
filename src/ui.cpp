@@ -7,7 +7,7 @@ namespace ticd {
 UiAssets UiAssets::load(const std::wstring& path){
     FILE* f=_wfopen(path.c_str(),L"rb");if(!f)throw std::runtime_error("ui.dat is missing. Rebuild with the original ROM.");
     std::vector<uint8_t> data(1024*1024);size_t n=fread(data.data(),1,data.size(),f);int extra=fgetc(f);fclose(f);data.resize(n);
-    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI04",8))throw std::runtime_error("Invalid UI asset package.");
+    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI05",8))throw std::runtime_error("Invalid UI asset package.");
     UiAssets a;size_t offset=8;
     auto read=[&](auto& target){if(target.size()>data.size()-offset)throw std::runtime_error("Truncated UI package");
         memcpy(target.data(),data.data()+offset,target.size());offset+=target.size();};
@@ -22,6 +22,8 @@ UiAssets UiAssets::load(const std::wstring& path){
     read(a.names);read(a.skiQuotas);read(a.bombQuotas);read(a.startPrompt);
     read(a.nameTiles);for(auto& m:a.nameMaps)read(m);
     read(a.bootMap);read(a.initialTitleMap);read(a.fadePalettes);
+    for(auto& m:a.hiddenMaps)read(m);for(auto& p:a.passwords){read(p);
+        for(int digit:p)if(digit<1||digit>10)throw std::runtime_error("Invalid password digit");}
     if(offset!=data.size())throw std::runtime_error("Trailing UI package data");
     auto validate=[](const auto& tiles){for(int shade:tiles)if(shade>3)throw std::runtime_error("Invalid UI palette");};
     validate(a.tiles);validate(a.titleBackground);for(const auto& i:a.instructions)validate(i.tiles);
@@ -162,8 +164,18 @@ void UiFlow::enterHighScore(){
     phase=UiPhase::NameEntry;phaseTicks=0;nameLength=0;nameScroll=180;nameMotion=0;
 }
 void UiFlow::queueTitlePage(int next){nextPage=next;titleDirection=-1;}
+void UiFlow::hiddenTransition(UiPhase target,const UiMap& next,int closedWait,int music){
+    hiddenTarget=target;hiddenNextMap=next;hiddenClosedWait=closedWait;hiddenMusic=music;
+    hiddenWait=0;phase=UiPhase::HiddenTransition;phaseTicks=0;titleDirection=-1;titleScroll=0;
+}
+void UiFlow::leavePassword(){
+    if(passwordExit){
+        hiddenTransition(UiPhase::Title,assets.titleMaps[0]);
+        hiddenWait=1;hiddenMusic=1;
+    }else hiddenTransition(UiPhase::Password,assets.hiddenMaps[0],1,7);
+}
 void UiFlow::step(int buttons){
-    pendingSound=-1;
+    pendingSound=-1;pendingMusic=-2;
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
     case UiPhase::Boot:
@@ -184,13 +196,68 @@ void UiFlow::step(int buttons){
             else if(titleScroll==0){titleDirection=0;phaseTicks=0;}
             break;
         }
-        if(pressed&UiStart){campaign.start(twoPlayers);beginInstructions();}
+        if(page!=5&&pressed){
+            constexpr int sequence[]={Up,Down,Left,Right};
+            if(pressed==sequence[unlockPosition])++unlockPosition;else unlockPosition=0;
+            if(unlockPosition==4){unlockPosition=0;map=assets.titleMaps[page];if(page==2)scoreRows(map,scores,16);
+                hiddenTransition(UiPhase::Password,assets.hiddenMaps[0],1,7);break;}
+        }
+        if(pressed&UiStart){campaign.start(twoPlayers,startDay,startDifficulty);beginInstructions();}
         else if(page==5){
             if(pressed&(UiSelect|Up|Down))twoPlayers=!twoPlayers;
             if(pressed&(A|B))queueTitlePage(0);
         }else if(pressed&UiSelect)queueTitlePage(5);
         else{constexpr int durations[]={480,480,960,480,960};
             if((pressed&(A|B))||phaseTicks>=durations[page])queueTitlePage((page+1)%5);}
+        break;
+    case UiPhase::HiddenTransition:
+        if(hiddenWait){if(--hiddenWait==0){pendingMusic=hiddenMusic;hiddenMusic=-2;}break;}
+        if(titleDirection<0){
+            titleScroll-=2;
+            if(titleScroll==-80){map=hiddenNextMap;titleDirection=1;hiddenWait=hiddenClosedWait;
+                if(!hiddenWait){pendingMusic=hiddenMusic;hiddenMusic=-2;}}
+        }else{
+            if(hiddenMusic!=-2){pendingMusic=hiddenMusic;hiddenMusic=-2;}
+            titleScroll+=2;
+            if(titleScroll==0){phase=hiddenTarget;phaseTicks=0;titleDirection=0;
+                if(phase==UiPhase::Password){password={};passwordCursor=passwordPointer=0;}
+                if(phase==UiPhase::MusicTest){testTune=testEffect=0;testLastTune=-1;}
+                if(phase==UiPhase::Title)page=0;
+            }
+        }
+        break;
+    case UiPhase::Password:
+        // 2baa publishes the pointer before processing this update's input.
+        passwordPointer=passwordCursor;
+        if((pressed&Left)&&passwordCursor>0)--passwordCursor;
+        if((pressed&Right)&&passwordCursor<7)++passwordCursor;
+        if(pressed&Up){auto& digit=password[passwordCursor];digit=digit==10?1:digit+1;map[21*32+6+passwordCursor]=digit;}
+        if(pressed&Down){auto& digit=password[passwordCursor];digit=digit<=1?10:digit-1;map[21*32+6+passwordCursor]=digit;}
+        if(pressed&(UiStart|A|B)){passwordExit=(pressed&UiStart)!=0;phase=UiPhase::PasswordSubmit;phaseTicks=0;}
+        break;
+    case UiPhase::PasswordSubmit:
+        pendingMusic=-1;passwordAction=-1;
+        for(int i=0;i<10;++i)if(password==assets.passwords[i]){passwordAction=i;break;}
+        hiddenTransition(UiPhase::PasswordFeedback,assets.hiddenMaps[passwordAction<0?1:2]);break;
+    case UiPhase::PasswordFeedback:
+        if(phaseTicks>=60){
+            if(passwordAction>=0&&passwordAction<5)startDay=passwordAction;
+            else if(passwordAction>=5&&passwordAction<9)startDifficulty=passwordAction-5;
+            if(passwordAction==9)hiddenTransition(UiPhase::MusicTest,assets.hiddenMaps[3]);else leavePassword();
+        }
+        break;
+    case UiPhase::MusicTest:
+        // Original number renderer prints hexadecimal nibbles before input.
+        map[19*32+16]=(testTune>>4)+1;map[19*32+17]=(testTune&15)+1;
+        map[21*32+16]=(testEffect>>4)+1;map[21*32+17]=(testEffect&15)+1;
+        if(pressed&Left)testTune=(testTune+13)%14;
+        if(pressed&Right)testTune=(testTune+1)%14;
+        if(pressed&Down)testEffect=(testEffect+25)%26;
+        if(pressed&Up)testEffect=(testEffect+1)%26;
+        if(pressed&B){testLastTune=-1;pendingMusic=-1;}
+        if(pressed&A){if(testLastTune==testTune&&musicActive&&!(pressed&B))pendingSound=testEffect;
+            else{testLastTune=testTune;pendingMusic=testTune;}}
+        if(pressed&UiStart)leavePassword();
         break;
     case UiPhase::Instructions:
         if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;}else if(!textDone)advanceText();break;
@@ -221,6 +288,14 @@ void UiFlow::step(int buttons){
     }
 }
 std::array<uint8_t,Width*Height> UiFlow::render() const{
+    if(phase==UiPhase::HiddenTransition||phase==UiPhase::Password||phase==UiPhase::PasswordSubmit||
+       phase==UiPhase::PasswordFeedback||phase==UiPhase::MusicTest){
+        auto screen=titleImage(assets,map,titleScroll);
+        if(phase==UiPhase::Password||phase==UiPhase::PasswordSubmit){int px=48+passwordPointer*8;
+            for(int y=0;y<8;++y)for(int x=0;x<8;++x){int color=assets.tiles[0x45*64+y*8+x];
+                auto& background=screen[(80+y)*Width+px+x];if(color&&!background)background=(0xc4>>(color*2))&3;}}
+        return screen;
+    }
     if(phase==UiPhase::Boot||phase==UiPhase::TitleIntro){
         auto screen=phase==UiPhase::Boot?renderMap(assets.tiles,assets.bootMap):titleImage(assets,phaseTicks<73?assets.initialTitleMap:assets.titleMaps[0],titleScroll);
         int palette=0xe4;
