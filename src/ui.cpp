@@ -207,9 +207,10 @@ void UiFlow::step(int buttons){
             if(unlockPosition==4){unlockPosition=0;map=assets.titleMaps[page];if(page==2)scoreRows(map,scores,16);
                 hiddenTransition(UiPhase::Password,assets.hiddenMaps[0],1,7);break;}
         }
+        // 278f-279a toggles the player selection before handling Start.
+        if(page==5&&(pressed&(UiSelect|Up|Down)))twoPlayers=!twoPlayers;
         if(pressed&UiStart){campaign.start(twoPlayers,startDay,startDifficulty);beginInstructions();}
         else if(page==5){
-            if(pressed&(UiSelect|Up|Down))twoPlayers=!twoPlayers;
             if(pressed&(A|B))queueTitlePage(0);
         }else if(pressed&UiSelect)queueTitlePage(5);
         else{constexpr int durations[]={480,480,960,480,960};

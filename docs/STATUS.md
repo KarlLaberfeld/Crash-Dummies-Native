@@ -559,3 +559,19 @@ hardware audio recovery or sample equivalence. Pulse/noise retrigger timing,
 remaining lifecycle fades and setup waits, Air's crash-animation stall and
 original reference comparison remain open. Continue development; the port is
 not complete and automatic continuation remains active.
+
+## Options input ordering
+
+Pause checkpoint published as `83e24f232e5e9d29b6eaae7b03061960536294d1`,
+tree `63ffb16c5a0c4086c7c25a670954e0a746930a9b`, local `06302f9`.
+A further source check at 00:278f-279a found that the original toggles player
+selection before processing Start. The native options page now does the same
+when both arrive in one update. Multiple selection buttons still toggle only
+once; directions outside options do not alter the player count.
+
+The Windows EXE was rebuilt. All 318 UI assertions pass, including three
+new simultaneous-input cases (local/options-ui-test.txt). Gameplay/audio code
+is unchanged; the prior full campaign/audio validation remains applicable.
+No completion claim: lifecycle transitions, exact phase/audio comparison and
+the documented Air animation boundary remain open. Continue after usage reset
+if interrupted; no reset credit was used.

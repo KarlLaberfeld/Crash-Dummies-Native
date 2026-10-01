@@ -98,6 +98,12 @@ int runUiTests(const UiAssets& assets){
         require(returnToPassword.phase==UiPhase::MusicTest,"B can also submit the music-test password");
         tap(returnToPassword,UiStart);for(int i=0;i<81;++i)returnToPassword.step(0);
         require(returnToPassword.phase==UiPhase::Password,"Music-test exit returns to entry when password was submitted with an action button");
+        UiFlow simultaneous(assets);simultaneous.page=5;simultaneous.step(Down|UiStart);
+        require(simultaneous.phase==UiPhase::Instructions&&simultaneous.campaign.players[1].lives==5,"Options applies player toggle before simultaneous Start");
+        UiFlow bothDirections(assets);bothDirections.page=5;bothDirections.step(Up|Down|UiSelect|UiStart);
+        require(bothDirections.twoPlayers&&bothDirections.campaign.players[1].lives==5,"Combined option keys toggle once before starting");
+        UiFlow outsideOptions(assets);outsideOptions.step(Down|UiStart);
+        require(!outsideOptions.twoPlayers&&outsideOptions.campaign.players[1].lives==0,"Title directions do not change player count outside options");
         UiFlow u(assets);u.step(UiSelect);for(int i=0;i<80;++i)u.step(UiSelect);require(u.page==5,"Select opens original options");
         u.step(UiSelect);require(!u.twoPlayers,"Holding Select does not toggle repeatedly");
         u.step(0);u.step(Down);require(u.twoPlayers,"Down selects two players");
