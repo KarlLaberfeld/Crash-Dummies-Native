@@ -648,3 +648,35 @@ updates and queue reuse across pause/resume. Exact first-VBlank alignment,
 pulse/noise envelope-write retriggers, power-off transients and oscillator
 phase have not been compared with original hardware; this is not a full
 hardware sound model or an original-machine equivalence claim.
+
+## Asynchronous gameplay fade (00:03bf / 20ee)
+
+03bf initializes FFC9 to eight before enabling the gameplay loop. Unlike the
+blocking 20d1 menu fade, 20ee runs through the gameplay display callback. It
+returns on odd C00A values, then decrements FFC9 and chooses palette 2118+index
+on each even frame until the counter is zero. Gameplay handlers and camera
+motion continue throughout. The original pause callback bypasses this routine,
+so fade advancement stops while the global counter itself keeps running.
+
+UiFlow now carries this counter separately from its logical phase timer. The
+Windows host supplies current pause state before advancing UI/global time.
+Eight even updates complete the fade (15 or 16 updates depending on the
+starting parity). The final frame mapping applies the palette to the native
+four-color scene and HUD. This also preserves the original object palette
+masks: C4/E0 have already mapped their forced-white colors to zero, and every
+entry in the original fade table leaves color zero white. Thus no background
+or sprite transparency can be recovered incorrectly from an already flattened
+frame by this operation. Developer test views bypass campaign presentation.
+
+Tests cover all counter boundaries, odd-phase entry, stopping at zero, pause
+and resumption with continuing global parity. Three native screenshots show
+initial white, intermediate and full palettes. Missing LCD/setup waits still
+prevent claiming absolute timing against an original power-on run.
+
+For the remaining lifecycle work: 034c calls blocking fade-out 20b4 before the
+stunt setup; 047b calls fade-in before success counting. The success timeout
+counter is initialized at 0438 and decremented by 24cf during fade/counting.
+Ordinary failure calls 20d1 at 05af and only then waits 480 at 05b4/25cd.
+268b takes either the first instruction fade-in or the later 16c1 transition;
+the latter cycles eight pattern bytes over eight waits each, switching maps.
+These additional transitions were researched but are not implemented here.

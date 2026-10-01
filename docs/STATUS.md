@@ -575,3 +575,29 @@ is unchanged; the prior full campaign/audio validation remains applicable.
 No completion claim: lifecycle transitions, exact phase/audio comparison and
 the documented Air animation boundary remain open. Continue after usage reset
 if interrupted; no reset credit was used.
+
+## Asynchronous stunt-entry fade
+
+Options-order checkpoint: remote `3f1324e0d5a1188c68070ce6645892bac157d256`,
+tree `bfb3b82cdd340e996bbfbc5ee1b62ef0c560762b`, local `99393d4`.
+
+The campaign now starts each stunt with the original eight-step fade from
+white, advancing on even global frames while gameplay continues. Pause freezes
+the fade but not the shared frame counter. The existing palette masks preserve
+sprite white colors through the common final palette mapping. Developer-mode
+previews retain their immediate full-color view. Asset format stays TICDUI06.
+
+Validation: all 25 Python tests and native suites pass without compiler warnings.
+UI assertions are now 341; other counts are unchanged. The campaign remains
+20 wins in 23 attempts, savings 8,221, global update 62,605. Captures at initial,
+eighth and sixteenth updates were inspected; these show the native progression,
+not an original-machine comparison. Logs: local/gameplay-fade-build.log and
+local/gameplay-fade-final-build.log.
+
+Other lifecycle transitions still need reconstruction. Source review confirms
+blocking 32-update instruction-out/result-in fades, a distinct 64-update later
+instruction transition, and different result timeout origins. Do not simply
+add 32 to every result timeout: success uses the background 600-update counter
+initialized before fade-in, while ordinary failure waits 480 after fade-in.
+Air's crash-animation boundary and detailed audio/display equivalence remain
+unresolved. The port is still incomplete; automatic continuation stays active.

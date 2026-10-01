@@ -66,7 +66,7 @@ void paint(HWND hwnd,HDC dc) {
     if(selectedStunt==4)cruise->render(developerMode);else if(selectedStunt==3)bomb->render(developerMode);else if(selectedStunt==2)ski->render(developerMode);else if(selectedStunt==1)air->render(developerMode);else game->render(developerMode);
     const auto uiScreen=ui->render();
     auto screen=(!developerMode&&ui->phase!=ticd::UiPhase::Playing)?uiScreen:selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
-    if(!developerMode&&ui->phase==ticd::UiPhase::Playing&&paused())screen=ticd::renderPausedGame(*uiAssets,screen);
+    if(!developerMode&&ui->phase==ticd::UiPhase::Playing)screen=ui->renderGameplay(screen,paused());
     for(size_t i=0;i<screen.size();++i)pixels[i]=palette[screen[i]&3];
     BITMAPINFO info={};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=160;info.bmiHeader.biHeight=-144;
     info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
@@ -173,6 +173,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             name.beginInstructions();name.step(ticd::UiStart);name.finishStunt(1,0,0);for(int i=0;i<480;++i)name.step(0);
             ticd::saveBmp(directory+L"name-entry.bmp",name.render());
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
+            ticd::UiFlow gameplayFade(*uiAssets);gameplayFade.phase=ticd::UiPhase::Playing;game->start(0);
+            for(int tick=0;tick<=16;++tick){
+                if(tick){gameplayFade.step(0);game->step(0);}
+                if(tick==0||tick==8||tick==16){game->render(false);ticd::saveBmp(directory+L"gameplay-fade-"+std::to_wstring(tick)+L".bmp",gameplayFade.renderGameplay(game->screen,false));}
+            }
             game->start(0);for(int i=0;i<950;++i)game->step(i>400?ticd::A:0);
             game->render();ticd::saveBmp(directory+L"roof-jump.bmp",game->screen);
             air->render();ticd::saveBmp(directory+L"air-launcher.bmp",air->screen);
@@ -206,7 +211,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bool changed=false;
             while(accumulator>=step){
                 int input=buttons();
-                if(!developerMode){ui->musicActive=sound->musicPlaying();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
+                if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&paused();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
                     if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
                         if(selectedStunt==4){cruise->secondTicks=ui->timerPhase;cruise->randomState=(ui->ticks&255)<<8;}
                         else if(selectedStunt==3)bomb->randomState=(ui->ticks&255)<<8;

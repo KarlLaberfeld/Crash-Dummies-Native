@@ -14,6 +14,20 @@ int runUiTests(const UiAssets& assets){
         for(int i=0;i<Width*8;++i)originalStrip&=pausedScene[Width*PlayHeight+i]==assets.pauseStrip[i];
         require(preserved&&originalStrip,"Pause changes only the original bottom HUD strip, preserving the whole playfield");
         require(scene!=pausedScene&&renderPausedGame(assets,scene)==pausedScene,"Pause display is stable and does not mutate the saved gameplay image");
+        UiFlow gameplay(assets);gameplay.phase=UiPhase::Playing;gameplay.ticks=0;
+        auto fadeScene=gameplay.renderGameplay(scene,false);bool allWhite=true;for(int shade:fadeScene)allWhite&=shade==0;
+        require(allWhite,"Gameplay starts with the white palette before its asynchronous fade");
+        for(int step=7;step>=0;--step){gameplay.step(0);require(gameplay.gameplayFade==step+1,"Odd global frames leave the gameplay fade counter unchanged");
+            gameplay.step(0);require(gameplay.gameplayFade==step,"Even global frames advance the gameplay fade once");}
+        require(gameplay.renderGameplay(scene,false)==scene,"Gameplay fade restores all four colors after sixteen global updates");
+        gameplay.step(0);gameplay.step(0);require(gameplay.gameplayFade==0,"Gameplay fade counter stops at zero");
+        gameplay.gameplayFade=4;gameplay.gameplayPaused=true;int pausedAt=gameplay.ticks;
+        for(int i=0;i<5;++i)gameplay.step(0);
+        require(gameplay.gameplayFade==4&&gameplay.ticks==pausedAt+5,"Pause freezes the fade while the shared global counter continues");
+        gameplay.gameplayPaused=false;gameplay.step(0);require(gameplay.gameplayFade==3,"Resuming uses global parity rather than a restarted fade clock");
+        UiFlow oddStart(assets);oddStart.step(UiStart);oddStart.step(0);oddStart.step(UiStart);
+        require(oddStart.phase==UiPhase::Playing&&oddStart.gameplayFade==8,"Odd-phase stunt entry retains all eight palette steps");
+        oddStart.step(0);require(oddStart.gameplayFade==7,"First even update advances an odd-phase stunt entry");
         UiFlow boot(assets);boot.beginBoot();
         auto white=boot.render();bool blank=true;for(int shade:white)blank&=shade==0;
         require(blank,"Boot starts at the original white palette");

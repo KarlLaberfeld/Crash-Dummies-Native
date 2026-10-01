@@ -59,6 +59,8 @@ struct UiFlow {
     UiMap map{};
     std::vector<uint8_t> text;
     int flagsHit=0,timerPhase=0;
+    int gameplayFade=8;
+    bool gameplayPaused=false;
     int resultStage=0,resultWait=0,displaySavings=0,displayPay=0,displayTime=0;
     bool showFlags=false,showSavings=false,showPay=false,showTime=false;
     std::array<uint8_t,48> scores{};
@@ -69,6 +71,7 @@ struct UiFlow {
     void beginInstructions();
     void finishStunt(int flags,int earned,int seconds,int extraLives=0,int flagsCollected=0);
     std::array<uint8_t,Width*Height> render() const;
+    std::array<uint8_t,Width*Height> renderGameplay(const std::array<uint8_t,Width*Height>& scene,bool paused) const;
 private:
     void advanceText();
     void queueTitlePage(int next);

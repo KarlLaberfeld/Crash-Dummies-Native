@@ -266,7 +266,7 @@ void UiFlow::step(int buttons){
         if(pressed&UiStart)leavePassword();
         break;
     case UiPhase::Instructions:
-        if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;}else if(!textDone)advanceText();break;
+        if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;}else if(!textDone)advanceText();break;
     case UiPhase::Result:{
         bool counting=campaign.last.success&&resultStage<6;
         if(counting)advanceResult((pressed&(UiStart|A|B))!=0);
@@ -292,6 +292,17 @@ void UiFlow::step(int buttons){
 
     case UiPhase::Playing:break;
     }
+    // 03bf initializes the eight-step counter. 20ee advances it on even
+    // global frames during gameplay; the pause callback does not run 20ee.
+    if(phase==UiPhase::Playing&&!gameplayPaused&&!(ticks&1)&&gameplayFade>0)--gameplayFade;
+}
+std::array<uint8_t,Width*Height> UiFlow::renderGameplay(const std::array<uint8_t,Width*Height>& scene,bool paused) const{
+    auto screen=paused?renderPausedGame(assets,scene):scene;
+    int palette=assets.fadePalettes[std::min(gameplayFade,7)];
+    // Sprite colors already include their fixed white-color masks. The ROM's
+    // fade palettes keep color zero white, so the same mapping applies here.
+    for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+    return screen;
 }
 std::array<uint8_t,Width*Height> UiFlow::render() const{
     if(phase==UiPhase::HiddenTransition||phase==UiPhase::Password||phase==UiPhase::PasswordSubmit||
