@@ -815,3 +815,41 @@ It still does not establish whether the reachable native stall reproduces an
 original edge case; no forced animation restart or coordinate clamp was added.
 Ending/name-entry/return-to-title lifecycle details and hardware alignment
 still need reconstruction/reference validation.
+
+## Ending, name-entry and title-return lifecycle (00:05c0 / 3205 / 051d)
+
+The lifecycle gap above is now narrowed to display/hardware alignment and
+reference validation. After the final successful result, 04fd stops music and
+05c0 fades the result out for 32 updates. The celebration callback remains live
+through that fade. 05c8 disables the callback before the ending setup, 068f
+waits once, and 0692 starts song 13 before the 32-update fade in at 0697. Only
+then does the unskippable 480-update wait begin. UiFlow preserves this order
+with a 65-update entry counter; ending rendering shares the result renderer
+during the outgoing fade, so particles continue moving instead of freezing.
+
+31b9 returns immediately for a nonqualifying score. For a qualifying score it
+inserts the BCD record, fades the outgoing ending/game-over screen at 3205,
+sets up the name screen, starts song 6 at 32a4, and fades in at 32bf. There is
+no explicit extra update wait between those two 32-update fades. The name
+input/movement/blink loop at 32c5 is suspended throughout both. Input sampling
+continues globally, preventing held A/B from becoming a synthetic new press.
+The two arrow tiles start at FF/FE and only toggle on active-loop global
+16-update boundaries at 32ed; they no longer blink during entry fading.
+
+Selecting End queues effect 9, stops music, clears twenty cells of alphabet
+row 15, removes arrows and disables the raster callbacks (334f-337d). A live
+second player receives the existing instruction-map alternation using that
+cleaned outgoing screen. With no player alive, 051d fades out for 32 updates
+and jumps to 019c. The persistent C005 flag skips 280c's copyright sequence;
+the existing 32-update title fade, one wait and 80-update center transition
+then run again. The outgoing song continues until 025f when no name entry
+stopped it; after name entry this interval is silent. Session score records
+are preserved. Native update-level transitions are covered, but the exact
+LCD/OAM publication point and sub-update music phase still require a reference.
+
+Tests cover every palette step in name entry, held and fresh input, arrow
+activation, both completed-player routes, unranked return, celebration during
+ending exit, the final ending hold boundary, alphabet cleanup and title return.
+The UI suite now has 710 assertions. Full native/Python suites pass, and local
+captures exercise intermediate fades and the complete return. These checks
+validate the reconstruction; they do not establish original-machine equivalence.

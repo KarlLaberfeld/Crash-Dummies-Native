@@ -38,7 +38,7 @@ std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,boo
 std::array<uint8_t,Width*Height> renderPausedGame(const UiAssets& assets,const std::array<uint8_t,Width*Height>& game);
 constexpr int UiStart=64,UiSelect=128;
 enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry,Boot,TitleIntro,
-                    StuntOutro,TitleExit,HiddenTransition,Password,PasswordSubmit,PasswordFeedback,MusicTest};
+                    StuntOutro,TitleExit,TitleReturn,HiddenTransition,Password,PasswordSubmit,PasswordFeedback,MusicTest};
 // Native presentation state machine. No CPU, memory bus or instruction dispatch.
 struct UiFlow {
     const UiAssets& assets;
@@ -78,6 +78,11 @@ struct UiFlow {
     std::array<uint8_t,Width*Height> outroScene{};
     int resultStage=0,resultWait=0,displaySavings=0,displayPay=0,displayTime=0;
     int resultFade=0,resultHold=0;
+    int endingEnter=0; // Result fade out (32), setup wait (1), ending fade in (32).
+    int nameEnter=0; // Outgoing screen fade (32), name screen fade in (32).
+    bool nameBlink=false;
+    bool nameClosed=false;
+    int titleIntroMusic=0; // Boot song, or the song still running after a campaign.
     bool showFlags=false,showSavings=false,showPay=false,showTime=false;
     std::array<uint8_t,48> scores{};
     int scoreRank=-1,nameLength=0,nameScroll=180,nameMotion=0;
@@ -97,6 +102,7 @@ struct UiFlow {
     std::array<uint8_t,Width*Height> render(bool objects=true) const;
     std::array<uint8_t,Width*Height> renderGameplay(const std::array<uint8_t,Width*Height>& scene,bool paused) const;
 private:
+    std::array<uint8_t,Width*Height> renderResult(bool objects) const;
     void advanceText();
     void queueTitlePage(int next);
     void enterHighScore();

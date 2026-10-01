@@ -197,11 +197,27 @@ int runUiTests(const UiAssets& assets){
         UiFlow solo(assets);solo.step(UiStart);finishTitleExit(solo);
         for(int day=0;day<20;++day){while(solo.instructionEnter)solo.step(0);solo.step(0);solo.step(UiStart);finishInstructionExit(solo);solo.finishStunt(solo.stunt==3?0x47:7,10,5);finishResultFade(solo);solo.step(0);solo.step(A);solo.step(0);solo.step(A);
             require(solo.phase==(day==19?UiPhase::Ending:UiPhase::Instructions),"All twenty successful stunts route through campaign screens");}
-        for(int i=0;i<480;++i)solo.step(0);
+        require(solo.endingEnter==65,"Ending begins with result fade, setup wait and ending fade");
+        int oldY=solo.celebration[0].y;solo.step(A);
+        require(solo.endingEnter==64&&solo.celebration[0].y!=oldY,"Perfect celebration keeps moving during the outgoing result fade");
+        for(int i=0;i<31;++i)solo.step(A);
+        require(solo.endingEnter==33,"Outgoing result fade lasts exactly 32 updates");
+        auto isWhite=[](const auto& pixels){for(int shade:pixels)if(shade)return false;return true;};
+        require(isWhite(solo.render()),"Ending setup is entirely white");
+        oldY=solo.celebration[0].y;solo.step(A);
+        require(solo.endingEnter==32&&solo.celebration[0].y==oldY&&isWhite(solo.render()),"Setup wait disables celebration before ending fade starts");
+        for(int i=0;i<32;++i)solo.step(A);
+        require(solo.endingEnter==0&&!isWhite(solo.render()),"Ending fade restores the completed player's screen");
+        for(int i=0;i<479;++i)solo.step(i%2?A:0);
+        require(solo.phase==UiPhase::Ending,"The unskippable 480-update ending hold starts after all entry waits");
+        solo.step(0);
+        require(solo.phase==UiPhase::TitleReturn&&solo.titleIntroMusic==13,"Unranked ending preserves its song during the return fade");
+        for(int i=0;i<145;++i)solo.step(0);
         require(solo.phase==UiPhase::Title&&!solo.campaign.active,"Ending returns to title after surviving campaign");
         UiFlow failed(assets);failed.step(UiStart);finishTitleExit(failed);
         for(int life=0;life<5;++life){while(failed.instructionEnter)failed.step(0);failed.step(0);failed.step(UiStart);finishInstructionExit(failed);failed.finishStunt(1,99,10);finishResultFade(failed);failed.step(0);failed.step(B);}
         for(int i=0;i<480;++i)failed.step(0);
+        for(int i=0;i<145&&failed.phase!=UiPhase::Title;++i)failed.step(0);
         require(failed.phase==UiPhase::Title&&failed.campaign.players[0].savings==0,"Final lost life returns to title without banking failed pay");
         UiFlow titles(assets);for(int i=0;i<480;++i)titles.step(0);require(titles.page==0&&titles.titleDirection==-1,"Title starts closing after original 480-frame duration");
         for(int i=0;i<39;++i)titles.step(0);require(titles.titleScroll==-78&&titles.page==0,"Title closes two pixels per frame");
@@ -310,6 +326,22 @@ int runUiTests(const UiAssets& assets){
         high.step(0);require(high.phase==UiPhase::NameEntry&&high.scoreRank==0,"High savings insert at first qualifying rank");
         require(high.scores[3]==0x99&&high.scores[4]==0x99&&high.scores[5]==0x99,"Savings convert to original BCD record");
         require(high.scores[6]==assets.initialScores[0]&&high.scores[9]==assets.initialScores[3],"Insertion shifts previous records down");
+        require(high.nameEnter==64&&high.render()==high.outroScene,"High-score entry retains the outgoing screen before fading it");
+        auto nameFull=std::make_unique<UiFlow>(high);nameFull->nameEnter=0;
+        const auto namePixels=nameFull->render();
+        auto checkNamePalette=[&](int frame){auto expected=frame<32?high.outroScene:namePixels;
+            int palette=exitPalette[frame<32?frame/4:(63-frame)/4];
+            for(auto& shade:expected)shade=(palette>>(shade*2))&3;
+            require(high.render()==expected,"Every high-score transition update uses the original four-update palette steps");};
+        for(int i=0;i<32;++i){checkNamePalette(i);high.step(A|Left);}
+        require(high.nameEnter==32&&isWhite(high.render()),"Name screen starts white after 32 outgoing updates");
+        for(int i=32;i<64;++i){checkNamePalette(i);high.step(A|Left);}
+        require(high.nameEnter==0&&high.nameLength==0&&high.nameScroll==180&&high.nameMotion==0&&!high.nameBlink,"Both name-entry fades block letters, movement and arrow blinking");
+        require(!isWhite(high.render()),"Name-entry fade restores all screen colors");
+        high.step(A);require(high.nameLength==0,"A held through name entry does not create a fresh letter press");
+        bool blink=high.nameBlink;while(high.ticks&15)high.step(0);
+        require(high.nameBlink!=blink,"Name arrows begin toggling at an active loop's sixteen-update boundary");
+        high.step(0);
         high.step(A);high.step(0);high.step(B);high.step(0);high.step(A);high.step(0);high.step(B);
         require(high.nameLength==3&&high.scores[0]==11&&high.scores[2]==11,"A and B confirm a letter, capped at three initials");
         high.step(Left);require(high.nameMotion==-8&&high.nameScroll==180,"Left starts an eight-pixel alphabet movement");
@@ -317,8 +349,30 @@ int runUiTests(const UiAssets& assets){
         high.step(Left);for(int i=0;i<8;++i)high.step(0);high.step(A);
         require(high.nameLength==2&&high.scores[2]==0,"Backspace symbol erases the last initial");
         high.step(Right);for(int i=0;i<8;++i)high.step(0);high.step(B);
-        require(high.phase==UiPhase::Title&&high.scores[0]==11,"End symbol returns to title and preserves entered scores");
+        require(high.phase==UiPhase::TitleReturn&&high.scores[0]==11&&high.titleIntroMusic==-1,"End symbol stops music and starts return fade while preserving entered scores");
+        for(int i=0;i<31;++i)high.step(UiStart);
+        require(high.phase==UiPhase::TitleReturn&&isWhite(high.render()),"Return fade is white before title setup and ignores Start");
+        high.step(UiStart);require(high.phase==UiPhase::TitleIntro&&high.phaseTicks==0,"Return skips copyright and enters initial title fade after 32 updates");
+        for(int i=0;i<113;++i)high.step(UiStart);
+        require(high.phase==UiPhase::Title&&high.scores[0]==11&&!high.campaign.active,"Title reopening completes without resetting high scores or accepting held Start");
         high.step(UiSelect);for(int i=0;i<80;++i)high.step(0);high.step(UiStart);require(high.scores[0]==11,"Starting a new campaign preserves session high scores");
+        for(int player=0;player<2;++player){
+            auto completed=std::make_unique<UiFlow>(assets);auto& c=*completed;
+            c.campaign.start(true,4,3);c.campaign.current=player;
+            if(player)c.campaign.players[0].lives=0;
+            c.campaign.players[player].savings=999999;c.beginInstructions();c.step(UiStart);finishInstructionExit(c);
+            c.finishStunt(7,0,0);finishResultFade(c);c.step(A);c.step(0);c.step(A);
+            for(int i=0;i<544;++i)c.step(i%2?A:0);
+            require(c.phase==UiPhase::Ending&&c.endingEnter==0,"Both players retain ending through the final hold update");
+            const auto lastEnding=c.render();c.step(0);
+            require(c.phase==UiPhase::NameEntry&&c.scoreRank==0&&c.nameEnter==64&&c.render()==lastEnding,"Both completed players reach high scores through the ending fade path");
+            for(int i=0;i<64;++i)c.step(0);
+            c.nameScroll=172;c.step(A);
+            require(c.nameClosed&&c.pendingSound==9,"End symbol removes name-entry raster callbacks and queues the original effect");
+            bool cleared=true;for(int y=120;y<128;++y)for(int x=0;x<Width;++x)cleared&=c.outroScene[y*Width+x]==0;
+            require(cleared,"Outgoing name screen clears its alphabet row before the next transition");
+            require(player?c.phase==UiPhase::TitleReturn:(c.phase==UiPhase::Instructions&&c.campaign.current==1&&c.instructionEnter==65),"Completed players either hand off to the surviving player or return to title");
+        }
         fprintf(log,"PASS: %d UI flow/text assertions. Full original presentation timing remains pending.\n",count);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d assertions: %s\n",count,e.what());fclose(log);return 1;}
 }

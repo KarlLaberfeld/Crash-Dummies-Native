@@ -177,10 +177,14 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             for(int frame=1;frame<=160;++frame){celebration.step(0);if(frame==48||frame==96||frame==160)ticd::saveBmp(directory+L"celebration-"+std::to_wstring(frame)+L".bmp",celebration.render());}
             ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);for(int i=0;i<33;++i)ending.step(0);
             ending.finishStunt(7,123,45);while(ending.phase==ticd::UiPhase::StuntOutro)ending.step(0);for(int i=0;i<32;++i)ending.step(0);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
+            for(int i=0;i<65;++i){if(i==16||i==32||i==49)ticd::saveBmp(directory+L"ending-transition-"+std::to_wstring(i)+L".bmp",ending.render());ending.step(0);}
             ticd::saveBmp(directory+L"ending.bmp",ending.render());
             ticd::UiFlow name(*uiAssets);name.campaign.start(false);name.campaign.players[0].savings=100000;name.campaign.players[0].lives=1;
             name.beginInstructions();name.step(ticd::UiStart);for(int i=0;i<33;++i)name.step(0);name.finishStunt(1,0,0);while(name.phase==ticd::UiPhase::StuntOutro)name.step(0);for(int i=0;i<512;++i)name.step(0);
+            for(int i=0;i<64;++i){if(i==16||i==32||i==48)ticd::saveBmp(directory+L"name-transition-"+std::to_wstring(i)+L".bmp",name.render());name.step(0);}
             ticd::saveBmp(directory+L"name-entry.bmp",name.render());
+            name.nameScroll=172;name.step(ticd::A);
+            for(int i=0;i<=145;++i){if(i==0||i==16||i==32||i==80||i==145)ticd::saveBmp(directory+L"title-return-"+std::to_wstring(i)+L".bmp",name.render());if(i<145)name.step(0);}
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             ticd::UiFlow gameplayFade(*uiAssets);gameplayFade.phase=ticd::UiPhase::Playing;game->start(0);
             for(int tick=0;tick<=16;++tick){
@@ -250,20 +254,24 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 if(developerMode){if(started())music=8+selectedStunt;}
                 else switch(ui->phase){
                 case ticd::UiPhase::Boot:music=0;break;
-                case ticd::UiPhase::TitleIntro:music=ui->phaseTicks<33?0:1;break;
+                case ticd::UiPhase::TitleIntro:music=ui->phaseTicks<33?ui->titleIntroMusic:1;break;
+                case ticd::UiPhase::TitleReturn:music=ui->titleIntroMusic;break;
                 case ticd::UiPhase::Title:music=1;break;
                 case ticd::UiPhase::TitleExit:music=1;break;
                 case ticd::UiPhase::Instructions:music=ui->instructionEnter==(ui->instructionAlternate?65:33)?-1:2;break;
                 case ticd::UiPhase::Playing:music=8+selectedStunt;break;
                 case ticd::UiPhase::StuntOutro:music=ui->phaseTicks? -1:8+selectedStunt;break;
                 case ticd::UiPhase::Result:music=ui->campaign.last.gameOver?13:ui->campaign.last.success?(ui->campaign.last.perfect?5:4):3;break;
-                case ticd::UiPhase::Ending:music=13;break;
-                case ticd::UiPhase::NameEntry:music=6;break;
+                case ticd::UiPhase::Ending:music=ui->endingEnter>32?-1:13;break;
+                case ticd::UiPhase::NameEntry:music=ui->nameEnter>32?13:6;break;
                 default:break; // Hidden menus issue explicit music/stop commands.
                 }
                 bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title)||
                     (lastAudioPhase==ticd::UiPhase::Title&&ui->phase==ticd::UiPhase::TitleExit)||
-                    (lastAudioPhase==ticd::UiPhase::Playing&&ui->phase==ticd::UiPhase::StuntOutro);
+                    (lastAudioPhase==ticd::UiPhase::Playing&&ui->phase==ticd::UiPhase::StuntOutro)||
+                    ((lastAudioPhase==ticd::UiPhase::Ending||lastAudioPhase==ticd::UiPhase::Result)&&ui->phase==ticd::UiPhase::NameEntry)||
+                    (ui->phase==ticd::UiPhase::TitleReturn)||
+                    (lastAudioPhase==ticd::UiPhase::TitleReturn&&ui->phase==ticd::UiPhase::TitleIntro);
                 bool hiddenAudio=!developerMode&&(ui->phase>=ticd::UiPhase::HiddenTransition||lastAudioPhase>=ticd::UiPhase::HiddenTransition);
                 if(hiddenAudio){if(ui->pendingMusic!=-2){if(ui->pendingMusic<0)sound->stop();else sound->playMusic(ui->pendingMusic);lastMusic=ui->pendingMusic;}}
                 else if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){if(music<0)sound->stop();else sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}

@@ -714,3 +714,45 @@ ending/name-entry/return-to-title transitions, exact graphics publication and
 hardware/setup phase, original-reference behavior/audio comparisons, broader
 human/Windows acceptance tests and the final distribution package. The port
 is still incomplete; automatic continuation remains active.
+
+## Ending and name-entry lifecycle checkpoint — 2026-10-01
+
+Previous published checkpoint: remote
+`aa7fd19b2adcda1652f4a52bc46076da8754d7fe`, tree
+`5fdb157b78ecfa96d9f6dcdd8c3d676e494c237f`, local `03d517b`.
+The initial ending/name-entry edits were interrupted before validation. Work
+resumed with ordinary usage available (five-hour window reset, weekly usage
+94% at the resumption check). No reset credit was used.
+
+Ending now fades out the final result while its celebration keeps moving,
+waits once during setup, fades in, and only then runs the original unskippable
+480-update hold. Qualifying scores fade out either game-over or ending, then
+fade in the name screen. Letter entry, scrolling and arrow blinking stay
+blocked during those transitions; held buttons do not generate new presses.
+The arrows start with their original tiles and toggle only in the active loop.
+
+Finishing a name clears the alphabet strip and removes its raster effects and
+arrows. The surviving player receives the instruction transition; otherwise
+the screen fades out and the title opening runs again, preserving scores and
+skipping copyright. Music changes follow the identified source call order,
+including continued ending music for an unranked score and silence after name
+entry until title music starts. No asset format or stunt rules changed.
+
+Validation: build/CrashDummies.exe rebuilt without compiler warnings; all 25
+Python tests and all native suites passed (local/ending-transitions-build.log).
+UI assertions increased from 619 to 710. All other suite counts are unchanged.
+The input-only campaign again reaches 20 wins in 20 attempts, savings 8,138,
+global update 52,671 at the last stunt's finish; that harness stops on entry
+to Ending, while the UI tests cover the new ending/high-score/return sequence.
+Capture mode exited successfully and the ending/name/return contact sheet was
+inspected locally. The Windows audio smoke test exited successfully with an
+available output device and zero dropped buffers. None of these observations
+establish full equivalence to the original game or replace human acceptance.
+
+Remaining: resolve Air's reachable crash-animation stall using evidence;
+verify graphics transfer/publication and hardware/setup phase; compare game,
+image and audio behavior against original references; perform broader human,
+two-player and Windows acceptance; prepare the final distribution package.
+The major missing ending/name-entry/title-return transitions are implemented,
+but exact hardware timing is still unverified. The port remains incomplete.
+Automatic continuation stays active. ROM, assets and captures remain local.

@@ -144,7 +144,12 @@ void UiFlow::finishStunt(int flags,int earned,int seconds,int extraLives,int fla
 void UiFlow::continueCampaign(){
     // 268b disables objects before alternation between the two background maps.
     outroScene=render(false);
-    if(campaign.next())beginInstructions(false,true);else{phase=UiPhase::Title;page=0;phaseTicks=0;}
+    if(campaign.next())beginInstructions(false,true);else{
+        // 051d fades the last screen before re-entering title setup at 019c.
+        // 020a skips the copyright screen after it has been shown once.
+        titleIntroMusic=phase==UiPhase::NameEntry?-1:13;
+        phase=UiPhase::TitleReturn;page=0;phaseTicks=0;
+    }
 }
 void UiFlow::advanceResult(bool skip){
     if(skip){showFlags=stunt==2;showSavings=showPay=true;showTime=!(campaign.last.flags&64);
@@ -175,7 +180,8 @@ void UiFlow::enterHighScore(){
     for(int i=47;i>=(scoreRank+1)*6;--i)scores[i]=scores[i-6];
     for(int i=0;i<3;++i)scores[scoreRank*6+i]=0;
     for(int i=2;i>=0;--i){int b=savings%100;savings/=100;scores[scoreRank*6+3+i]=static_cast<uint8_t>(((b/10)<<4)|(b%10));}
-    phase=UiPhase::NameEntry;phaseTicks=0;nameLength=0;nameScroll=180;nameMotion=0;
+    outroScene=render();
+    phase=UiPhase::NameEntry;phaseTicks=0;nameLength=0;nameScroll=180;nameMotion=0;nameEnter=64;nameBlink=false;nameClosed=false;
 }
 void UiFlow::queueTitlePage(int next){nextPage=next;titleDirection=-1;}
 void UiFlow::hiddenTransition(UiPhase target,const UiMap& next,int closedWait,int music){
@@ -225,6 +231,9 @@ void UiFlow::step(int buttons){
     priorButtons=previous;
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
+    case UiPhase::TitleReturn:
+        if(phaseTicks>=32){phase=UiPhase::TitleIntro;phaseTicks=0;titleScroll=titleDirection=0;page=0;}
+        break;
     case UiPhase::Boot:
         // 280c: 32-update fade in, fixed 180-update hold, 32-update fade out.
         // 25c4 does not inspect input, so Start cannot skip the copyright screen.
@@ -343,17 +352,26 @@ void UiFlow::step(int buttons){
         // Result timeout runs during counting, as in 24cf, but cannot cut it short.
         if((!counting&&!campaign.last.gameOver&&(pressed&(UiStart|A|B)))||
            ((!campaign.last.success&&phaseTicks>=32+480)||(campaign.last.success&&resultStage==6&&!resultHold))){
-            if(campaign.last.completed){phase=UiPhase::Ending;phaseTicks=0;}
+            if(campaign.last.completed){phase=UiPhase::Ending;phaseTicks=0;endingEnter=65;}
             else if(campaign.last.gameOver)enterHighScore();else continueCampaign();}
         break;}
-    case UiPhase::Ending:if(phaseTicks>=480)enterHighScore();break;
+    case UiPhase::Ending:
+        // 05c0 keeps the result callback running during its fade. 05c8 then
+        // disables it, before 068f's wait and 0697's blocking fade in.
+        if(endingEnter){if(endingEnter>33&&campaign.last.perfect)advanceCelebration();--endingEnter;}
+        else if(phaseTicks>=65+480)enterHighScore();
+        break;
     case UiPhase::NameEntry:{
+        // 3205 and 32bf run before the input/blink loop at 32c5. Input is
+        // still sampled globally, so holding A across entry is not a press.
+        if(nameEnter){--nameEnter;break;}
+        if(!(ticks&15))nameBlink=!nameBlink;
         if(nameMotion<0){nameScroll=(nameScroll-1)&255;++nameMotion;}
         else if(nameMotion>0){nameScroll=(nameScroll+1)&255;--nameMotion;}
         if(!nameMotion){if(buttons&Left)nameMotion=-8;else if(buttons&Right)nameMotion=8;}
         if(pressed&(A|B)){
             int letter=((nameScroll+76)&248)>>3;
-            if(letter==31){pendingSound=9;continueCampaign();}
+            if(letter==31){pendingSound=9;nameClosed=true;continueCampaign();}
             else if(letter==30){if(nameLength){scores[scoreRank*6+--nameLength]=0;pendingSound=4;}}
             else if(nameLength<3){scores[scoreRank*6+nameLength++]=assets.nameMaps[0][15*32+letter];pendingSound=17;}
         }
@@ -374,7 +392,7 @@ std::array<uint8_t,Width*Height> UiFlow::renderGameplay(const std::array<uint8_t
     return screen;
 }
 std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
-    if(phase==UiPhase::TitleExit){
+    if(phase==UiPhase::TitleExit||phase==UiPhase::TitleReturn){
         auto screen=outroScene;int palette=assets.fadePalettes[std::min(7,phaseTicks/4)];
         for(auto& shade:screen)shade=(palette>>(shade*2))&3;
         return screen;
@@ -408,17 +426,25 @@ std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
         return screen;
     }
     if(phase==UiPhase::NameEntry){
+        if(nameEnter>32){auto screen=outroScene;int palette=assets.fadePalettes[(64-nameEnter)/4];
+            for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+            return screen;}
         auto canvas=assets.nameMaps[campaign.current];scoreRows(canvas,scores,6);
+        // 3358 clears twenty alphabet cells; 3371 disables both raster
+        // callbacks and removes the arrows before returning to the caller.
+        if(nameClosed)for(int x=0;x<20;++x)canvas[15*32+x]=0;
         auto screen=renderMap(assets.nameTiles,canvas);
         // 24a5 / 255d / 256c: scroll the alphabet horizontally and duplicate
         // scanlines by decreasing vertical scroll at every second raster line.
-        for(int y=119;y<Height;++y)for(int x=0;x<Width;++x){
+        for(int y=119;!nameClosed&&y<Height;++y)for(int x=0;x<Width;++x){
             int wx=(x+nameScroll)&255,wy=y-std::min(8,(y-118)/2),tile=canvas[(wy/8)*32+wx/8];
             screen[y*Width+x]=assets.nameTiles[tile*64+(wy&7)*8+(wx&7)];
         }
-        for(int p=0;objects&&p<2;++p){int tile=(p?254:255)^((ticks>>4)&1),py=p?136:112;
+        for(int p=0;objects&&!nameClosed&&p<2;++p){int tile=(p?254:255)^nameBlink,py=p?136:112;
             for(int y=0;y<8;++y)for(int x=0;x<8;++x){int shade=assets.nameTiles[tile*64+y*8+x];
                 if(shade)screen[(py+y)*Width+76+x]=(0xc4>>(shade*2))&3;}}
+        if(nameEnter){int palette=assets.fadePalettes[(nameEnter-1)/4];
+            for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
         return screen;
     }
     if(phase==UiPhase::Instructions){
@@ -434,9 +460,20 @@ std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
             for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
         return screen;
     }
-    if(phase==UiPhase::Ending){auto canvas=assets.endings[campaign.current];overlay(canvas,assets.resultLayouts[7]);
-        money(canvas,17,campaign.players[campaign.current].savings);return renderMap(assets.endingTiles,canvas);}
-    if(phase==UiPhase::Result){
+    if(phase==UiPhase::Ending){
+        if(endingEnter>33){auto screen=renderResult(objects);int palette=assets.fadePalettes[(65-endingEnter)/4];
+            for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+            return screen;}
+        auto canvas=assets.endings[campaign.current];overlay(canvas,assets.resultLayouts[7]);
+        money(canvas,17,campaign.players[campaign.current].savings);auto screen=renderMap(assets.endingTiles,canvas);
+        if(endingEnter){int palette=assets.fadePalettes[std::min(7,(endingEnter-1)/4)];
+            for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
+        return screen;
+    }
+    if(phase==UiPhase::Result)return renderResult(objects);
+    return {};
+}
+std::array<uint8_t,Width*Height> UiFlow::renderResult(bool objects) const{
         const auto& result=campaign.last;int portrait=result.success?(result.perfect?2:1):0;
         auto canvas=assets.resultTexts[resultText(stunt,result.flags)];overlay(canvas,assets.resultLayouts[portrait]);
         if(result.success){
@@ -466,7 +503,5 @@ std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
         }
         if(resultFade){int palette=assets.fadePalettes[(resultFade-1)/4];for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
         return screen;
-    }
-    return {};
 }
 }
