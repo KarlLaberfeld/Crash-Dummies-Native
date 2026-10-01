@@ -28,6 +28,7 @@ struct CruiseGame {
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,7> hudValues{};
     SpriteLayer sprites{false};
+    bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,cameraX=0,cameraY=0,introTimer=0,balls=0,randomState=0,extraLives=0;
     bool started=false,paused=false;

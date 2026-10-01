@@ -34,6 +34,7 @@ struct SkiGame {
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,7> hudValues{};
     SpriteLayer sprites{false};
+    bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,remaining=0,needed=0,collected=0;
     int cameraX=0,cameraY=0,jumpVelocity=0,jumpContact=0,returnX=0,returnY=0;

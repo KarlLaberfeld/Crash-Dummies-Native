@@ -105,7 +105,7 @@ void CruiseGame::finishVideoTick(int oldFrame,int oldFlags){
 }
 
 void CruiseGame::updateVisibility(){
-    sprites=SpriteLayer(ticks&1);
+    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -149,7 +149,7 @@ int CruiseGame::spawn(int kind,int x,int y,int placement){
     return -1;
 }
 void CruiseGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;rewarded.assign(placements.size(),false);
     seconds=assets.levels[difficulty].seconds;cameraX=0;cameraY=1920;
     ticks=secondTicks=money=introTimer=balls=randomState=extraLives=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -264,7 +264,7 @@ void CruiseGame::update(int i){
 }
 void CruiseGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
+    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();mapTransfer=((lastMapCamera^cameraX)&128)!=0;lastMapCamera=cameraX;

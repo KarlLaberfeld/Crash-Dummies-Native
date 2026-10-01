@@ -125,7 +125,7 @@ void SkiGame::finishVideoTick(int oldFrame,int oldFlags){
 }
 
 void SkiGame::updateVisibility(){
-    sprites=SpriteLayer(ticks&1);
+    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -168,7 +168,7 @@ SkiAssets SkiAssets::load(const std::wstring& path){
     check(r.pos==r.data.size());return a;
 }
 void SkiGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];entities={};placements=l.objects;
     cameraX=l.cameraX;cameraY=0;seconds=l.seconds;remaining=l.quota;needed=l.quota/2;collected=0;
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
@@ -267,7 +267,7 @@ void SkiGame::update(int i){
 }
 void SkiGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
+    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();mapTransfer=((lastMapCamera^cameraY)&128)!=0;lastMapCamera=cameraY;

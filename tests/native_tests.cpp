@@ -60,6 +60,8 @@ int runSelfTests(const Assets& assets) {
             scene.render();auto before=scene.screen;scene.entities[0].x+=160;scene.render();
             require(scene.screen==before,"Repaint consumes the stored sprite list rather than changed entity state");
             scene.updateVisibility();scene.render();require(scene.screen!=before,"Next visibility pass publishes changed sprite positions");
+            scene.ticks=0;bool oldDirection=scene.reverseSprites;scene.updateVisibility();
+            require(scene.reverseSprites!=oldDirection,"Slot direction toggles per visibility pass independently of the global frame value");
         }
         require(assets.levels[0].height==1888,"Easy map height");
         require(assets.levels[0].objects.size()==36,"Easy placement count");

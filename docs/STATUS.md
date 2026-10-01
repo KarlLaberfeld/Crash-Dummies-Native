@@ -469,3 +469,29 @@ Both new opening captures were inspected locally. Windows audio ran through
 Power-on/LCD alignment and remaining menu/game/result fades are still unverified.
 The isolated campaign harness intentionally skips boot and is not a wall-clock
 reference. The Air stall and other documented fidelity gaps remain open.
+
+
+## Shared frame phase - final checkpoint for this continuation
+
+Opening checkpoint published as `93a3721de3ee446ec77206785ac12b59efe210de`,
+tree `b9583587c57b621d32de065e9b9cb1bf08285f54`, local `2845dea`.
+Campaign gameplay now uses the UI's continuing C00A/B-equivalent frame value,
+including time spent in menus and pauses. Individual stunt counters wrap at
+16 bits; isolated development/tests still start at zero. Sprite slot direction
+now has its own toggle per visibility pass, as in 1bfb, rather than using the
+global counter parity.
+
+All 24 Python tests and native suites pass. Roof assertions: 48,901; Air:
+449,081; UI: 237; sprite: 23; audio: 109; other suite counts unchanged. The
+old easy-Air test schedule failed when its zero-phase assumption was removed.
+The test pilot now forecasts alternating ordinary-input schedules on copies at
+the actual starting phase; the measured run receives only buttons. The shared
+frame campaign passes with 20 wins in 23 attempts (three failed attempts),
+savings 8,221, global update 62,605. This replaces the zero-phase campaign's
+49,007/7,875 checkpoint result, not the independent per-stunt replay evidence.
+
+Missing lifecycle/fade/setup waits still change phase relative to an original
+power-on run. Air's crash-animation boundary remains unresolved. Next work:
+remaining inter-screen fades, hidden password/music-test page, exact frame and
+audio phase/reference comparison. The native Windows port is not complete.
+Continue after the next usage reset; no reset credit was used.

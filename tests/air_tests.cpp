@@ -21,6 +21,7 @@ double airScore(const AirGame& g){
  return value;
 }
 struct Node{std::unique_ptr<AirGame> game;int first;double value;};
+int campaignAirStart=0,campaignAirPeriod=44,campaignAirOffset=0;
 int airInput(const AirGame& initial){
  if(initial.difficulty==0)return A|((initial.ticks/44)%2?Left:Right);
  std::vector<Node> beam;beam.push_back({std::make_unique<AirGame>(initial),0,0});int inputs[]={A,A|Left,A|Right,0,Left,Right,B,B|Left,B|Right};
@@ -32,7 +33,20 @@ int airInput(const AirGame& initial){
 }
 }
 
-int airTestInput(const AirGame& game){return airInput(game);}
+void prepareAirTestInput(const AirGame& initial){
+ campaignAirStart=initial.ticks;campaignAirPeriod=44;campaignAirOffset=0;
+ if(initial.difficulty)return;
+ // Find an ordinary input schedule at this campaign's actual frame phase.
+ // Forecast copies never alter the measured run or its frame counter.
+ for(int period:{44,43,45,42,46,40,48,36,52,56,60})for(int offset=0;offset<period*2;offset+=2){
+  AirGame trial(initial);for(int elapsed=0;elapsed<6000&&!trial.result;++elapsed)trial.step(A|(((elapsed+offset)/period)%2?Left:Right));
+  if(trial.result&2){campaignAirPeriod=period;campaignAirOffset=offset;return;}
+ }
+}
+int airTestInput(const AirGame& game){
+ if(!game.difficulty)return A|(((((game.ticks-campaignAirStart)&65535)+campaignAirOffset)/campaignAirPeriod)%2?Left:Right);
+ return airInput(game);
+}
 int runAirTests(const AirAssets& assets,const Assets& shared){
     FILE* log=fopen("air-test.txt","w");if(!log)return 2;
     int assertions=0;
@@ -96,6 +110,11 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         require(g.speed==-10&&g.entities[0].params[3]==0&&g.entities[0].params[5]==32,"First boost collision cancels boost without damage");
         g.entities[0].params[5]=240;g.damage(16);
         require(g.resultFlags==0x21&&g.finishTimer==127&&g.entities[0].params[5]==0,"Damage byte carry triggers original failure and immediate delay tick");
+
+        g.start(0);g.rate=1;g.held=A;g.ticks=3;g.input();
+        require(g.speed==0,"Air thrust waits for the global four-update phase");
+        g.ticks=4;g.input();require(g.speed==-1,"Air thrust uses the supplied global phase");
+        g.start(0);g.ticks=65535;g.step(0);require(g.ticks==0,"Original global frame counter wraps at sixteen bits");
 
         for(int collected:{0,7,8,14}){
             g.start(0);g.placements.clear();g.speed=-8;g.entities[0].params[1]=static_cast<uint8_t>(collected);g.probes={8,0,0,0,0,0};

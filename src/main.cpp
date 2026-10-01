@@ -206,6 +206,10 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         else if(selectedStunt==1){air->secondTicks=ui->timerPhase;air->randomState=(ui->ticks&255)<<8;}
                         else game->secondTicks=ui->timerPhase;}}
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){
+                    // C00A/B advances during menus and pause, not just gameplay.
+                    if(!developerMode){int prior=(ui->ticks-1)&65535;
+                        if(selectedStunt==4)cruise->ticks=prior;else if(selectedStunt==3)bomb->ticks=prior;
+                        else if(selectedStunt==2)ski->ticks=prior;else if(selectedStunt==1)air->ticks=prior;else game->ticks=prior;}
                     if(selectedStunt==4)cruise->step(input);else if(selectedStunt==3)bomb->step(input);else if(selectedStunt==2)ski->step(input);else if(selectedStunt==1)air->step(input);else game->step(input);
                     if(!developerMode&&(result()&1)){
                         if(selectedStunt!=3)ui->timerPhase=selectedStunt==4?cruise->secondTicks:selectedStunt==2?ski->secondTicks:selectedStunt==1?air->secondTicks:game->secondTicks;

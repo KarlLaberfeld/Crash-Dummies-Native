@@ -555,3 +555,22 @@ Ten additional native UI assertions cover section boundaries and held input.
 Copyright and title-closing captures were inspected locally. LCD enable/setup
 waits, exact first-VBlank alignment and other inter-screen fades remain open;
 357 modeled opening updates are not a claimed power-on reference timestamp.
+
+
+## Shared gameplay frame counter
+
+The counter at C00A/B increments in VBlank (00:2459-2467), including menus
+and pauses. Periodic Air input branches explicitly read its low byte at
+01:6504/6514/6520/6534. The Windows campaign now supplies the current global
+UI frame to the selected stunt before each update instead of starting these
+phases at zero on every stage. The native counter wraps at 16 bits. Isolated
+stunt tests/development starts still use a deterministic zero initial phase.
+
+Sprite allocation is a separate toggle at 00:1bfb, reset by the common stunt
+setup at 00:0386. It now toggles per visibility pass independently of that
+global counter. This preserves its direction when the global counter advances
+while gameplay is paused. The campaign harness also passes the global frame;
+its easy-Air pilot searches ordinary alternating input schedules on copies at
+the actual phase instead of assuming a zero-phase start. No measured game state
+is patched by the pilot. Missing fades/setup waits still prevent an exact
+original power-on frame phase claim.

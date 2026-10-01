@@ -59,7 +59,7 @@ Assets Assets::load(const std::wstring& path) {
 }
 
 void Game::start(int level,int player) {
-    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);entities={};placements=assets.levels[difficulty].objects;
     const auto& l=assets.levels[difficulty];
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
@@ -365,7 +365,7 @@ void Game::update(int i) {
 void Game::step(int buttons) {
     pendingSound=-1;
     if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();
+    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;beginVideoTick();
     tickHud();
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int i=0;i<16;++i)if(entities[i].alive)update(i);
@@ -409,7 +409,7 @@ void Game::drawHud() {
         screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
 }
 void Game::updateVisibility() {
-    sprites=SpriteLayer(ticks&1);
+    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
     // 00:1cb6-1cf6 tests the frame's padded bounds; 1c7c handles removal.
     // This belongs to the simulation tick, independent of Windows repaint rate.
     for(int i=0;i<16;++i)if(entities[i].alive){

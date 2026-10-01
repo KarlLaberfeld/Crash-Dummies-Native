@@ -56,6 +56,7 @@ struct Game {
     std::array<Entity,16> entities{};
     std::vector<Placement> placements;
     SpriteLayer sprites{false};
+    bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=60,secondTicks=0,money=0,remaining=0;
     int breaksNeeded=10,fireHits=4,camera=0,cameraLead=24,cameraLeadTarget=24;

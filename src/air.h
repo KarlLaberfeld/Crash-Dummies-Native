@@ -53,6 +53,7 @@ struct AirGame {
     std::array<uint8_t,13> hudValues{};
     std::array<int,6> probes{};
     SpriteLayer sprites{false};
+    bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,livesEarned=0;
     int cameraX=0,cameraY=0,cameraLead=176,cameraLeadTarget=176;

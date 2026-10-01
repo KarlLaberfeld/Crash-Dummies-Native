@@ -113,7 +113,7 @@ int BombGame::spawn(int kind,int x,int y){
     return -1;
 }
 void BombGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);entities={};speeds=assets.levels[difficulty].speeds;totals={};spawnPending={};displayTotals={};
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
@@ -134,7 +134,7 @@ void BombGame::finishVideoTick(int oldFrame,int oldFlags){
     }
 }
 void BombGame::updateVisibility(){
-    sprites=SpriteLayer(ticks&1);
+    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
     for(auto& e:entities)if(e.alive){e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;int x=s16(e.x&0xfff0)/16+s8(m[0]),y=s16(e.y&0xfff0)/16+s8(m[1]);
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){if(e.flags&16)e.alive=false;else e.offscreen=true;}
@@ -225,7 +225,7 @@ void BombGame::update(int i){
 }
 void BombGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;
+    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();

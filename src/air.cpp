@@ -68,7 +68,7 @@ AirAssets AirAssets::load(const std::wstring& path){
 }
 
 void AirGame::start(int level,int player){
-    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);
+    playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);const auto& l=assets.levels[difficulty];
     entities={};placements=l.objects;cameraX=l.cameraX;cameraY=l.cameraY;
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
@@ -345,7 +345,7 @@ void AirGame::update(int i){
     }
 }
 void AirGame::updateVisibility(){
-    sprites=SpriteLayer(ticks&1);
+    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -359,7 +359,7 @@ void AirGame::updateVisibility(){
 void AirGame::step(int buttons){
     pendingSound=-1;
     if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;++ticks;beginVideoTick();tickHud();
+    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;beginVideoTick();tickHud();
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);
