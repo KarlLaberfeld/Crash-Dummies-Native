@@ -190,7 +190,12 @@ class LocalCartridge(unittest.TestCase):
         with scratch_directory() as directory:
             extract_ui.extract_ui(self.rom,directory)
             pack=(Path(directory)/'ui.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDUI06')
+            self.assertEqual(pack[:8],b'TICDUI07')
+            self.assertEqual(pack[-400:-16],self.rom[0x1c000:0x1c180])
+            self.assertEqual(pack[-16:-8],self.rom[0x15d0:0x15d8])
+            self.assertEqual(pack[-8:],self.rom[0x16e3:0x16eb])
+            complete_pack=pack
+            pack=pack[:-400]
             self.assertGreater(len(pack),250000)
             hidden_size=4*1024+80+160*8
             self.assertEqual(pack[-hidden_size-8:-hidden_size],bytes([0xe4,0xe4,0xe4,0xa4,0x90,0x50,0x50,0]))
@@ -210,7 +215,7 @@ class LocalCartridge(unittest.TestCase):
             options=maps[5*1024:6*1024]
             self.assertEqual(options[18*32+3:18*32+6],bytes([25,24,15])) # ONE
             extract_ui.extract_ui(self.rom,directory)
-            self.assertEqual(pack,(Path(directory)/'ui.dat').read_bytes())
+            self.assertEqual(complete_pack,(Path(directory)/'ui.dat').read_bytes())
         with self.assertRaisesRegex(ValueError,'Unported menu operation'):
             extract_ui.menu_map(bytes([0x94,0x80]),0)
 

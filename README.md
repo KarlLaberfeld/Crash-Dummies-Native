@@ -8,7 +8,10 @@ reconstructed original graphics, four difficulty layouts, and a partial native
 translation of the original game logic. The original title/options pages, stage
 instructions, campaign progression, result portraits and ending are connected.
 The original copyright screen, opening/result fades, high-score name entry, pay/time
-counting, hidden password entry and music test are implemented. Stunts fade in
+counting, hidden password entry and music test are implemented. Perfect results
+include the original four-emitter celebration. Title exit and first-instruction
+fades, and the later 64-update alternating-map transition, are reconstructed.
+Stunts fade in
 while gameplay continues, following the original global frame cadence. Remaining presentation
 timing, exact sound fidelity, and full behavioral validation remain unfinished.
 Native music and sound output now cover the original 14 songs and 26 effects,

@@ -667,3 +667,50 @@ at stunt entry). Air's crash-animation boundary, pending graphics transfer
 behavior around exits, and detailed audio/pixel equivalence remain unresolved.
 The port is not finished. Automatic continuation remains active; no quota reset
 credit was used. All original ROM/extracted assets/captures remain local.
+
+
+## Input continuity, celebration and instruction transitions
+
+Previous checkpoint: remote `9ef7f1de10ad398706cfb626aeda3bcd1f202fdf`,
+tree `1ac71232802dcdf1263c01f6fd179529812f9fb3`, local `9179e30`.
+Work resumed after the five-hour usage window reset; no reset credit was used.
+
+The Windows host and campaign harness now share the same stunt stepping path.
+Stunt setup waits for the next update, and global input history survives menus
+and pause. A key held across either boundary is no longer synthesized as a new
+press. Fresh presses still work. The asynchronous entry fade starts on the
+first actual gameplay update. All five native stunt types exercise these cases.
+
+Perfect results now animate the original four staggered celebration emitters,
+using the original integer lookup tables, random-state continuation, byte
+wrapping, 8x8 sprites and background/object priority. TICDUI07 adds 400 bytes
+of local tables; ui.dat has been regenerated. Three celebration captures were
+inspected. This closes the missing-animation item, with exact original display
+publication phase still unverified.
+
+Title Start now fades the existing page for 32 updates, waits once, and stops
+its music. First instructions have their one setup wait and 32-update fade-in.
+Later instructions wait once then alternate the outgoing background and new
+instruction map over the original 64 pattern bits. Text/input processing stays
+suspended during entry. A held Start does not interrupt typing; the separate
+original held-input check after typing completes can then start instruction
+exit. Tests cover that distinction as well as fresh presses. Outgoing result
+celebration sprites are removed before map alternation.
+
+Validation: full extraction, all 25 Python tests and every native suite passed
+in local/instruction-alternation-build.log. The campaign reached all 20 wins in
+20 attempts, savings 8,138, global update 52,671. This supersedes previous phase
+results. A final isolated held-Start correction was rebuilt and verified with
+all 619 UI assertions (local/presentation-final-build.log and
+local/presentation-final-ui-test.txt); the campaign's button path is unchanged.
+Other native suite counts remain unchanged. Title/first-instruction captures
+were inspected, and the capture executable exited successfully. No compiler
+warnings. ROM, extracted tables/packages and all captures remain local.
+
+Air's crash-boundary audit again matched static animation/transfer routines,
+but still lacks evidence to distinguish a port timing fault from an original
+edge case. No speculative recovery was introduced. Remaining work includes
+ending/name-entry/return-to-title transitions, exact graphics publication and
+hardware/setup phase, original-reference behavior/audio comparisons, broader
+human/Windows acceptance tests and the final distribution package. The port
+is still incomplete; automatic continuation remains active.

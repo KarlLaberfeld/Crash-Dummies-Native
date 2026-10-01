@@ -170,6 +170,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 sample.step(0);sample.step(ticd::A);
                 ticd::saveBmp(directory+L"result-"+std::to_wstring(stage)+L".bmp",sample.render());
             }
+            ticd::UiFlow titleExit(*uiAssets);titleExit.step(ticd::UiStart);
+            for(int frame=1;frame<=66;++frame){titleExit.step(0);if(frame==16||frame==32||frame==50||frame==66)ticd::saveBmp(directory+L"title-exit-"+std::to_wstring(frame)+L".bmp",titleExit.render());}
+            ticd::UiFlow celebration(*uiAssets);celebration.campaign.start(false);celebration.phase=ticd::UiPhase::Playing;celebration.finishStunt(7,123,45);
+            while(celebration.phase==ticd::UiPhase::StuntOutro)celebration.step(0);
+            for(int frame=1;frame<=160;++frame){celebration.step(0);if(frame==48||frame==96||frame==160)ticd::saveBmp(directory+L"celebration-"+std::to_wstring(frame)+L".bmp",celebration.render());}
             ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);for(int i=0;i<33;++i)ending.step(0);
             ending.finishStunt(7,123,45);while(ending.phase==ticd::UiPhase::StuntOutro)ending.step(0);for(int i=0;i<32;++i)ending.step(0);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
             ticd::saveBmp(directory+L"ending.bmp",ending.render());
@@ -223,11 +228,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         else if(selectedStunt==1){air->secondTicks=ui->timerPhase;air->randomState=(ui->ticks&255)<<8;}
                         else game->secondTicks=ui->timerPhase;}}
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){
-                    // C00A/B advances during menus and pause, not just gameplay.
-                    if(!developerMode){int prior=(ui->ticks-1)&65535;
-                        if(selectedStunt==4)cruise->ticks=prior;else if(selectedStunt==3)bomb->ticks=prior;
-                        else if(selectedStunt==2)ski->ticks=prior;else if(selectedStunt==1)air->ticks=prior;else game->ticks=prior;}
-                    if(selectedStunt==4)cruise->step(input);else if(selectedStunt==3)bomb->step(input);else if(selectedStunt==2)ski->step(input);else if(selectedStunt==1)air->step(input);else game->step(input);
+                    auto advance=[&](auto& stunt){if(developerMode)stunt.step(input);else ui->stepStunt(stunt);};
+                    if(selectedStunt==4)advance(*cruise);else if(selectedStunt==3)advance(*bomb);
+                    else if(selectedStunt==2)advance(*ski);else if(selectedStunt==1)advance(*air);else advance(*game);
                     if(!developerMode&&(result()&1)){
                         if(selectedStunt!=3)ui->timerPhase=selectedStunt==4?cruise->secondTicks:selectedStunt==2?ski->secondTicks:selectedStunt==1?air->secondTicks:game->secondTicks;
                         int pay=selectedStunt==4?cruise->money:selectedStunt==3?bomb->money:selectedStunt==2?ski->money:selectedStunt==1?air->money:game->money;
@@ -239,6 +242,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         else if(selectedStunt==2){ski->render(false);ui->outroScene=ski->screen;}
                         else if(selectedStunt==1){air->render(false);ui->outroScene=air->screen;}
                         else{game->render(false);ui->outroScene=game->screen;}
+                        if(selectedStunt==4)ui->randomState=cruise->randomState;else if(selectedStunt==3)ui->randomState=bomb->randomState;else if(selectedStunt==1)ui->randomState=air->randomState;
                         ui->finishStunt(result(),pay,seconds,lives,selectedStunt==2?ski->collected:0);
                     }
                 }
@@ -248,7 +252,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 case ticd::UiPhase::Boot:music=0;break;
                 case ticd::UiPhase::TitleIntro:music=ui->phaseTicks<33?0:1;break;
                 case ticd::UiPhase::Title:music=1;break;
-                case ticd::UiPhase::Instructions:music=2;break;
+                case ticd::UiPhase::TitleExit:music=1;break;
+                case ticd::UiPhase::Instructions:music=ui->instructionEnter==(ui->instructionAlternate?65:33)?-1:2;break;
                 case ticd::UiPhase::Playing:music=8+selectedStunt;break;
                 case ticd::UiPhase::StuntOutro:music=ui->phaseTicks? -1:8+selectedStunt;break;
                 case ticd::UiPhase::Result:music=ui->campaign.last.gameOver?13:ui->campaign.last.success?(ui->campaign.last.perfect?5:4):3;break;
@@ -257,6 +262,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 default:break; // Hidden menus issue explicit music/stop commands.
                 }
                 bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title)||
+                    (lastAudioPhase==ticd::UiPhase::Title&&ui->phase==ticd::UiPhase::TitleExit)||
                     (lastAudioPhase==ticd::UiPhase::Playing&&ui->phase==ticd::UiPhase::StuntOutro);
                 bool hiddenAudio=!developerMode&&(ui->phase>=ticd::UiPhase::HiddenTransition||lastAudioPhase>=ticd::UiPhase::HiddenTransition);
                 if(hiddenAudio){if(ui->pendingMusic!=-2){if(ui->pendingMusic<0)sound->stop();else sound->playMusic(ui->pendingMusic);lastMusic=ui->pendingMusic;}}

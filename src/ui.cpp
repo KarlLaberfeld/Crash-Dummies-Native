@@ -7,7 +7,7 @@ namespace ticd {
 UiAssets UiAssets::load(const std::wstring& path){
     FILE* f=_wfopen(path.c_str(),L"rb");if(!f)throw std::runtime_error("ui.dat is missing. Rebuild with the original ROM.");
     std::vector<uint8_t> data(1024*1024);size_t n=fread(data.data(),1,data.size(),f);int extra=fgetc(f);fclose(f);data.resize(n);
-    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI06",8))throw std::runtime_error("Invalid UI asset package.");
+    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI07",8))throw std::runtime_error("Invalid UI asset package.");
     UiAssets a;size_t offset=8;
     auto read=[&](auto& target){if(target.size()>data.size()-offset)throw std::runtime_error("Truncated UI package");
         memcpy(target.data(),data.data()+offset,target.size());offset+=target.size();};
@@ -25,6 +25,7 @@ UiAssets UiAssets::load(const std::wstring& path){
     for(auto& m:a.hiddenMaps)read(m);for(auto& p:a.passwords){read(p);
         for(int digit:p)if(digit<1||digit>10)throw std::runtime_error("Invalid password digit");}
     read(a.pauseStrip);
+    read(a.celebrationProducts);read(a.celebrationWave);read(a.celebrationTiles);read(a.instructionPattern);
     if(offset!=data.size())throw std::runtime_error("Trailing UI package data");
     auto validate=[](const auto& tiles){for(int shade:tiles)if(shade>3)throw std::runtime_error("Invalid UI palette");};
     validate(a.tiles);validate(a.titleBackground);for(const auto& i:a.instructions)validate(i.tiles);
@@ -90,10 +91,11 @@ int resultText(int stunt,int flags){
     }
 }
 }
-void UiFlow::beginInstructions(){
+void UiFlow::beginInstructions(bool first,bool alternate){
     const auto& player=campaign.players[campaign.current];stunt=player.day;level=player.difficulty;
     phase=UiPhase::Instructions;phaseTicks=0;scroll=0;position=anchor=row=speed=delay=0;scrollStep=pendingGlyph=-1;
-    cursor=0;textDone=false;instructionExit=0;map=assets.instructions[stunt].map;
+    cursor=0;textDone=false;instructionExit=0;instructionAlternate=alternate;
+    instructionEnter=first?33:alternate?65:0;map=assets.instructions[stunt].map;
     overlay(map,assets.headers[(campaign.current*5+stunt)*4+level]);map[19]=static_cast<uint8_t>(std::min(player.lives,9)+1);
     text.clear();
     // Resolve the identified text macros into glyphs. Their 0x88 terminators
@@ -103,7 +105,7 @@ void UiFlow::beginInstructions(){
         else if(op==0x8a||op==0x8c){const auto& quota=op==0x8a?assets.skiQuotas:assets.bombQuotas;text.push_back(quota[level*3]);text.push_back(quota[level*3+1]);}
         else text.push_back(static_cast<uint8_t>(op));
     }
-    advanceText();
+    if(!instructionEnter)advanceText();
 }
 void UiFlow::advanceText(){
     auto byte=[&](){if(cursor>=text.size())throw std::runtime_error("Truncated instruction text");return text[cursor++];};
@@ -115,7 +117,12 @@ void UiFlow::advanceText(){
     while(!textDone){int op=byte();
         if(op<128){if(op&&speed){pendingGlyph=op;delay=speed;return;}put(op);}
         else switch(op){
-        case 0x80:{for(int glyph:assets.startPrompt){put(glyph);}textDone=true;return;}
+        case 0x80:{
+            // 032b checks held Start after the text script returns. A key
+            // held through entry does not interrupt typing, but exits here.
+            textDone=true;if(previous&UiStart){instructionExit=33;return;}
+            for(int glyph:assets.startPrompt){put(glyph);}return;
+        }
         case 0x81:anchor=byte();row=byte();position=row*32+anchor;break;
         case 0x82:if(byte()!=0)throw std::runtime_error("Unexpected instruction text layer");break;
         case 0x84:position=(++row)*32+anchor;break;
@@ -135,7 +142,9 @@ void UiFlow::finishStunt(int flags,int earned,int seconds,int extraLives,int fla
     phase=UiPhase::StuntOutro;phaseTicks=0;resultFade=32;resultHold=0;
 }
 void UiFlow::continueCampaign(){
-    if(campaign.next())beginInstructions();else{phase=UiPhase::Title;page=0;phaseTicks=0;}
+    // 268b disables objects before alternation between the two background maps.
+    outroScene=render(false);
+    if(campaign.next())beginInstructions(false,true);else{phase=UiPhase::Title;page=0;phaseTicks=0;}
 }
 void UiFlow::advanceResult(bool skip){
     if(skip){showFlags=stunt==2;showSavings=showPay=true;showTime=!(campaign.last.flags&64);
@@ -173,6 +182,38 @@ void UiFlow::hiddenTransition(UiPhase target,const UiMap& next,int closedWait,in
     hiddenTarget=target;hiddenNextMap=next;hiddenClosedWait=closedWait;hiddenMusic=music;
     hiddenWait=0;phase=UiPhase::HiddenTransition;phaseTicks=0;titleDirection=-1;titleScroll=0;
 }
+void UiFlow::resetCelebrationEmitter(int index){
+    // 1723 changes only the high byte of the shared random state.
+    int swapped=((randomState&255)<<8)|(randomState>>8);
+    int first=(randomState-swapped)&65535;
+    int value=(first-swapped-(randomState<swapped)+254)&65535;
+    int lo=value&255,hi=value>>8,out=(lo-hi-(lo>=hi))&255;
+    randomState=(randomState&255)|(out<<8);
+    celebration[index]={(out&127)+16,143,251,0,index*16};
+}
+void UiFlow::advanceCelebration(){
+    // 15da/15fa multiply the extracted wave by the signed radius using
+    // the original byte lookup tables, including their rounding and wrap.
+    auto offset=[&](int angle,int radius){
+        bool negative=((angle^radius)&128)!=0;
+        int wave=assets.celebrationWave[angle&127];
+        int magnitude=radius&128?(-radius)&255:radius;
+        int half=std::abs(wave-magnitude)/2;
+        int product=(assets.celebrationProducts[std::min(wave,magnitude)+half]-assets.celebrationProducts[half])&255;
+        return negative?(-product)&255:product;
+    };
+    celebrationCount=0;
+    for(int i=0;i<4;++i){auto& emitter=celebration[i];
+        if(emitter.delay){--emitter.delay;continue;}
+        if(emitter.y>=192){resetCelebrationEmitter(i);continue;}
+        int oldY=emitter.y;emitter.y=(emitter.y+emitter.velocity)&255;
+        int tile=assets.celebrationTiles[(emitter.radius&112)>>4];
+        for(int j=0;j<10;++j){int angle=(ticks+j*25)&255;
+            celebrationSprites[celebrationCount++]={(emitter.x+offset((angle+64)&255,emitter.radius))&255,(oldY+offset(angle,emitter.radius))&255,tile};}
+        if(!(ticks&7))emitter.velocity=(emitter.velocity+1)&255;
+        if(!((emitter.velocity+2)&128))emitter.radius=(emitter.radius+1)&255;
+    }
+}
 void UiFlow::leavePassword(){
     if(passwordExit){
         hiddenTransition(UiPhase::Title,assets.titleMaps[0]);
@@ -181,6 +222,7 @@ void UiFlow::leavePassword(){
 }
 void UiFlow::step(int buttons){
     pendingSound=-1;pendingMusic=-2;
+    priorButtons=previous;
     int pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;++phaseTicks;
     switch(phase){
     case UiPhase::Boot:
@@ -209,12 +251,16 @@ void UiFlow::step(int buttons){
         }
         // 278f-279a toggles the player selection before handling Start.
         if(page==5&&(pressed&(UiSelect|Up|Down)))twoPlayers=!twoPlayers;
-        if(pressed&UiStart){campaign.start(twoPlayers,startDay,startDifficulty);beginInstructions();}
+        if(pressed&UiStart){outroScene=render();campaign.start(twoPlayers,startDay,startDifficulty);phase=UiPhase::TitleExit;phaseTicks=0;}
         else if(page==5){
             if(pressed&(A|B))queueTitlePage(0);
         }else if(pressed&UiSelect)queueTitlePage(5);
         else{constexpr int durations[]={480,480,960,480,960};
             if((pressed&(A|B))||phaseTicks>=durations[page])queueTitlePage((page+1)%5);}
+        break;
+    case UiPhase::TitleExit:
+        // 0269 fades for 32 updates; 026c waits once before stopping music.
+        if(phaseTicks>=33)beginInstructions(true);
         break;
     case UiPhase::HiddenTransition:
         if(hiddenWait){if(--hiddenWait==0){pendingMusic=hiddenMusic;hiddenMusic=-2;}break;}
@@ -266,20 +312,25 @@ void UiFlow::step(int buttons){
         if(pressed&UiStart)leavePassword();
         break;
     case UiPhase::Instructions:
+        // 0319 waits before song 2; the first 268b path fades for 32 updates
+        // before the instruction text interpreter can consume input.
+        if(instructionEnter){if(--instructionEnter==0)advanceText();break;}
         // 034c/034f: stop the text interpreter, fade out for 32 updates,
         // then wait once before 0352 stops music and stunt setup begins.
         // Keeping the instruction phase also keeps its song running here.
         if(instructionExit){
-            if(--instructionExit==0){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;}
+            if(--instructionExit==0){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;randomState=(ticks&255)<<8;}
         }else if(pressed&UiStart)instructionExit=33;
         else if(!textDone)advanceText();
         break;
     case UiPhase::StuntOutro:
         // 0400 waits once, 0403 stops music, 0406 fades for 32 updates.
         // Failed results wait once more at 05a7/068f before their song/fade.
-        if(phaseTicks>=33+(campaign.last.success?0:1)){phase=UiPhase::Result;phaseTicks=0;}
+        if(phaseTicks>=33+(campaign.last.success?0:1)){phase=UiPhase::Result;phaseTicks=0;celebrationCount=0;
+            if(campaign.last.perfect)for(int i=0;i<4;++i)resetCelebrationEmitter(i);}
         break;
     case UiPhase::Result:{
+        if(campaign.last.perfect)advanceCelebration();
         if(resultFade){--resultFade;break;}
         bool counting=campaign.last.success&&resultStage<6;
         if(counting)advanceResult((pressed&(UiStart|A|B))!=0);
@@ -312,7 +363,7 @@ void UiFlow::step(int buttons){
     }
     // 03bf initializes the eight-step counter. 20ee advances it on even
     // global frames during gameplay; the pause callback does not run 20ee.
-    if(phase==UiPhase::Playing&&!gameplayPaused&&!(ticks&1)&&gameplayFade>0)--gameplayFade;
+    if(phase==UiPhase::Playing&&phaseTicks>0&&!gameplayPaused&&!(ticks&1)&&gameplayFade>0)--gameplayFade;
 }
 std::array<uint8_t,Width*Height> UiFlow::renderGameplay(const std::array<uint8_t,Width*Height>& scene,bool paused) const{
     auto screen=paused?renderPausedGame(assets,scene):scene;
@@ -322,7 +373,12 @@ std::array<uint8_t,Width*Height> UiFlow::renderGameplay(const std::array<uint8_t
     for(auto& shade:screen)shade=(palette>>(shade*2))&3;
     return screen;
 }
-std::array<uint8_t,Width*Height> UiFlow::render() const{
+std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
+    if(phase==UiPhase::TitleExit){
+        auto screen=outroScene;int palette=assets.fadePalettes[std::min(7,phaseTicks/4)];
+        for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+        return screen;
+    }
     if(phase==UiPhase::StuntOutro){
         if(!phaseTicks)return renderGameplay(outroScene,false);
         auto screen=outroScene;int palette=assets.fadePalettes[std::min(7,(phaseTicks-1)/4)];
@@ -360,13 +416,20 @@ std::array<uint8_t,Width*Height> UiFlow::render() const{
             int wx=(x+nameScroll)&255,wy=y-std::min(8,(y-118)/2),tile=canvas[(wy/8)*32+wx/8];
             screen[y*Width+x]=assets.nameTiles[tile*64+(wy&7)*8+(wx&7)];
         }
-        for(int p=0;p<2;++p){int tile=(p?254:255)^((ticks>>4)&1),py=p?136:112;
+        for(int p=0;objects&&p<2;++p){int tile=(p?254:255)^((ticks>>4)&1),py=p?136:112;
             for(int y=0;y<8;++y)for(int x=0;x<8;++x){int shade=assets.nameTiles[tile*64+y*8+x];
                 if(shade)screen[(py+y)*Width+76+x]=(0xc4>>(shade*2))&3;}}
         return screen;
     }
     if(phase==UiPhase::Instructions){
         auto screen=renderMap(assets.instructions[stunt].tiles,map,scroll);
+        if(instructionEnter){
+            if(instructionAlternate){
+                int bit=63-instructionEnter;
+                if(bit<0||((assets.instructionPattern[bit/8]>>(bit%8))&1))return outroScene;
+            }else{int palette=assets.fadePalettes[std::min(7,(instructionEnter-1)/4)];
+                for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
+        }
         if(instructionExit){int palette=assets.fadePalettes[std::min(7,(33-instructionExit)/4)];
             for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
         return screen;
@@ -385,6 +448,22 @@ std::array<uint8_t,Width*Height> UiFlow::render() const{
             if(showFlags){overlay(canvas,assets.resultLayouts[6]);canvas[14*32+18]=(flagsHit/10)%10+1;canvas[14*32+19]=flagsHit%10+1;}
         }else if(result.gameOver){overlay(canvas,assets.resultLayouts[7]);money(canvas,17,campaign.players[campaign.current].savings);}
         auto screen=renderMap(assets.resultTiles[portrait],canvas);
+        if(objects&&result.perfect){
+            // The result screen uses 8x8 objects, behind nonzero background
+            // colors, with the original ten-per-row and X/OAM overlap rules.
+            for(int y=0;y<Height;++y){std::array<int,10> selected{};int count=0;
+                for(int i=0;i<celebrationCount&&count<10;++i){const auto& sprite=celebrationSprites[i];
+                    if(y>=sprite.y-16&&y<sprite.y-8)selected[count++]=i;}
+                std::stable_sort(selected.begin(),selected.begin()+count,[&](int a,int b){return celebrationSprites[a].x<celebrationSprites[b].x;});
+                for(int x=0;x<Width;++x)for(int n=0;n<count;++n){const auto& sprite=celebrationSprites[selected[n]];
+                    int sx=x-sprite.x+8;if(sx<0||sx>=8)continue;
+                    int color=assets.resultTiles[portrait][sprite.tile*64+(y-sprite.y+16)*8+sx];
+                    if(!color)continue;
+                    if(!screen[y*Width+x])screen[y*Width+x]=(0xc4>>(color*2))&3;
+                    break;
+                }
+            }
+        }
         if(resultFade){int palette=assets.fadePalettes[(resultFade-1)/4];for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
         return screen;
     }
