@@ -1,4 +1,4 @@
-# Project status â€” September 30, 2026
+# Project status â€” October 1, 2026
 
 ## Objective
 
@@ -627,3 +627,43 @@ The pre-result gameplay fade-out/setup and some music/setup waits are still
 missing, as are title/instruction and later screen transitions. Absolute
 power-on phase and pixel/audio equivalence remain unverified. Air's documented
 animation-boundary stall is unresolved. The port remains unfinished.
+
+
+## Blocking instruction and stunt exits — October 1
+
+Previous checkpoint: remote `2d3133fcfb77e3c45e5293f03c9e9a78bccea817`,
+tree `1c06e00015e57dc240dbca4033aa06fbf4a9c5a0`, local `4e3fa9d`.
+
+Instruction Start now freezes typing/scrolling, fades out over 32 updates,
+and holds white for one further update before starting the stunt. The song
+continues through that exit. Stunt termination now preserves the last native
+playfield, waits once, stops music, and fades out over 32 updates before the
+result screen. Failure and game-over add their original one-update wait
+before result music/fade. Skip input cannot bypass these blocking transitions.
+The asset format remains TICDUI06; no newly extracted data are required.
+
+Review of the perfect-result initialization found another timing difference:
+it installs a 720-update background budget, replacing the ordinary 600.
+The subsequent sixty-update addition and retained-one rule remain unchanged.
+Short perfect results therefore expire at result update 780, ordinary ones
+at 660. The four celebration emitters initialized by the same original
+routine are not yet rendered; this is a newly recorded presentation gap.
+
+Validation: 25 Python tests and every native suite pass without compiler
+warnings. UI now has 498 assertions; the other suite counts are unchanged.
+The complete campaign reaches 20 wins in 23 attempts, savings 8,659, global
+update 63,844. The new waits exposed weaknesses in the input-only test pilot:
+its first run lost the last life after 19 wins. The final Cruise planner now
+uses a wider/deeper forecast on the hardest level, as it already did on the
+second level; no gameplay rules or live states were changed to obtain success.
+The earlier UI test fixture also needed its odd-frame start corrected for the
+new delay. Final passing log: local/stunt-transitions-final-build.log.
+Instruction exit captures at updates 16 and 32 were inspected. These and the
+unit image comparisons validate native output, not original-machine parity.
+
+Continue with title/first-instruction and later map transitions, perfect-result
+celebration, and the missing gameplay-loop/setup timing (including input edges
+at stunt entry). Air's crash-animation boundary, pending graphics transfer
+behavior around exits, and detailed audio/pixel equivalence remain unresolved.
+The port is not finished. Automatic continuation remains active; no quota reset
+credit was used. All original ROM/extracted assets/captures remain local.

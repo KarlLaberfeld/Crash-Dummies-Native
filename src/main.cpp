@@ -163,16 +163,18 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 ticd::UiFlow sample(*uiAssets);sample.campaign.start(false,stage);sample.beginInstructions();
                 for(int i=0;i<2500&&!sample.textDone;++i)sample.step(0);
                 ticd::saveBmp(directory+L"instructions-"+std::to_wstring(stage)+L".bmp",sample.render());
-                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);
+                sample.step(ticd::UiStart);
+                for(int i=0;i<33;++i){if(stage==0&&(i==16||i==32))ticd::saveBmp(directory+L"instruction-exit-"+std::to_wstring(i)+L".bmp",sample.render());sample.step(0);}
+                sample.finishStunt(stage==3?0x47:7,123,45,0,20);while(sample.phase==ticd::UiPhase::StuntOutro)sample.step(0);
                 for(int i=0;i<32;++i){if(stage==0&&i==16)ticd::saveBmp(directory+L"result-fade-half.bmp",sample.render());sample.step(0);}
                 sample.step(0);sample.step(ticd::A);
                 ticd::saveBmp(directory+L"result-"+std::to_wstring(stage)+L".bmp",sample.render());
             }
-            ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);
-            ending.finishStunt(7,123,45);for(int i=0;i<32;++i)ending.step(0);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
+            ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);for(int i=0;i<33;++i)ending.step(0);
+            ending.finishStunt(7,123,45);while(ending.phase==ticd::UiPhase::StuntOutro)ending.step(0);for(int i=0;i<32;++i)ending.step(0);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
             ticd::saveBmp(directory+L"ending.bmp",ending.render());
             ticd::UiFlow name(*uiAssets);name.campaign.start(false);name.campaign.players[0].savings=100000;name.campaign.players[0].lives=1;
-            name.beginInstructions();name.step(ticd::UiStart);name.finishStunt(1,0,0);for(int i=0;i<512;++i)name.step(0);
+            name.beginInstructions();name.step(ticd::UiStart);for(int i=0;i<33;++i)name.step(0);name.finishStunt(1,0,0);while(name.phase==ticd::UiPhase::StuntOutro)name.step(0);for(int i=0;i<512;++i)name.step(0);
             ticd::saveBmp(directory+L"name-entry.bmp",name.render());
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             ticd::UiFlow gameplayFade(*uiAssets);gameplayFade.phase=ticd::UiPhase::Playing;game->start(0);
@@ -231,6 +233,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         int pay=selectedStunt==4?cruise->money:selectedStunt==3?bomb->money:selectedStunt==2?ski->money:selectedStunt==1?air->money:game->money;
                         int seconds=selectedStunt==4?cruise->seconds:selectedStunt==3?0:selectedStunt==2?ski->seconds:selectedStunt==1?air->seconds:game->seconds;
                         int lives=selectedStunt==4?cruise->extraLives:selectedStunt==1?air->livesEarned:0;
+                        // Preserve the last published scene while blocking waits/fade run.
+                        if(selectedStunt==4){cruise->render(false);ui->outroScene=cruise->screen;}
+                        else if(selectedStunt==3){bomb->render(false);ui->outroScene=bomb->screen;}
+                        else if(selectedStunt==2){ski->render(false);ui->outroScene=ski->screen;}
+                        else if(selectedStunt==1){air->render(false);ui->outroScene=air->screen;}
+                        else{game->render(false);ui->outroScene=game->screen;}
                         ui->finishStunt(result(),pay,seconds,lives,selectedStunt==2?ski->collected:0);
                     }
                 }
@@ -242,15 +250,17 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 case ticd::UiPhase::Title:music=1;break;
                 case ticd::UiPhase::Instructions:music=2;break;
                 case ticd::UiPhase::Playing:music=8+selectedStunt;break;
+                case ticd::UiPhase::StuntOutro:music=ui->phaseTicks? -1:8+selectedStunt;break;
                 case ticd::UiPhase::Result:music=ui->campaign.last.gameOver?13:ui->campaign.last.success?(ui->campaign.last.perfect?5:4):3;break;
                 case ticd::UiPhase::Ending:music=13;break;
                 case ticd::UiPhase::NameEntry:music=6;break;
                 default:break; // Hidden menus issue explicit music/stop commands.
                 }
-                bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title);
+                bool openingContinues=(lastAudioPhase==ticd::UiPhase::Boot&&ui->phase==ticd::UiPhase::TitleIntro)||(lastAudioPhase==ticd::UiPhase::TitleIntro&&ui->phase==ticd::UiPhase::Title)||
+                    (lastAudioPhase==ticd::UiPhase::Playing&&ui->phase==ticd::UiPhase::StuntOutro);
                 bool hiddenAudio=!developerMode&&(ui->phase>=ticd::UiPhase::HiddenTransition||lastAudioPhase>=ticd::UiPhase::HiddenTransition);
                 if(hiddenAudio){if(ui->pendingMusic!=-2){if(ui->pendingMusic<0)sound->stop();else sound->playMusic(ui->pendingMusic);lastMusic=ui->pendingMusic;}}
-                else if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}
+                else if(music!=lastMusic||(ui->phase!=lastAudioPhase&&!openingContinues)||musicGeneration!=lastMusicGeneration){if(music<0)sound->stop();else sound->playMusic(music);lastMusic=music;lastMusicGeneration=musicGeneration;}
                 lastAudioPhase=ui->phase;
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){int effect=selectedStunt==4?cruise->pendingSound:selectedStunt==3?bomb->pendingSound:selectedStunt==2?ski->pendingSound:selectedStunt==1?air->pendingSound:game->pendingSound;
                     if(effect>=0)sound->queueEffect(effect);}

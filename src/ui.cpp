@@ -93,7 +93,7 @@ int resultText(int stunt,int flags){
 void UiFlow::beginInstructions(){
     const auto& player=campaign.players[campaign.current];stunt=player.day;level=player.difficulty;
     phase=UiPhase::Instructions;phaseTicks=0;scroll=0;position=anchor=row=speed=delay=0;scrollStep=pendingGlyph=-1;
-    cursor=0;textDone=false;map=assets.instructions[stunt].map;
+    cursor=0;textDone=false;instructionExit=0;map=assets.instructions[stunt].map;
     overlay(map,assets.headers[(campaign.current*5+stunt)*4+level]);map[19]=static_cast<uint8_t>(std::min(player.lives,9)+1);
     text.clear();
     // Resolve the identified text macros into glyphs. Their 0x88 terminators
@@ -132,7 +132,7 @@ void UiFlow::finishStunt(int flags,int earned,int seconds,int extraLives,int fla
     campaign.settle(flags,earned,seconds,extraLives);flagsHit=flagsCollected;
     displayPay=earned%1000000;displayTime=(flags&64)?0:seconds;
     resultStage=0;resultWait=15;showFlags=showSavings=showPay=showTime=false;
-    phase=UiPhase::Result;phaseTicks=0;resultFade=32;resultHold=0;
+    phase=UiPhase::StuntOutro;phaseTicks=0;resultFade=32;resultHold=0;
 }
 void UiFlow::continueCampaign(){
     if(campaign.next())beginInstructions();else{phase=UiPhase::Title;page=0;phaseTicks=0;}
@@ -266,14 +266,27 @@ void UiFlow::step(int buttons){
         if(pressed&UiStart)leavePassword();
         break;
     case UiPhase::Instructions:
-        if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;}else if(!textDone)advanceText();break;
+        // 034c/034f: stop the text interpreter, fade out for 32 updates,
+        // then wait once before 0352 stops music and stunt setup begins.
+        // Keeping the instruction phase also keeps its song running here.
+        if(instructionExit){
+            if(--instructionExit==0){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;}
+        }else if(pressed&UiStart)instructionExit=33;
+        else if(!textDone)advanceText();
+        break;
+    case UiPhase::StuntOutro:
+        // 0400 waits once, 0403 stops music, 0406 fades for 32 updates.
+        // Failed results wait once more at 05a7/068f before their song/fade.
+        if(phaseTicks>=33+(campaign.last.success?0:1)){phase=UiPhase::Result;phaseTicks=0;}
+        break;
     case UiPhase::Result:{
         if(resultFade){--resultFade;break;}
         bool counting=campaign.last.success&&resultStage<6;
         if(counting)advanceResult((pressed&(UiStart|A|B))!=0);
         // 04f7 adds 60 to the remaining counter via RST 30. 24cf retains
         // one rather than storing zero when its background counter expires.
-        if(counting&&resultStage==6)resultHold=60+std::max(1,600-phaseTicks);
+        // 14f2 replaces the 600-update budget with 720 for perfect results.
+        if(counting&&resultStage==6)resultHold=60+std::max(1,(campaign.last.perfect?720:600)-phaseTicks);
         else if(!counting&&resultHold>0)--resultHold;
         // A button that accelerates counting is consumed by that operation.
         // Result timeout runs during counting, as in 24cf, but cannot cut it short.
@@ -310,6 +323,12 @@ std::array<uint8_t,Width*Height> UiFlow::renderGameplay(const std::array<uint8_t
     return screen;
 }
 std::array<uint8_t,Width*Height> UiFlow::render() const{
+    if(phase==UiPhase::StuntOutro){
+        if(!phaseTicks)return renderGameplay(outroScene,false);
+        auto screen=outroScene;int palette=assets.fadePalettes[std::min(7,(phaseTicks-1)/4)];
+        for(auto& shade:screen)shade=(palette>>(shade*2))&3;
+        return screen;
+    }
     if(phase==UiPhase::HiddenTransition||phase==UiPhase::Password||phase==UiPhase::PasswordSubmit||
        phase==UiPhase::PasswordFeedback||phase==UiPhase::MusicTest){
         auto screen=titleImage(assets,map,titleScroll);
@@ -346,7 +365,12 @@ std::array<uint8_t,Width*Height> UiFlow::render() const{
                 if(shade)screen[(py+y)*Width+76+x]=(0xc4>>(shade*2))&3;}}
         return screen;
     }
-    if(phase==UiPhase::Instructions)return renderMap(assets.instructions[stunt].tiles,map,scroll);
+    if(phase==UiPhase::Instructions){
+        auto screen=renderMap(assets.instructions[stunt].tiles,map,scroll);
+        if(instructionExit){int palette=assets.fadePalettes[std::min(7,(33-instructionExit)/4)];
+            for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
+        return screen;
+    }
     if(phase==UiPhase::Ending){auto canvas=assets.endings[campaign.current];overlay(canvas,assets.resultLayouts[7]);
         money(canvas,17,campaign.players[campaign.current].savings);return renderMap(assets.endingTiles,canvas);}
     if(phase==UiPhase::Result){

@@ -34,7 +34,7 @@ std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,boo
 std::array<uint8_t,Width*Height> renderPausedGame(const UiAssets& assets,const std::array<uint8_t,Width*Height>& game);
 constexpr int UiStart=64,UiSelect=128;
 enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry,Boot,TitleIntro,
-                    HiddenTransition,Password,PasswordSubmit,PasswordFeedback,MusicTest};
+                    StuntOutro,HiddenTransition,Password,PasswordSubmit,PasswordFeedback,MusicTest};
 // Native presentation state machine. No CPU, memory bus or instruction dispatch.
 struct UiFlow {
     const UiAssets& assets;
@@ -60,7 +60,9 @@ struct UiFlow {
     std::vector<uint8_t> text;
     int flagsHit=0,timerPhase=0;
     int gameplayFade=8;
+    int instructionExit=0; // 32 blocking fade updates, then one white-screen wait.
     bool gameplayPaused=false;
+    std::array<uint8_t,Width*Height> outroScene{};
     int resultStage=0,resultWait=0,displaySavings=0,displayPay=0,displayTime=0;
     int resultFade=0,resultHold=0;
     bool showFlags=false,showSavings=false,showPay=false,showTime=false;

@@ -37,13 +37,14 @@ double score(const CruiseGame& g){
 }
 struct Node{std::unique_ptr<CruiseGame> game;int first;double value;};
 int cruiseInput(const CruiseGame& initial){
+ const bool wide=initial.difficulty==1||initial.difficulty==3;
  std::vector<Node> beam;beam.push_back({std::make_unique<CruiseGame>(initial),0,0});int inputs[]={0,A,Left,Right,A|Left,A|Right};
- for(int depth=0;depth<(initial.difficulty==1?10:8);++depth){std::vector<Node> next;
+ for(int depth=0;depth<(wide?10:8);++depth){std::vector<Node> next;
   for(const auto& node:beam)for(int input:inputs){auto g=std::make_unique<CruiseGame>(*node.game);for(int f=0;f<12&&!g->result;++f)g->step(input);
    next.push_back({std::move(g),depth?node.first:input,0});next.back().value=score(*next.back().game);}
   std::stable_sort(next.begin(),next.end(),[](const Node&a,const Node&b){return a.value>b.value;});std::set<unsigned long long> seen;std::vector<Node> diverse;
   for(auto& node:next){auto& p=node.game->entities[0];unsigned long long key=(p.x/64)|((unsigned long long)(p.y/64)<<10)|((unsigned long long)p.params[0]<<17)|((unsigned long long)(p.params[1]/4)<<21)|((unsigned long long)(p.params[2]/4)<<27);
-   if(seen.insert(key).second){diverse.push_back(std::move(node));if(diverse.size()==(initial.difficulty==1?64:32))break;}}
+   if(seen.insert(key).second){diverse.push_back(std::move(node));if(diverse.size()==(wide?64:32))break;}}
   beam=std::move(diverse);
  }return beam[0].first;
 }

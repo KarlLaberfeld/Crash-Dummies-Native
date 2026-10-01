@@ -6,6 +6,8 @@ namespace ticd {
 int runUiTests(const UiAssets& assets){
     FILE* log=fopen("ui-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool condition,const char* message){++count;if(!condition)throw std::runtime_error(message);};
+    auto finishOutro=[](UiFlow& flow){for(int i=0;i<34&&flow.phase==UiPhase::StuntOutro;++i)flow.step(0);};
+    auto finishInstructionExit=[](UiFlow& flow){for(int i=0;i<33;++i)flow.step(0);};
     try{
         std::array<uint8_t,Width*Height> scene{};for(size_t i=0;i<scene.size();++i)scene[i]=(i/7)%4;
         const auto pausedScene=renderPausedGame(assets,scene);
@@ -25,9 +27,46 @@ int runUiTests(const UiAssets& assets){
         for(int i=0;i<5;++i)gameplay.step(0);
         require(gameplay.gameplayFade==4&&gameplay.ticks==pausedAt+5,"Pause freezes the fade while the shared global counter continues");
         gameplay.gameplayPaused=false;gameplay.step(0);require(gameplay.gameplayFade==3,"Resuming uses global parity rather than a restarted fade clock");
-        UiFlow oddStart(assets);oddStart.step(UiStart);oddStart.step(0);oddStart.step(UiStart);
+        UiFlow oddStart(assets);oddStart.step(UiStart);oddStart.step(0);oddStart.step(0);oddStart.step(UiStart);finishInstructionExit(oddStart);
         require(oddStart.phase==UiPhase::Playing&&oddStart.gameplayFade==8,"Odd-phase stunt entry retains all eight palette steps");
         oddStart.step(0);require(oddStart.gameplayFade==7,"First even update advances an odd-phase stunt entry");
+        UiFlow exiting(assets);exiting.campaign.start(false);exiting.beginInstructions();
+        for(int i=0;i<37;++i)exiting.step(0);
+        const auto instructionImage=exiting.render();const auto frozenMap=exiting.map;
+        int frozenScroll=exiting.scroll;size_t frozenCursor=exiting.cursor;int exitFrame=exiting.ticks;
+        exiting.step(UiStart);
+        require(exiting.render()==instructionImage,"Instruction exit starts at the unchanged full-color image");
+        constexpr int exitPalette[]={0xe4,0xe4,0xe4,0xa4,0x90,0x50,0x50,0x00};
+        for(int frame=1;frame<=32;++frame){
+            exiting.step(frame%2?UiStart|A|B:0);
+            require(exiting.phase==UiPhase::Instructions,"Fresh input cannot bypass any instruction fade update");
+            auto expected=instructionImage;int palette=exitPalette[std::min(7,frame/4)];
+            for(auto& shade:expected)shade=(palette>>(shade*2))&3;
+            require(exiting.render()==expected,"Instruction fade follows all original four-update palette intervals");
+        }
+        require(exiting.map==frozenMap&&exiting.scroll==frozenScroll&&exiting.cursor==frozenCursor,"Instruction typing and scrolling freeze during exit");
+        require(exiting.instructionExit==1&&exiting.ticks==exitFrame+33,"Fade completes before the additional white-screen wait");
+        exiting.step(UiStart|A);
+        require(exiting.phase==UiPhase::Playing&&exiting.phaseTicks==0&&exiting.ticks==exitFrame+34,"Stunt entry follows exactly 32 fade updates plus one wait");
+        exiting.beginInstructions();require(exiting.instructionExit==0,"Next instruction screen resets the completed exit state");
+        for(bool success:{false,true}){
+            UiFlow outro(assets);outro.campaign.start(false);outro.phase=UiPhase::Playing;outro.gameplayFade=0;outro.outroScene=scene;
+            outro.finishStunt(success?3:1,20,10);
+            require(outro.phase==UiPhase::StuntOutro&&outro.render()==scene,"Terminal result preserves the full last scene for its initial wait");
+            for(int frame=1;frame<=32;++frame){outro.step(frame%2?UiStart|A|B:0);
+                auto expected=scene;int palette=exitPalette[(frame-1)/4];for(auto& shade:expected)shade=(palette>>(shade*2))&3;
+                require(outro.phase==UiPhase::StuntOutro&&outro.render()==expected,"Stunt exit waits once before its four-update palette steps; input cannot skip it");
+            }
+            outro.step(0);
+            require(outro.phase==(success?UiPhase::Result:UiPhase::StuntOutro),"Success opens results after 33 updates; failure retains one setup wait");
+            if(!success)outro.step(0);
+            require(outro.phase==UiPhase::Result&&outro.phaseTicks==0&&outro.resultFade==32,"Result fade and timeout start after all preceding waits");
+            require(outro.campaign.players[0].savings==(success?30:0),"Outro does not settle the result more than once");
+        }
+        UiFlow lost(assets);lost.campaign.start(false);lost.campaign.players[0].lives=1;lost.phase=UiPhase::Playing;lost.finishStunt(1,0,0);
+        for(int frame=0;frame<33;++frame)lost.step(0);
+        require(lost.phase==UiPhase::StuntOutro&&lost.campaign.last.gameOver,"Game-over path also retains the one setup wait before its result song");
+        lost.step(0);require(lost.phase==UiPhase::Result,"Game-over result begins after 34 exit updates");
         UiFlow boot(assets);boot.beginBoot();
         auto white=boot.render();bool blank=true;for(int shade:white)blank&=shade==0;
         require(blank,"Boot starts at the original white palette");
@@ -118,14 +157,15 @@ int runUiTests(const UiAssets& assets){
         require(bothDirections.twoPlayers&&bothDirections.campaign.players[1].lives==5,"Combined option keys toggle once before starting");
         UiFlow outsideOptions(assets);outsideOptions.step(Down|UiStart);
         require(!outsideOptions.twoPlayers&&outsideOptions.campaign.players[1].lives==0,"Title directions do not change player count outside options");
-        auto finishResultFade=[](UiFlow& flow){for(int i=0;i<32;++i)flow.step(0);};
+        auto finishResultFade=[&](UiFlow& flow){finishOutro(flow);for(int i=0;i<32;++i)flow.step(0);};
         UiFlow u(assets);u.step(UiSelect);for(int i=0;i<80;++i)u.step(UiSelect);require(u.page==5,"Select opens original options");
         u.step(UiSelect);require(!u.twoPlayers,"Holding Select does not toggle repeatedly");
         u.step(0);u.step(Down);require(u.twoPlayers,"Down selects two players");
         u.step(UiStart);require(u.phase==UiPhase::Instructions&&u.campaign.players[1].lives==5,"Start opens first player's instructions");
         u.step(UiStart);require(u.phase==UiPhase::Instructions,"Held Start cannot skip a second screen");
-        u.step(0);u.step(UiStart);require(u.phase==UiPhase::Playing,"Fresh Start skips instruction typing");
-        u.finishStunt(3,25,10);require(u.campaign.players[0].savings==35&&u.phase==UiPhase::Result,"Gameplay result settles once and opens results");
+        u.step(0);u.step(UiStart);require(u.phase==UiPhase::Instructions&&u.instructionExit==33,"Fresh Start begins the blocking instruction exit");
+        finishInstructionExit(u);require(u.phase==UiPhase::Playing,"Stunt begins only after instruction fade and final wait");
+        u.finishStunt(3,25,10);require(u.campaign.players[0].savings==35&&u.phase==UiPhase::StuntOutro,"Gameplay result settles once before the original exit waits");
         finishResultFade(u);u.step(0);u.step(A);u.step(0);u.step(A);require(u.campaign.current==1&&u.stunt==0&&u.phase==UiPhase::Instructions,"Result passes to independent second player");
         require(u.map[7]==30&&u.map[8]==33&&u.map[9]==25,"Second player's header says TWO");
         for(int player=0;player<2;++player)for(int day=0;day<5;++day)for(int difficulty=0;difficulty<4;++difficulty){
@@ -138,12 +178,12 @@ int runUiTests(const UiAssets& assets){
             auto screen=v.render();for(int shade:screen)if(shade>3)throw std::runtime_error("Invalid instruction shade");
         }
         UiFlow solo(assets);solo.step(UiStart);
-        for(int day=0;day<20;++day){solo.step(0);solo.step(UiStart);solo.finishStunt(solo.stunt==3?0x47:7,10,5);finishResultFade(solo);solo.step(0);solo.step(A);solo.step(0);solo.step(A);
+        for(int day=0;day<20;++day){solo.step(0);solo.step(UiStart);finishInstructionExit(solo);solo.finishStunt(solo.stunt==3?0x47:7,10,5);finishResultFade(solo);solo.step(0);solo.step(A);solo.step(0);solo.step(A);
             require(solo.phase==(day==19?UiPhase::Ending:UiPhase::Instructions),"All twenty successful stunts route through campaign screens");}
         for(int i=0;i<480;++i)solo.step(0);
         require(solo.phase==UiPhase::Title&&!solo.campaign.active,"Ending returns to title after surviving campaign");
         UiFlow failed(assets);failed.step(UiStart);
-        for(int life=0;life<5;++life){failed.step(0);failed.step(UiStart);failed.finishStunt(1,99,10);finishResultFade(failed);failed.step(0);failed.step(B);}
+        for(int life=0;life<5;++life){failed.step(0);failed.step(UiStart);finishInstructionExit(failed);failed.finishStunt(1,99,10);finishResultFade(failed);failed.step(0);failed.step(B);}
         for(int i=0;i<480;++i)failed.step(0);
         require(failed.phase==UiPhase::Title&&failed.campaign.players[0].savings==0,"Final lost life returns to title without banking failed pay");
         UiFlow titles(assets);for(int i=0;i<480;++i)titles.step(0);require(titles.page==0&&titles.titleDirection==-1,"Title starts closing after original 480-frame duration");
@@ -163,7 +203,7 @@ int runUiTests(const UiAssets& assets){
         bool rejected=false;fixture->instructions[0].text={0x94,0x80};
         try{UiFlow bad(*fixture);bad.campaign.start(false);bad.beginInstructions();}catch(const std::runtime_error&){rejected=true;}
         require(rejected,"Unrecognized text operations fail closed");
-        UiFlow resultTiming(assets);resultTiming.campaign.start(false);resultTiming.beginInstructions();resultTiming.step(UiStart);resultTiming.finishStunt(3,10,0);
+        UiFlow resultTiming(assets);resultTiming.campaign.start(false);resultTiming.beginInstructions();resultTiming.step(UiStart);finishInstructionExit(resultTiming);resultTiming.finishStunt(3,10,0);finishOutro(resultTiming);
         auto whiteResult=resultTiming.render();bool whiteResultOnly=true;for(int shade:whiteResult)whiteResultOnly&=shade==0;
         require(whiteResultOnly,"Result fade starts with a white image");
         for(int i=0;i<32;++i)resultTiming.step(A);
@@ -174,17 +214,21 @@ int runUiTests(const UiAssets& assets){
         while(resultTiming.phaseTicks<659)resultTiming.step(0);
         require(resultTiming.phase==UiPhase::Result,"Short success remains visible through the original budget plus sixty updates");
         resultTiming.step(0);require(resultTiming.phase==UiPhase::Instructions,"Short success expires at 660 updates without input");
-        UiFlow longPay(assets);longPay.campaign.start(false);longPay.beginInstructions();longPay.step(UiStart);longPay.finishStunt(0x43,700,0);finishResultFade(longPay);
+        UiFlow perfectTiming(assets);perfectTiming.campaign.start(false);perfectTiming.phase=UiPhase::Playing;perfectTiming.finishStunt(7,10,0);finishOutro(perfectTiming);
+        for(int frame=0;frame<779;++frame)perfectTiming.step(0);
+        require(perfectTiming.phase==UiPhase::Result&&perfectTiming.resultStage==6,"Perfect results use the 720-update budget installed by the celebration setup");
+        perfectTiming.step(0);require(perfectTiming.phase==UiPhase::Instructions,"Short perfect result expires at 780 updates including its added sixty");
+        UiFlow longPay(assets);longPay.campaign.start(false);longPay.beginInstructions();longPay.step(UiStart);finishInstructionExit(longPay);longPay.finishStunt(0x43,700,0);finishResultFade(longPay);
         for(int i=0;i<1000&&longPay.resultStage<6;++i)longPay.step(0);
         require(longPay.resultStage==6&&longPay.phaseTicks>600&&longPay.resultHold==61,"Expired background counter retains one, then adds sixty after long counting");
         for(int i=0;i<60;++i)longPay.step(0);
         require(longPay.phase==UiPhase::Result,"Minimum result hold does not expire one update early");
         longPay.step(0);require(longPay.phase==UiPhase::Instructions,"Long count-up continues after its minimum hold");
-        UiFlow failureTiming(assets);failureTiming.campaign.start(false);failureTiming.beginInstructions();failureTiming.step(UiStart);failureTiming.finishStunt(1,0,0);
+        UiFlow failureTiming(assets);failureTiming.campaign.start(false);failureTiming.beginInstructions();failureTiming.step(UiStart);finishInstructionExit(failureTiming);failureTiming.finishStunt(1,0,0);finishOutro(failureTiming);
         for(int i=0;i<511;++i)failureTiming.step(0);
         require(failureTiming.phase==UiPhase::Result,"Failure waits all 480 updates after its 32-update fade");
         failureTiming.step(0);require(failureTiming.phase==UiPhase::Instructions,"Failure exits after fade plus fixed timeout");
-        UiFlow countup(assets);countup.campaign.start(false);countup.beginInstructions();countup.step(UiStart);countup.finishStunt(7,3,2);finishResultFade(countup);
+        UiFlow countup(assets);countup.campaign.start(false);countup.beginInstructions();countup.step(UiStart);finishInstructionExit(countup);countup.finishStunt(7,3,2);finishResultFade(countup);
         for(int i=0;i<14;++i)countup.step(0);require(!countup.showSavings,"Result has fifteen-frame introductory wait");
         countup.step(0);require(countup.showSavings&&countup.displaySavings==0,"Savings appear before transferring pay");
         for(int i=0;i<20;++i)countup.step(0);
@@ -193,11 +237,11 @@ int runUiTests(const UiAssets& assets){
         countup.step(0);for(int i=0;i<15;++i)countup.step(0);
         require(countup.showTime&&countup.displayTime==1&&countup.displaySavings==8,"Time bonus follows fifteen-frame wait and doubles perfect award");
         countup.step(0);countup.step(0);require(countup.resultStage==6&&countup.displaySavings==10,"Visible count converges to committed campaign savings");
-        UiFlow skipped(assets);skipped.campaign.start(false,3);skipped.beginInstructions();skipped.step(UiStart);skipped.finishStunt(0x47,100,90);finishResultFade(skipped);
+        UiFlow skipped(assets);skipped.campaign.start(false,3);skipped.beginInstructions();skipped.step(UiStart);finishInstructionExit(skipped);skipped.finishStunt(0x47,100,90);finishResultFade(skipped);
         skipped.step(A);require(skipped.phase==UiPhase::Result&&skipped.resultStage==6&&skipped.displaySavings==200&&!skipped.showTime,"Action skips counts without leaving result, Bomb has no time bonus");
         skipped.step(0);skipped.step(A);require(skipped.phase==UiPhase::Instructions&&skipped.stunt==4,"Second action continues after accelerated result");
         UiFlow high(assets);high.campaign.start(false);high.campaign.players[0].savings=999999;high.campaign.players[0].lives=1;
-        high.beginInstructions();high.step(UiStart);high.finishStunt(1,0,0);finishResultFade(high);
+        high.beginInstructions();high.step(UiStart);finishInstructionExit(high);high.finishStunt(1,0,0);finishResultFade(high);
         for(int i=0;i<479;++i)high.step(A);require(high.phase==UiPhase::Result,"Game over waits 480 frames regardless of action buttons");
         high.step(0);require(high.phase==UiPhase::NameEntry&&high.scoreRank==0,"High savings insert at first qualifying rank");
         require(high.scores[3]==0x99&&high.scores[4]==0x99&&high.scores[5]==0x99,"Savings convert to original BCD record");
