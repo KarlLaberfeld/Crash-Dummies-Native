@@ -99,7 +99,7 @@ def extract_ui(rom,output):
         for dy in range(h):initial[(y+dy)*32+x:(y+dy)*32+x+w]=rom[source+dy*w:source+(dy+1)*w]
     maps=[menu_map(rom,p,initial) for p in TITLE_SCRIPTS]
     records=rom[0xa3:0xd3];high_score_rows(maps[2],records)
-    payload=bytearray(b'TICDUI05')+atlas+title_image(rom)
+    payload=bytearray(b'TICDUI06')+atlas+title_image(rom)
     for canvas in maps:payload+=canvas
     payload+=records
     for gfx,count,layout,text in INSTRUCTIONS:
@@ -138,8 +138,14 @@ def extract_ui(rom,output):
     payload+=menu_map(rom,0x2814)+initial+rom[0x2118:0x2120]
     for script in (0x2b57,0x2c7f,0x2ca6,0x2d6c):payload+=menu_map(rom,script,initial)
     payload+=hidden_passwords(rom)
+    # 1476 saves only the 20-tile HUD row, then installs these eight tiles
+    # and the row at 00d3. The rest of the paused scene remains unchanged.
+    pause_tiles=overlay_tiles(rom,atlas,3,0x5850,248,8)
+    pause_map=menu_map(rom,0x14ad)
+    for y in range(8):
+        for x in range(160):payload.append(pause_tiles[pause_map[x//8]*64+y*8+x%8])
     (output/'ui.dat').write_bytes(payload)
-    manifest=dict(format='TICDUI05',title_pages=len(maps),page_durations=[480,480,960,480,960],
+    manifest=dict(format='TICDUI06',title_pages=len(maps),page_durations=[480,480,960,480,960],
                   high_scores=8,instructions=5,result_texts=16,ending_players=2)
     (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

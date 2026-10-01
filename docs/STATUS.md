@@ -528,3 +528,34 @@ comparisons. ROM data and generated captures/packages are not uploaded.
 The port remains incomplete. Remaining work includes other lifecycle fades
 and setup waits, the Air crash-animation boundary, detailed audio behavior and
 reference validation of frame/display phase. Keep automatic continuation active.
+
+## Original pause display and suspended audio
+
+Password/music-test checkpoint: remote
+`f817a85bb164edd23fc95c662d0e2e071ce68d2d`, tree
+`5015db53ef351b0d350c1d459b426f5ba3fb4964`, local `77e8265`.
+
+Campaign pause now replaces only the bottom eight-pixel HUD strip with the
+original PAUSE!! graphics. The playfield remains visible and unchanged;
+the previous central help box is retained only in development mode. TICDUI06
+adds the locally extracted 160x8 strip, so regenerate ui.dat.
+
+Audio no longer keeps sequencing during a paused stunt. Software voices,
+note durations, envelopes and pending effects remain suspended. Output
+channels are cleared on entry, reflecting the original power-off; wave data
+remain intact, but the wave DAC/volume require subsequent music commands.
+The Windows queue is cleared at pause/resume so buffered sound or silence
+does not delay the audible transition. The global UI frame counter continues.
+
+Validation: all 25 Python tests and the native suites pass. Roof has 48,903
+assertions, UI 315, audio 122; other counts unchanged. The campaign remains
+20 wins in 23 attempts, savings 8,221, update 62,605. A local Windows audio
+smoke test ran 210 output updates with 90 paused: device available, no dropped
+buffers, silent pause, and 120 advancing driver updates. The pause capture
+was inspected. Build logs: local/pause-build.log and local/pause-final-build.log.
+
+This establishes the reconstructed pause control/display behavior, not exact
+hardware audio recovery or sample equivalence. Pulse/noise retrigger timing,
+remaining lifecycle fades and setup waits, Air's crash-animation stall and
+original reference comparison remain open. Continue development; the port is
+not complete and automatic continuation remains active.

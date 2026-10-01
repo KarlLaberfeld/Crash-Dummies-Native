@@ -72,7 +72,10 @@ int runSelfTests(const Assets& assets) {
         g.moveFalling(p);require(p.x==0x1040&&p.y==24,"Left clamp / fixed point fall");
         p.x=0x1880;p.vx=10;g.moveFalling(p);require(p.x==0x1880,"Right clamp");
         p.vy=-41;p.pose=24;for(int i=0;i<65;++i)g.gravity(p);require(p.vy==24,"Bounce gravity converges");
-        int unchanged=g.ticks;g.paused=true;g.step(A);require(g.ticks==unchanged,"Pause freezes simulation");g.paused=false;
+        g.render(false);auto beforePause=g.screen;
+        int unchanged=g.ticks;g.paused=true;g.step(A);require(g.ticks==unchanged,"Pause freezes simulation");
+        g.render(false);require(g.screen==beforePause,"Campaign renderer preserves the paused scene without the development overlay");
+        g.render();require(g.screen!=beforePause,"Development mode retains its own pause help overlay");g.paused=false;
         g.entities[0].pose=28;g.entities[0].vy=28;
         int awning=g.spawn(3,0x1400,0x1000,0);g.placements[0].state=0;
         g.collideWith(0,awning);require(g.placements[0].state==5&&g.money==10,"Head-first awning break");

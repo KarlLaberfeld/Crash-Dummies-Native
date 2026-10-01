@@ -36,16 +36,21 @@ AudioAssets AudioAssets::load(const std::wstring& path){
 }
 void NativeAudio::installWave(const std::vector<uint8_t>& bytes){
     require(bytes.size()==16);for(int i=0;i<16;++i){wave[i*2]=bytes[i]>>4;wave[i*2+1]=bytes[i]&15;}
+    waveDac=true; // 02:51de re-enables the wave DAC after copying its data.
     outputs[2].enabled=true;outputs[2].phase=0;outputs[2].timer=2*(2048-(outputs[2].frequency&2047));
 }
 void NativeAudio::playMusic(int index){
     if(index<0||index>=14)throw std::invalid_argument("Invalid original song index.");
-    voices={};outputs={};song=index;pendingEffect=-1;routing=255;master=0x77;enabled=true;waveTrigger=true;
+    voices={};outputs={};song=index;pendingEffect=-1;routing=255;master=0x77;enabled=true;waveTrigger=true;waveDac=true;
     stereoIndex=stereoDirection=stereoPeriod=stereoCounter=0;capacitor={};
     for(int i=0;i<16;++i){wave[i*2]=assets.initialWave[i]>>4;wave[i*2+1]=assets.initialWave[i]&15;}
     for(int i=0;i<4;++i){voices[i].active=true;voices[i].position=assets.songs[index][i];}
 }
 void NativeAudio::stop(){voices={};outputs={};pendingEffect=-1;song=-1;enabled=false;capacitor={};}
+void NativeAudio::setPaused(bool value){
+    if(value&&!paused){outputs={};outputs[2].waveShift=4;waveDac=false;capacitor={};} // 148f powers off the output channels.
+    paused=value; // 1485/1488 suspend the music driver, retaining software voices.
+}
 void NativeAudio::queueEffect(int index){if(index<0||index>=26)throw std::invalid_argument("Invalid original effect index.");pendingEffect=index;}
 void NativeAudio::startEffect(int index){
     // 00:3714 resets only selected effect parameters; envelope/duty remain until
@@ -75,7 +80,7 @@ void NativeAudio::noteOn(int index,int note,int duration){
             v.envelopeCounter=1;v.tableIndex=0;v.stage=255;
         }else{v.stage=v.initialStage;v.envelopeCounter=v.stage==0?v.attack:v.stage==1?v.decay:v.sustain;v.volume=v.initialVolume;}
     }
-    out.frequency=v.frequency;out.enabled=true;
+    out.frequency=v.frequency;out.enabled=index!=2||waveDac;
     if(v.pitchDelay){v.pitchWait=v.pitchDelay;out.frequency=v.delayedFrequency;}
     if(index==2){if(waveTrigger){out.phase=0;out.timer=2*(2048-(out.frequency&2047));waveTrigger=false;}}
     else if(noise){out.volume=15;out.noise=out.frequency;out.lfsr=0x7fff;out.timer=0;}
@@ -164,6 +169,7 @@ void NativeAudio::updateVoice(int index){
     modulation(index);
 }
 void NativeAudio::tick(){
+    if(paused)return;
     if(pendingEffect>=0){startEffect(pendingEffect);pendingEffect=-1;}
     if(enabled)for(int i=0;i<6;++i)updateVoice(i);
     ++ticks;
@@ -174,6 +180,7 @@ void NativeAudio::render(std::vector<int16_t>& stereo,int sampleRate){
     // fraction so pitch and track duration do not drift across buffers.
     sampleRemainder+=uint64_t(sampleRate)*70224;int count=int(sampleRemainder/4194304);sampleRemainder%=4194304;
     stereo.resize(count*2);double cycles=4194304.0/sampleRate,charge=std::pow(.999958,cycles);
+    if(paused){std::fill(stereo.begin(),stereo.end(),0);return;}
     constexpr int dutyBits[]={0x80,0x81,0xe1,0x7e};
     for(int sample=0;sample<count;++sample){double mixed[2]={0,0};
         for(int c=0;c<4;++c){auto& out=outputs[c];if(!enabled||!out.enabled)continue;

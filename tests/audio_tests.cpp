@@ -29,6 +29,30 @@ int runAudioTests(const AudioAssets& assets){
         check(n.voices[0].notes==2&&n.voices[0].remaining==0,"Zero-length byte starts a 256-update note");
         for(int i=0;i<255;++i)n.tick();check(n.voices[0].active,"Zero duration does not terminate one update early");n.tick();check(!n.voices[0].active,"Zero duration ends after 256 updates");
 
+        NativeAudio suspended(a);suspended.playMusic(0);suspended.tick();suspended.setPaused(true);
+        std::vector<int16_t> silence;uint64_t silentFrames=0;bool zero=true;
+        for(int i=0;i<120;++i){suspended.tick();suspended.render(silence);silentFrames+=silence.size()/2;for(int sample:silence)zero&=sample==0;}
+        check(zero&&silentFrames==uint64_t(120)*48000*70224/4194304,"Pause submits silence at the continuing device sample rate");
+        check(suspended.ticks==1&&suspended.voices[0].notes==1&&suspended.voices[0].remaining==3&&suspended.voices[0].volume==4,"Pause freezes note duration, sequence and software envelope");
+        check(!suspended.outputs[0].enabled&&suspended.musicPlaying(),"Power-off clears output channels without discarding software song state");
+        suspended.setPaused(false);suspended.tick();
+        check(suspended.voices[0].notes==1&&suspended.voices[0].remaining==2&&suspended.voices[0].volume==3,"Resume continues the retained note and envelope instead of restarting the song");
+        suspended.tick();suspended.tick();check(suspended.voices[0].notes==2&&suspended.outputs[0].enabled,"Next note retriggers output after pause power-off");
+        NativeAudio effectPause(assets);effectPause.playMusic(1);effectPause.queueEffect(1);effectPause.tick();
+        auto savedEffect=effectPause.voices[4];effectPause.setPaused(true);effectPause.queueEffect(2);effectPause.tick();
+        check(effectPause.voices[4].position==savedEffect.position&&effectPause.voices[4].remaining==savedEffect.remaining&&effectPause.pendingEffect==2,"Pause retains active effects and does not consume pending requests");
+        effectPause.setPaused(false);effectPause.tick();check(effectPause.pendingEffect==-1,"Resume processes the retained effect request");
+
+        auto waveFixture=fixture();waveFixture.waves[100]=std::vector<uint8_t>(16,0x1f);
+        command(waveFixture,2,1,MusicOp::Wave,2,{100,0});command(waveFixture,2,2,MusicOp::WaveVolume,3,{1});
+        command(waveFixture,2,3,MusicOp::Note,4,{24,1});command(waveFixture,2,4,MusicOp::Note,5,{25,1});
+        command(waveFixture,2,5,MusicOp::Wave,6,{100,0});command(waveFixture,2,6,MusicOp::WaveVolume,7,{1});
+        command(waveFixture,2,7,MusicOp::Note,8,{26,1});command(waveFixture,2,8,MusicOp::Stop,9,{});
+        NativeAudio wavePause(waveFixture);wavePause.playMusic(0);wavePause.tick();auto waveData=wavePause.wave;
+        wavePause.setPaused(true);check(wavePause.wave==waveData&&!wavePause.waveDac&&wavePause.outputs[2].waveShift==4,"Pause preserves wave data but clears its DAC enable and volume");
+        wavePause.setPaused(false);wavePause.tick();check(!wavePause.outputs[2].enabled,"A wave note alone cannot re-enable the DAC cleared by pause");
+        wavePause.tick();check(wavePause.outputs[2].enabled&&wavePause.outputs[2].waveShift==2,"Later wave upload and volume command restore the wave output");
+
         auto b=fixture();command(b,0,1,MusicOp::Instrument,2,{1,100,0});b.instruments[100]={4,255,2,0,255};
         command(b,0,2,MusicOp::Gate,3,{3});command(b,0,3,MusicOp::Note,4,{24,8});command(b,0,4,MusicOp::Stop,5,{});
         NativeAudio e(b);e.playMusic(0);e.tick();check(e.voices[0].volume==4,"Instrument envelope reads first level on note tick");e.tick();check(e.voices[0].volume==4,"Instrument holds at high-bit marker");e.tick();check(e.voices[0].volume==2,"Gate skips hold marker and enters release tail");e.tick();check(e.voices[0].volume==0,"Release tail reaches silence");

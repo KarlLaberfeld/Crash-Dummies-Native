@@ -233,13 +233,13 @@ void BombGame::step(int buttons){
 void BombGame::refreshHud(){hudValues[0]=0xf7+playerNumber;int score=money%10000;
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;}
 void BombGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];hudCursor=(hudCursor+1)%5;if(!hudCursor)refreshHud();}
-void BombGame::render(){
+void BombGame::render(bool developmentOverlay){
     auto room=assets.layout;for(int l=0;l<3;++l){int x=2+7*l,total=displayTotals[l];room[15*20+x]=47+2*(total/10);room[15*20+x+1]=67+2*(total%10);
         room[16*20+x]=room[15*20+x]+1;room[16*20+x+1]=room[15*20+x+1]+1;}
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x)screen[y*Width+x]=assets.tiles[room[(y/8)*20+x/8]*64+(y&7)*8+(x&7)];
     if(started){sprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);text(8,72,"NATIVE PORT - WIP");text(32,88,"BOMB FACTORY");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");}
-    if(paused||result){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}
+    if(developmentOverlay&&(paused||result)){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}
 }
 }

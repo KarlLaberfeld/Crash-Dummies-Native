@@ -66,7 +66,7 @@ struct AirGame {
     AirGame(const AirAssets& a,const Assets& s):assets(a),shared(s){}
     void start(int level,int player=0);
     void step(int buttons);
-    void render();
+    void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);
     void update(int i);
     void startAnimation(int i,int sequence,bool force=false);

@@ -52,11 +52,14 @@ struct NativeAudio {
     int stereoIndex=0,stereoDirection=0,stereoPeriod=0,stereoCounter=0;
     bool enabled=false;
     bool waveTrigger=true;
+    bool waveDac=true;
+    bool paused=false;
     uint64_t ticks=0,sampleRemainder=0;
     std::array<double,2> capacitor{};
     explicit NativeAudio(const AudioAssets& a):assets(a){}
     void playMusic(int index);
     void stop();
+    void setPaused(bool value);
     bool musicPlaying() const {for(int i=0;i<4;++i)if(voices[i].active)return true;return false;}
     void queueEffect(int index);
     void tick();

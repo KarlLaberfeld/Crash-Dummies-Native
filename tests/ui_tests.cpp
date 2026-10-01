@@ -7,6 +7,13 @@ int runUiTests(const UiAssets& assets){
     FILE* log=fopen("ui-test.txt","w");if(!log)return 2;int count=0;
     auto require=[&](bool condition,const char* message){++count;if(!condition)throw std::runtime_error(message);};
     try{
+        std::array<uint8_t,Width*Height> scene{};for(size_t i=0;i<scene.size();++i)scene[i]=(i/7)%4;
+        const auto pausedScene=renderPausedGame(assets,scene);
+        bool preserved=true,originalStrip=true;
+        for(int i=0;i<Width*PlayHeight;++i)preserved&=scene[i]==pausedScene[i];
+        for(int i=0;i<Width*8;++i)originalStrip&=pausedScene[Width*PlayHeight+i]==assets.pauseStrip[i];
+        require(preserved&&originalStrip,"Pause changes only the original bottom HUD strip, preserving the whole playfield");
+        require(scene!=pausedScene&&renderPausedGame(assets,scene)==pausedScene,"Pause display is stable and does not mutate the saved gameplay image");
         UiFlow boot(assets);boot.beginBoot();
         auto white=boot.render();bool blank=true;for(int shade:white)blank&=shade==0;
         require(blank,"Boot starts at the original white palette");

@@ -73,7 +73,7 @@ struct Game {
     void start(int level,int player=0);
     int terminalFlags() const { return result?resultFlags:0; }
     void step(int buttons);
-    void render();
+    void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);
     void animate(int i);
     void startAnimation(int i,int sequence,bool force=false);

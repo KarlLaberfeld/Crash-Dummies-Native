@@ -44,7 +44,7 @@ struct SkiGame {
     int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
     bool mapTransfer=true;
     SkiGame(const SkiAssets& a,const Assets& s):assets(a),shared(s){}
-    void start(int level,int player=0);void step(int buttons);void render();void update(int i);
+    void start(int level,int player=0);void step(int buttons);void render(bool developmentOverlay=true);void update(int i);
     int spawn(int kind,int x,int y,int placement=-1);
     void setFrame(int i,int frame,int flags=0);void startAnimation(int i,int sequence,bool force=false);void animate(int i);
     int tileAt(int x,int y) const;int terrainAt(int x,int y) const;

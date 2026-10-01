@@ -434,7 +434,7 @@ void Game::text(int x,int y,const std::string& value) {
         x+=8;
     }
 }
-void Game::render() {
+void Game::render(bool developmentOverlay) {
     screen.fill(0);
     if(!started){
         // A clearly labeled development launcher, not an invented original menu.
@@ -448,7 +448,7 @@ void Game::render() {
     for(int y=0;y<PlayHeight;++y){int row=camera/16+y;if(row>=0&&row<l.height)std::copy_n(l.pixels.begin()+row*Width,Width,screen.begin()+y*Width);}
     sprites.draw(screen);
     drawHud();
-    if(paused||result){
+    if(developmentOverlay&&(paused||result)){
         for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);
         text(40,56,paused?"PAUSED":"STUNT END");
         if(!paused)text(16,72,result==3?"TARGET REACHED":result==5?"MORE BREAKS!":"TRY AGAIN");

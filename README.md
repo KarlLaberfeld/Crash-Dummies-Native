@@ -47,7 +47,9 @@ Results count pay and remaining time into savings. Z/X or Enter accelerates
 counting; press again to continue. For a qualifying high score, Left/Right scrolls
 the original character strip and Z/X confirms. Select its backspace/end symbols
 to delete/finish. High scores remain in memory for the current application session. Roof Jump begins with the reconstructed camera flyover. Losing window focus
-pauses the game. The development window currently uses German labels.
+pauses the game. Campaign pause uses the original bottom status strip and
+suspends music/effect sequencing until play resumes. The development window
+currently uses German labels.
 
 On a stationary title page (outside options), press Up, Down, Left, Right to
 open the original password screen. Left/Right selects a digit and Up/Down changes

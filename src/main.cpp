@@ -63,9 +63,10 @@ void paint(HWND hwnd,HDC dc) {
     int gx=(w-side-160*scale)/2,gy=100;
     label(dc,24,18,w-48,36,L"THE INCREDIBLE CRASH DUMMIES",RGB(224,238,205),headingFont);
     label(dc,24,57,w-48,26,L"Native Windows-Portierung  /  Entwicklungsstand 0.1",RGB(149,175,162),smallFont);
-    if(selectedStunt==4)cruise->render();else if(selectedStunt==3)bomb->render();else if(selectedStunt==2)ski->render();else if(selectedStunt==1)air->render();else game->render();
+    if(selectedStunt==4)cruise->render(developerMode);else if(selectedStunt==3)bomb->render(developerMode);else if(selectedStunt==2)ski->render(developerMode);else if(selectedStunt==1)air->render(developerMode);else game->render(developerMode);
     const auto uiScreen=ui->render();
-    const auto& screen=(!developerMode&&ui->phase!=ticd::UiPhase::Playing)?uiScreen:selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
+    auto screen=(!developerMode&&ui->phase!=ticd::UiPhase::Playing)?uiScreen:selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
+    if(!developerMode&&ui->phase==ticd::UiPhase::Playing&&paused())screen=ticd::renderPausedGame(*uiAssets,screen);
     for(size_t i=0;i<screen.size();++i)pixels[i]=palette[screen[i]&3];
     BITMAPINFO info={};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=160;info.bmiHeader.biHeight=-144;
     info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
@@ -178,6 +179,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             air->start(0);for(int i=0;i<650;++i)air->step(ticd::A);
             air->render();ticd::saveBmp(directory+L"air-bumper.bmp",air->screen);
             ski->start(0);for(int i=0;i<500;++i)ski->step(0);ski->render();ticd::saveBmp(directory+L"ski-slope.bmp",ski->screen);
+            game->paused=true;game->render(false);ticd::saveBmp(directory+L"original-pause.bmp",ticd::renderPausedGame(*uiAssets,game->screen));
             bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);
             cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
@@ -246,6 +248,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 if(developerMode||ui->phase==ticd::UiPhase::Playing){int effect=selectedStunt==4?cruise->pendingSound:selectedStunt==3?bomb->pendingSound:selectedStunt==2?ski->pendingSound:selectedStunt==1?air->pendingSound:game->pendingSound;
                     if(effect>=0)sound->queueEffect(effect);}
                 if(!developerMode&&ui->pendingSound>=0)sound->queueEffect(ui->pendingSound);
+                bool audioPaused=(developerMode||ui->phase==ticd::UiPhase::Playing)&&paused();
+                if(audioPaused!=sound->paused)audioDevice.discardQueued();
+                sound->setPaused(audioPaused);
                 sound->tick();sound->render(audioSamples);audioDevice.submit(audioSamples);
                 accumulator-=step;changed=true;if(smoke&&++smokeTicks==(audioSmoke?300:10))DestroyWindow(window);
             }

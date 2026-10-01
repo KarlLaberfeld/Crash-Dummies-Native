@@ -29,6 +29,7 @@ public:
     WindowsAudio& operator=(const WindowsAudio&)=delete;
     ~WindowsAudio(){if(device){waveOutReset(device);for(auto& buffer:buffers)if(buffer.prepared)waveOutUnprepareHeader(device,&buffer.header,sizeof(WAVEHDR));waveOutClose(device);}}
     bool available() const{return device!=nullptr;}
+    void discardQueued(){if(device)waveOutReset(device);cursor=0;}
     void submit(const std::vector<int16_t>& samples){
         if(!device)return;auto& buffer=buffers[cursor];
         if(!buffer.prepared||(buffer.header.dwFlags&WHDR_INQUEUE)||samples.size()>buffer.samples.size()){++droppedFrames;return;}

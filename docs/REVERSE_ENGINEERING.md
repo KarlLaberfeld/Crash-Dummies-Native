@@ -615,3 +615,36 @@ simultaneous directions, held keys, cursor limits, fixed feedback, both return
 paths, hexadecimal display, playback decisions and clearing audio on stop.
 The native captures show both pages with original graphics. Exact initial
 VBlank/LCD phase and audio register timing remain outside this evidence.
+
+## Pause (00:1476-14f1)
+
+1476 saves master volume, stereo routing, interrupt callback choice and the
+music-update flag. It disables music advancement and powers off sound with
+NR52, then saves the twenty HUD map bytes. Eight tiles from 03:5850 replace
+F8..FF, and script 14ad installs the original row from 00:00d3. The gameplay
+area is not covered. The pause loop waits for a fresh Start edge. On exit it
+restores the HUD row/font, music flag/callback, audio power, routing and volume.
+
+The native campaign renderer now leaves the paused scene intact and replaces
+only its bottom 160x8 strip. Each stunt can still render the development help
+box through an explicit rendering option. Extraction resolves the pause row
+and tiles offline; TICDUI06 stores only the resulting local image. A separate
+Python check reconstructs each 2bpp pixel directly from the identified sources.
+
+NativeAudio suspension preserves software voice state and pending effects,
+skips driver updates and supplies silent buffers at the normal output rate.
+Entering pause clears channel output state, while retaining wave data. Wave
+DAC enable and volume are cleared too: 02:51cf-51e3 re-enables the DAC only
+when a wave upload command occurs, and 52ea-52f3 writes volume. A wave note
+alone does not restore those after pause. This follows the cartridge's writes
+and the documented [NR52 power-off behavior](https://github.com/gbdev/pandocs/blob/master/src/Audio_Registers.md).
+The host discards queued Windows audio at both transitions. Software melody
+position resumes without restarting its song, while the shared global frame
+counter continues through pause.
+
+Synthetic duration/envelope/effect and wave-recovery tests cover these
+semantics. A local output-device smoke test checks silence, frozen driver
+updates and queue reuse across pause/resume. Exact first-VBlank alignment,
+pulse/noise envelope-write retriggers, power-off transients and oscillator
+phase have not been compared with original hardware; this is not a full
+hardware sound model or an original-machine equivalence claim.

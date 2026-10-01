@@ -26,10 +26,12 @@ struct UiAssets {
     std::array<uint8_t,8> fadePalettes{};
     std::array<UiMap,4> hiddenMaps{}; // Password, rejected, accepted, music test.
     std::array<std::array<uint8_t,8>,10> passwords{};
+    std::array<uint8_t,Width*8> pauseStrip{};
     static UiAssets load(const std::wstring& path);
 };
 // Title pages and center transitions reconstructed from the original raster layout.
 std::array<uint8_t,Width*Height> renderTitle(const UiAssets& assets,int page,bool twoPlayers,int ticks,int titleScroll=0,bool pointer=true);
+std::array<uint8_t,Width*Height> renderPausedGame(const UiAssets& assets,const std::array<uint8_t,Width*Height>& game);
 constexpr int UiStart=64,UiSelect=128;
 enum class UiPhase {Title,Instructions,Playing,Result,Ending,NameEntry,Boot,TitleIntro,
                     HiddenTransition,Password,PasswordSubmit,PasswordFeedback,MusicTest};

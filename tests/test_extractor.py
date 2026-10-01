@@ -190,12 +190,20 @@ class LocalCartridge(unittest.TestCase):
         with scratch_directory() as directory:
             extract_ui.extract_ui(self.rom,directory)
             pack=(Path(directory)/'ui.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDUI05')
+            self.assertEqual(pack[:8],b'TICDUI06')
             self.assertGreater(len(pack),250000)
-            hidden_size=4*1024+80
+            hidden_size=4*1024+80+160*8
             self.assertEqual(pack[-hidden_size-8:-hidden_size],bytes([0xe4,0xe4,0xe4,0xa4,0x90,0x50,0x50,0]))
             self.assertEqual(pack[-hidden_size-2056:-hidden_size-1032],extract_ui.menu_map(self.rom,0x2814))
-            self.assertEqual(pack[-80:],b''.join(self.rom[p:p+8] for p in range(0x2cca,0x2d2e,10)))
+            self.assertEqual(pack[-1360:-1280],b''.join(self.rom[p:p+8] for p in range(0x2cca,0x2d2e,10)))
+            expected=bytearray()
+            for y in range(8):
+                for x in range(160):
+                    index=self.rom[0xd3+x//8]
+                    offset=0xd850+(index-248)*16 if index>=248 else 0xc000+index*16
+                    low,high=self.rom[offset+y*2:offset+y*2+2];bit=7-x%8
+                    expected.append(((low>>bit)&1)+2*((high>>bit)&1))
+            self.assertEqual(pack[-1280:],expected)
             maps=pack[39432:45576]
             self.assertEqual(maps[14*32:14*32+20],self.rom[0x1db0e:0x1db0e+20])
             self.assertEqual(pack[45576:45624],self.rom[0xa3:0xd3])

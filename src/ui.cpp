@@ -7,7 +7,7 @@ namespace ticd {
 UiAssets UiAssets::load(const std::wstring& path){
     FILE* f=_wfopen(path.c_str(),L"rb");if(!f)throw std::runtime_error("ui.dat is missing. Rebuild with the original ROM.");
     std::vector<uint8_t> data(1024*1024);size_t n=fread(data.data(),1,data.size(),f);int extra=fgetc(f);fclose(f);data.resize(n);
-    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI05",8))throw std::runtime_error("Invalid UI asset package.");
+    if(n<8||extra!=EOF||memcmp(data.data(),"TICDUI06",8))throw std::runtime_error("Invalid UI asset package.");
     UiAssets a;size_t offset=8;
     auto read=[&](auto& target){if(target.size()>data.size()-offset)throw std::runtime_error("Truncated UI package");
         memcpy(target.data(),data.data()+offset,target.size());offset+=target.size();};
@@ -24,10 +24,15 @@ UiAssets UiAssets::load(const std::wstring& path){
     read(a.bootMap);read(a.initialTitleMap);read(a.fadePalettes);
     for(auto& m:a.hiddenMaps)read(m);for(auto& p:a.passwords){read(p);
         for(int digit:p)if(digit<1||digit>10)throw std::runtime_error("Invalid password digit");}
+    read(a.pauseStrip);
     if(offset!=data.size())throw std::runtime_error("Trailing UI package data");
     auto validate=[](const auto& tiles){for(int shade:tiles)if(shade>3)throw std::runtime_error("Invalid UI palette");};
     validate(a.tiles);validate(a.titleBackground);for(const auto& i:a.instructions)validate(i.tiles);
-    for(const auto& t:a.resultTiles)validate(t);validate(a.endingTiles);validate(a.nameTiles);return a;
+    for(const auto& t:a.resultTiles)validate(t);validate(a.endingTiles);validate(a.nameTiles);validate(a.pauseStrip);return a;
+}
+
+std::array<uint8_t,Width*Height> renderPausedGame(const UiAssets& assets,const std::array<uint8_t,Width*Height>& game){
+    auto screen=game;std::copy(assets.pauseStrip.begin(),assets.pauseStrip.end(),screen.begin()+PlayHeight*Width);return screen;
 }
 
 static std::array<uint8_t,Width*Height> titleImage(const UiAssets& a,const UiMap& map,int titleScroll){

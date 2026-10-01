@@ -384,7 +384,7 @@ void AirGame::text(int x,int y,const std::string& value){
     for(char c:value){int n=c==' '?0:c>='0'&&c<='9'?c-'0'+1:c>='A'&&c<='Z'?c-'A'+11:c=='-'?39:0;
         for(int py=0;py<8;++py)for(int px=0;px<8;++px)if(x+px>=0&&x+px<Width&&y+py>=0&&y+py<Height)screen[(y+py)*Width+x+px]=shared.font[n*64+py*8+px];x+=8;}
 }
-void AirGame::render(){
+void AirGame::render(bool developmentOverlay){
     const auto& l=assets.levels[difficulty];int cx=started?cameraX:l.cameraX,cy=started?cameraY:l.cameraY;
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;
         int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
@@ -395,7 +395,7 @@ void AirGame::render(){
         for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);
         text(8,72,"NATIVE PORT - WIP");text(32,88,"AIR BUMPER");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");
     }
-    if(paused||result){
+    if(developmentOverlay&&(paused||result)){
         for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);
         text(40,56,paused?"PAUSED":"STUNT END");
         if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");
