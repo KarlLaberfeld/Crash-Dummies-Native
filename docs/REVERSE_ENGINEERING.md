@@ -680,3 +680,32 @@ Ordinary failure calls 20d1 at 05af and only then waits 480 at 05b4/25cd.
 268b takes either the first instruction fade-in or the later 16c1 transition;
 the latter cycles eight pattern bytes over eight waits each, switching maps.
 These additional transitions were researched but are not implemented here.
+
+## Result entry and timeout origins (00:0438-0514 / 0575-06a5)
+
+Both successful and failed results use blocking 20d1 fade-in: eight palette
+entries in reverse order, four updates each. 047b precedes the successful
+result's 15-update introductory wait and pay/time transfer. 05af and 0697
+precede the ordinary-failure and game-over 480-update waits respectively.
+The native result phase now consumes those 32 palette updates without
+counting pay or accepting skip input. Failure holds begin after the fade.
+
+The success timing has a separate background counter initialized to 600 at
+0438. 24cf decrements it but returns without storing when the new value is
+zero, leaving it at one. After pay/time counting, 04ef loads its current value
+into BC and 04f7 adds 60 via RST 30 (0030 performs addition, not a clamp).
+25cd then waits that many updates, accepting a fresh action/Start edge.
+Native post-count hold is therefore 60 + max(1, 600 - result phase updates).
+Short counts without input expire at modeled update 660; long counts retain
+61 updates. The button that accelerates counting remains consumed by that
+operation, and a held button spanning fade-in cannot skip afterward.
+
+Eleven added UI assertions exercise fade/input gating, shared success budget,
+post-count addition, retained-one behavior, and the failure timeout origin.
+Existing result/high-score tests now advance through the fade before checking
+their subsequent actions. The integration campaign uses its normal input
+pilot across the additional waits; its changed frame phase is recorded in
+STATUS. Native captures are inspected, without claiming original-image parity.
+Earlier gameplay fade-out, LCD/setup waits and the one wait before failed-result
+music are not represented yet; these local timing rules are not a complete
+original power-on timeline.

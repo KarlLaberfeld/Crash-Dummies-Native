@@ -601,3 +601,29 @@ add 32 to every result timeout: success uses the background 600-update counter
 initialized before fade-in, while ordinary failure waits 480 after fade-in.
 Air's crash-animation boundary and detailed audio/display equivalence remain
 unresolved. The port is still incomplete; automatic continuation stays active.
+
+## Result fade-in and post-count timing
+
+Gameplay-fade checkpoint: remote `95f922def644ec14c28a7f580fa9315b4e1de05f`,
+tree `b6edfc56e4dfd9123851164a2cfadceea3fc910b`, local `7f948a2`.
+
+Result screens now run the original blocking 32-update fade-in before pay
+counting or input acceptance. A button held through that fade cannot become a
+new skip press. Success retains the shared 600-update budget during fading
+and counting, then adds 60 updates to the remaining budget. The original
+background counter stops at one, so counting that exhausts the budget still
+gets 61 updates before automatic continuation. Fresh action input can skip
+that hold. Ordinary failure and game-over wait 480 updates after fading;
+game-over still does not accept a skip.
+
+All 25 Python tests and native suites pass. UI assertions: 352; other suite
+counts unchanged. The added waits change the continuing event/random phase:
+the current campaign reaches 20 wins in 22 attempts (two failed attempts),
+savings 7,974, global update 59,899. This supersedes the earlier campaign phase
+result without altering isolated stunt logic. Mid-fade and complete result
+captures were inspected. Log: local/result-fade-build.log.
+
+The pre-result gameplay fade-out/setup and some music/setup waits are still
+missing, as are title/instruction and later screen transitions. Absolute
+power-on phase and pixel/audio equivalence remain unverified. Air's documented
+animation-boundary stall is unresolved. The port remains unfinished.

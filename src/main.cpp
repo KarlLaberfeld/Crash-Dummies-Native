@@ -163,14 +163,16 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 ticd::UiFlow sample(*uiAssets);sample.campaign.start(false,stage);sample.beginInstructions();
                 for(int i=0;i<2500&&!sample.textDone;++i)sample.step(0);
                 ticd::saveBmp(directory+L"instructions-"+std::to_wstring(stage)+L".bmp",sample.render());
-                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);sample.step(0);sample.step(ticd::A);
+                sample.step(ticd::UiStart);sample.finishStunt(stage==3?0x47:7,123,45,0,20);
+                for(int i=0;i<32;++i){if(stage==0&&i==16)ticd::saveBmp(directory+L"result-fade-half.bmp",sample.render());sample.step(0);}
+                sample.step(0);sample.step(ticd::A);
                 ticd::saveBmp(directory+L"result-"+std::to_wstring(stage)+L".bmp",sample.render());
             }
             ticd::UiFlow ending(*uiAssets);ending.campaign.start(false,4,3);ending.beginInstructions();ending.step(ticd::UiStart);
-            ending.finishStunt(7,123,45);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
+            ending.finishStunt(7,123,45);for(int i=0;i<32;++i)ending.step(0);ending.step(0);ending.step(ticd::A);ending.step(0);ending.step(ticd::A);
             ticd::saveBmp(directory+L"ending.bmp",ending.render());
             ticd::UiFlow name(*uiAssets);name.campaign.start(false);name.campaign.players[0].savings=100000;name.campaign.players[0].lives=1;
-            name.beginInstructions();name.step(ticd::UiStart);name.finishStunt(1,0,0);for(int i=0;i<480;++i)name.step(0);
+            name.beginInstructions();name.step(ticd::UiStart);name.finishStunt(1,0,0);for(int i=0;i<512;++i)name.step(0);
             ticd::saveBmp(directory+L"name-entry.bmp",name.render());
             game->render();ticd::saveBmp(directory+L"launcher.bmp",game->screen);
             ticd::UiFlow gameplayFade(*uiAssets);gameplayFade.phase=ticd::UiPhase::Playing;game->start(0);

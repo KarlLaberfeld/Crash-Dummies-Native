@@ -132,7 +132,7 @@ void UiFlow::finishStunt(int flags,int earned,int seconds,int extraLives,int fla
     campaign.settle(flags,earned,seconds,extraLives);flagsHit=flagsCollected;
     displayPay=earned%1000000;displayTime=(flags&64)?0:seconds;
     resultStage=0;resultWait=15;showFlags=showSavings=showPay=showTime=false;
-    phase=UiPhase::Result;phaseTicks=0;
+    phase=UiPhase::Result;phaseTicks=0;resultFade=32;resultHold=0;
 }
 void UiFlow::continueCampaign(){
     if(campaign.next())beginInstructions();else{phase=UiPhase::Title;page=0;phaseTicks=0;}
@@ -268,12 +268,17 @@ void UiFlow::step(int buttons){
     case UiPhase::Instructions:
         if(pressed&UiStart){phase=UiPhase::Playing;phaseTicks=0;gameplayFade=8;}else if(!textDone)advanceText();break;
     case UiPhase::Result:{
+        if(resultFade){--resultFade;break;}
         bool counting=campaign.last.success&&resultStage<6;
         if(counting)advanceResult((pressed&(UiStart|A|B))!=0);
+        // 04f7 adds 60 to the remaining counter via RST 30. 24cf retains
+        // one rather than storing zero when its background counter expires.
+        if(counting&&resultStage==6)resultHold=60+std::max(1,600-phaseTicks);
+        else if(!counting&&resultHold>0)--resultHold;
         // A button that accelerates counting is consumed by that operation.
         // Result timeout runs during counting, as in 24cf, but cannot cut it short.
         if((!counting&&!campaign.last.gameOver&&(pressed&(UiStart|A|B)))||
-           ((!campaign.last.success||resultStage==6)&&phaseTicks>=(campaign.last.success?600:480))){
+           ((!campaign.last.success&&phaseTicks>=32+480)||(campaign.last.success&&resultStage==6&&!resultHold))){
             if(campaign.last.completed){phase=UiPhase::Ending;phaseTicks=0;}
             else if(campaign.last.gameOver)enterHighScore();else continueCampaign();}
         break;}
@@ -355,7 +360,9 @@ std::array<uint8_t,Width*Height> UiFlow::render() const{
                 if(result.perfect){canvas[17*32+10]=0x25;canvas[17*32+11]=3;}}
             if(showFlags){overlay(canvas,assets.resultLayouts[6]);canvas[14*32+18]=(flagsHit/10)%10+1;canvas[14*32+19]=flagsHit%10+1;}
         }else if(result.gameOver){overlay(canvas,assets.resultLayouts[7]);money(canvas,17,campaign.players[campaign.current].savings);}
-        return renderMap(assets.resultTiles[portrait],canvas);
+        auto screen=renderMap(assets.resultTiles[portrait],canvas);
+        if(resultFade){int palette=assets.fadePalettes[(resultFade-1)/4];for(auto& shade:screen)shade=(palette>>(shade*2))&3;}
+        return screen;
     }
     return {};
 }

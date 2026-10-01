@@ -62,6 +62,7 @@ struct UiFlow {
     int gameplayFade=8;
     bool gameplayPaused=false;
     int resultStage=0,resultWait=0,displaySavings=0,displayPay=0,displayTime=0;
+    int resultFade=0,resultHold=0;
     bool showFlags=false,showSavings=false,showPay=false,showTime=false;
     std::array<uint8_t,48> scores{};
     int scoreRank=-1,nameLength=0,nameScroll=180,nameMotion=0;
