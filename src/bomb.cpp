@@ -37,31 +37,32 @@ void BombGame::startAnimation(int i,int sequence,bool force){
 void BombGame::animate(int i){
     auto& e=entities[i];if(e.animDone||!e.alive)return;
     if(e.delay){--e.delay;return;}
+    // 3c41 commits the script cursor only at a delay/loop yield;
+    // 3c92 leaves the saved block unchanged during a dynamic-frame wait.
+    int cursor=e.anim;
     for(int guard=0;guard<256;++guard){
-        if(e.anim<=0||e.anim>=static_cast<int>(assets.commands.size()))break;
-        int commandIndex=e.anim;auto c=assets.commands[e.anim];e.anim=c.next;
+        if(cursor<=0||cursor>=static_cast<int>(assets.commands.size()))break;
+        auto c=assets.commands[cursor];cursor=c.next;
         switch(c.op){
         case 0:e.animDone=true;return;
-        case 1:e.delay=e.period;return;
+        case 1:e.anim=cursor;e.delay=e.period;return;
         case 2:e.move(c.a,0);break;
         case 3:e.move(0,c.a);break;
         case 4:
             if(c.a<20){
-                // 00:3c74 keeps the command pointer at the frame operand while
-                // its asynchronous graphics transfer is pending.
                 if(e.frameWaiting){
-                    if(transferState!=2){e.anim=commandIndex;return;}
+                    if(transferState!=2)return;
                     e.frameWaiting=false;break;
                 }
-                if(e.frame!=c.a){e.frame=c.a;e.frameWaiting=true;e.anim=commandIndex;return;}
+                if(e.frame!=c.a){e.frame=c.a;e.frameWaiting=true;return;}
             }
             e.frame=c.a;break;
         case 5:e.period=c.a;break;
         case 6:e.flags^=32;break;
         case 7:e.flags&=~32;break;
-        case 8:e.loop=c.a;e.loopStart=e.anim;break;
-        case 9:e.loop=(e.loop-1)&255;if(e.loop)e.anim=e.loopStart;e.delay=e.period;return;
-        case 10:e.anim=c.a;break;
+        case 8:e.loop=c.a;e.loopStart=cursor;break;
+        case 9:e.loop=(e.loop-1)&255;if(e.loop)cursor=e.loopStart;e.anim=cursor;e.delay=e.period;return;
+        case 10:cursor=c.a;break;
         case 11:e.handler=static_cast<BombHandler>(c.a);e.animDone=true;return;
         case 12:e.move(c.a*16,0);break;
         case 13:e.move(0,c.a*16);break;

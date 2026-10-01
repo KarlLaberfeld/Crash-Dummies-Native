@@ -853,3 +853,34 @@ ending exit, the final ending hold boundary, alphabet cleanup and title return.
 The UI suite now has 710 assertions. Full native/Python suites pass, and local
 captures exercise intermediate fades and the complete return. These checks
 validate the reconstruction; they do not establish original-machine equivalence.
+
+## Animation block resumption across resource waits (00:3bc4 / 3c41 / 3c92)
+
+A closer audit found a translation error shared by all five stunt animation
+engines. 3bc4 loads the saved script pointer into a temporary cursor. Ordinary
+commands advance only that cursor. The delay/loop-yield path at 3c41 saves the
+cursor back; the dynamic-frame wait at 3c92/3ca1 exits without saving it. Thus
+the next animation update replays the whole saved block, including any preceding
+sound, movement, flags, or jump commands. The earlier implementation incorrectly
+saved every command advance and resumed directly at the pending frame command.
+This supersedes the earlier claim that the original saves the frame operand as
+its resume position. The same-frame and transfer-completion checks themselves
+were already correct.
+
+Each native animation engine now has a temporary cursor and commits it only on
+delay/loop yield. The waiting flag still belongs to the entity. Stop commands
+leave the saved pointer unchanged, matching 3c0e. Roof's loop decrement now also
+retains the original byte wrapping already used by the other four engines.
+This interprets the game's animation data format; no CPU instructions execute.
+
+The actual Air recovery script at 6315 demonstrates the observable difference:
+its effect-15 request precedes the dynamic frame, so it is requested again while
+the frame transfer waits. Tests check the original script with map priority,
+completion and the subsequent delay. A shared synthetic script also checks
+movement/sound replay, an intervening jump, cursor commit and stop behavior in
+all five native stunt engines. All native and Python suites pass.
+
+This correction does not resolve the separate Air crash stall. Re-running the
+64-phase diagnostic produces exactly the same outcome lines as before, including
+the twelve stalled phases. It establishes a script-resumption fidelity fix,
+not proof that the crash boundary matches an original-machine reference.

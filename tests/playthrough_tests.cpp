@@ -5,6 +5,7 @@
 #include "cruise.h"
 #include "ui.h"
 #include <cstdio>
+#include <memory>
 namespace ticd {
 int roofTestInput(const Game&);
 int airTestInput(const AirGame&);
@@ -13,11 +14,38 @@ int skiTestInput(const SkiGame&);
 int bombTestInput(const BombGame&);
 int cruiseTestInput(const CruiseGame&);
 void prepareCruiseTestInput(const CruiseGame&);
+template<class Stunt> bool verifyAnimationResume(Stunt& game){
+ game.start(0);auto& p=game.entities[0];p.anim=1;p.animDone=false;p.delay=0;p.period=2;p.frame=0;
+ int x=p.x;
+ // Movement and sound precede a jump to a dynamic frame. The original
+ // frame wait exits without saving the cursor; all three must replay.
+ for(int tick=1;tick<=3;++tick){game.transferState=1;game.pendingSound=-1;game.animate(0);
+  if(p.x!=x+tick*5||game.pendingSound!=13||!p.frameWaiting||p.anim!=1||p.delay)return false;
+  p.frame=0;
+ }
+ game.transferState=2;game.pendingSound=-1;game.animate(0);
+ if(p.x!=x+20||game.pendingSound!=13||p.frameWaiting||p.anim!=8||p.delay!=2)return false;
+ game.pendingSound=-1;game.animate(0);game.animate(0);
+ if(p.delay||p.animDone||p.x!=x+20||game.pendingSound!=-1)return false;
+ game.animate(0);return p.animDone&&p.anim==8&&p.x==x+20;
+}
 // Native integration harness: real outcomes and carried timer/random phase.
 // Predictive pilots provide only button inputs; this is not an original-game oracle.
 // Instructions/results are skipped, and one UI tick separates start and first play.
 int runPlaythroughTests(const Assets& shared,const AirAssets& aa,const SkiAssets& sa,const BombAssets& ba,const CruiseAssets& ca,const UiAssets& ua){
  FILE* log=fopen("playthrough-test.txt","w");if(!log)return 2;
+ {
+  std::vector<Command> script(9);script[1]={2,5,0,0,2};script[2]={19,13,0,0,3};
+  script[3]={10,6,0,0,0};script[6]={4,1,0,0,7};script[7]={1,0,0,0,8};script[8]={0,0,0,0,0};
+  auto roof=std::make_unique<Assets>(shared);roof->commands=script;Game r(*roof);
+  auto air=std::make_unique<AirAssets>(aa);air->commands=script;AirGame a(*air,shared);
+  auto ski=std::make_unique<SkiAssets>(sa);ski->commands=script;SkiGame s(*ski,shared);
+  auto bomb=std::make_unique<BombAssets>(ba);bomb->commands=script;BombGame b(*bomb,shared);
+  auto cruise=std::make_unique<CruiseAssets>(ca);cruise->commands=script;CruiseGame c(*cruise,shared);
+  if(!verifyAnimationResume(r)||!verifyAnimationResume(a)||!verifyAnimationResume(s)||!verifyAnimationResume(b)||!verifyAnimationResume(c)){
+   fprintf(log,"FAIL: animation script block resume\n");fclose(log);return 1;}
+  fprintf(log,"PASS: saved animation block, repeated side effects and delay commit for all five stunts\n");
+ }
  Game roofGame(shared);AirGame airGame(aa,shared);SkiGame skiGame(sa,shared);BombGame bombGame(ba,shared);CruiseGame cruiseGame(ca,shared);UiFlow ui(ua);ui.step(UiStart);for(int wait=0;wait<66;++wait)ui.step(0);
  auto verifyBoundary=[&](auto& game){
   game.start(0);UiFlow flow(ua);flow.campaign.start(false);flow.beginInstructions();

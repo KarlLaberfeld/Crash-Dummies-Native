@@ -781,3 +781,34 @@ start at 6307/3b84 and delay behavior at 3bbd. No speculative force-start or
 recovery was added. Next useful evidence must address the dynamic frame/map
 transfer schedule or a matching original reference at this boundary. Do not
 repeat the same static handler audit as a substitute for that evidence.
+
+## Animation resource-wait correction — 2026-10-02
+
+Previous checkpoint: remote `6e06d588d5f1cd35719ca312d81050963a10468d`,
+tree `bf5dedabf581222ae6cb0cad8d794e08032c53df`, local `3419ea7`.
+Ordinary usage is available again; the latest tool check reported primary 1%
+and weekly 0%. This agent did not invoke a quota-reset action.
+
+The dynamic-frame audit uncovered a shared error in all five animation engines:
+they saved the script cursor too early. The original only commits it at a delay
+or loop yield; a pending resource transfer returns to the previously saved
+block, replaying preceding sound/movement/flag commands. All five engines now
+follow that rule. Air's original recovery script has a regression check for
+its repeated effect-15 request during transfer waits. A shared fixture verifies
+movement and sound replay through a jump, delayed cursor commit and termination
+in every stunt. Roof's loop decrement also now uses the original byte wrapping.
+
+Validation: the Windows executable was rebuilt and all 25 Python tests plus
+every native suite passed (local/animation-block-resume-build.log). Air now has
+449,086 assertions, and the campaign harness includes an additional all-five
+animation-resumption check. Other suite counts are unchanged. The complete
+campaign still reaches 20 wins in 20 attempts, savings 8,138, with final-stunt
+global update 52,671. No compiler warnings. No asset formats changed.
+
+The 64-phase Air diagnostic was rebuilt and repeated: every output line matches
+the earlier sweep (local/air-phase-audit-resume.txt). The known stall remains;
+this fix improves source fidelity but does not establish its cause. Continue
+with transfer/publication scheduling and original-reference evidence, followed
+by broader human/Windows acceptance and final packaging. Exact hardware/audio
+equivalence remains unverified. The port is not complete; automatic continuation
+remains active. Original ROM, extracted data and diagnostic outputs stay local.

@@ -101,6 +101,16 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         g.beginVideoTick();g.animate(0);
         require(!g.entities[0].frameWaiting&&g.entities[0].delay==17,"Completed transfer releases animation to its delay command");
 
+        g.start(0);g.startAnimation(0,1,true);int savedBlock=g.entities[0].anim;
+        g.animate(0);g.finishVideoTick(0,0);
+        require(g.entities[0].anim==savedBlock&&g.entities[0].frameWaiting&&g.pendingSound==15,"Dynamic frame yield preserves the script block preceding its sound command");
+        for(int n=0;n<2;++n){g.pendingSound=-1;g.beginVideoTick();g.animate(0);
+            require(g.entities[0].anim==savedBlock&&g.pendingSound==15&&g.entities[0].delay==0,"Map-priority transfer waits replay the original block's sound request without starting its delay");}
+        g.mapTransfer=false;while(g.transferRemaining)g.beginVideoTick();g.pendingSound=-1;g.animate(0);
+        require(!g.entities[0].frameWaiting&&g.entities[0].anim!=savedBlock&&g.entities[0].delay==8&&g.pendingSound==15,"Completed transfer reaches the delay command and only then saves the following script position");
+        g.pendingSound=-1;g.animate(0);
+        require(g.pendingSound==-1&&g.entities[0].delay==7,"Committed animation delay no longer replays preceding sound requests");
+
         g.start(0);g.speed=-8;g.probes={1,0,0,0,0,0};g.terrainBounce();
         require(g.tilt==1&&g.lastForce==12&&g.speed==-8,"Rising left contact turns right before bouncing");
         g.tilt=2;g.terrainBounce();require(g.speed==9&&g.entities[0].params[5]==16,"Maximum tilt impact adds damage and reverses upward motion");
