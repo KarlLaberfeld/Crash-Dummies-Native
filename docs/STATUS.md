@@ -756,3 +756,28 @@ two-player and Windows acceptance; prepare the final distribution package.
 The major missing ending/name-entry/title-return transitions are implemented,
 but exact hardware timing is still unverified. The port remains incomplete.
 Automatic continuation stays active. ROM, assets and captures remain local.
+
+## Air crash phase sweep — 2026-10-01
+
+Latest published implementation: remote
+`22c69769fed1019514e1352b1214467c2d55f6e1`, tree
+`e0599e2be1afca56d5e0ed66d9adcfb6ed32eab7`, local `3e41734`.
+Ordinary usage was available at this check; weekly usage was 98%. No reset
+credit was used. The tested Windows build remains unchanged.
+
+A new local diagnostic sweeps 64 initial global-update phases on Air's second
+layout, using the same held-A / alternating-horizontal input (24-update runs)
+and normal native state progression. It detects an inactive animation handler
+with no terminal result. Twelve phases stall: 0, 4, 5, 21, 22, 27 and those six
+plus 32. The other 52 reach terminal results within 12,000 input updates.
+Each phase and phase+32 pair has identical output in this experiment. Stalls
+occur at zero-based input indices 1,503–3,616, around Y=32,964–33,104, with 24–40 seconds left.
+Files: local/air_phase_audit.cpp, local/air-phase-audit.txt (both local only).
+
+This establishes that the reachable native failure is not confined to one
+startup phase; it does not prove the original has the same fault. The renewed
+static check still matches the 80-update crash counter, conditional animation
+start at 6307/3b84 and delay behavior at 3bbd. No speculative force-start or
+recovery was added. Next useful evidence must address the dynamic frame/map
+transfer schedule or a matching original reference at this boundary. Do not
+repeat the same static handler audit as a substitute for that evidence.
