@@ -81,6 +81,7 @@ void AirGame::start(int level,int player){
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
     hudMap=assets.hudMap;refreshHud();
     for(int j=0;j<13;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
+    publishVideo();
 }
 int AirGame::spawn(int kind,int x,int y,int placement){
     if(kind<17||kind>34)return -1;
@@ -184,7 +185,11 @@ void AirGame::input(){
     if((cameraY>>8)<15)up();
 }
 void AirGame::lookupRate(){rate=assets.speeds.at(speed+20);}
+// 2430 publishes prepared objects; the display callback reads scroll before
+// 03db runs the next entity update. Keep visible and prepared state separate.
+void AirGame::publishVideo(){visibleSprites=sprites;visibleCameraX=cameraX;visibleCameraY=cameraY;}
 void AirGame::beginVideoTick(){
+    publishVideo();
     // 00:0c3f / 00:1897: a map row has priority; otherwise copy at most four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
     if(transferRemaining&&!mapTransfer){
@@ -389,11 +394,11 @@ void AirGame::text(int x,int y,const std::string& value){
         for(int py=0;py<8;++py)for(int px=0;px<8;++px)if(x+px>=0&&x+px<Width&&y+py>=0&&y+py<Height)screen[(y+py)*Width+x+px]=shared.font[n*64+py*8+px];x+=8;}
 }
 void AirGame::render(bool developmentOverlay){
-    const auto& l=assets.levels[difficulty];int cx=started?cameraX:l.cameraX,cy=started?cameraY:l.cameraY;
+    const auto& l=assets.levels[difficulty];int cx=started?visibleCameraX:l.cameraX,cy=started?visibleCameraY:l.cameraY;
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;
         int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
     if(started){
-        sprites.draw(screen);
+        visibleSprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{
         for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);

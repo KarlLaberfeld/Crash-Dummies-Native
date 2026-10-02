@@ -33,7 +33,9 @@ struct SkiGame {
     std::array<SkiEntity,16> entities{};std::vector<Placement> placements;
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,7> hudValues{};
-    SpriteLayer sprites{false};
+    SpriteLayer sprites{false},visibleSprites{false};
+    int visibleCameraX=0,visibleCameraY=0;
+
     bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,remaining=0,needed=0,collected=0;
@@ -48,6 +50,7 @@ struct SkiGame {
     int spawn(int kind,int x,int y,int placement=-1);
     void setFrame(int i,int frame,int flags=0);void startAnimation(int i,int sequence,bool force=false);void animate(int i);
     int tileAt(int x,int y) const;int terrainAt(int x,int y) const;
+    void publishVideo();
     void beginVideoTick();void finishVideoTick(int oldFrame,int oldFlags);void updateVisibility();
     void followCamera();void input();void movePlayer();void jump();void jumpMotion(int i);
     void terrain();void depth(int i=0);void finishLine();void beginFinish(int flags);void tickTimer();

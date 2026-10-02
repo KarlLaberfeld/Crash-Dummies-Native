@@ -884,3 +884,45 @@ This correction does not resolve the separate Air crash stall. Re-running the
 64-phase diagnostic produces exactly the same outcome lines as before, including
 the twelve stalled phases. It establishes a script-resumption fidelity fix,
 not proof that the crash boundary matches an original-machine reference.
+
+## Prepared and visible gameplay frames (00:2430 / 1e5a / 03db)
+
+The original publishes the already prepared object list at 2430. Gameplay
+display callbacks read the existing camera position before the main loop
+updates entities at 03db and constructs the following object's list at 03e4.
+The earlier native renderer exposed newly prepared objects and camera changes
+immediately. Each stunt now keeps separate visible objects and scroll values,
+published at the beginning of the next video update. World collision state,
+timers, input, resource-transfer accounting and predictive test pilots remain
+unchanged. HUD refresh still runs in the display callback phase.
+
+At terminal gameplay, the outgoing UI retains the visible scene for the first
+wait. 0400 then publishes the final prepared scene before its fade. The host
+captures both scenes separately and does not run another entity update or
+dynamic resource transfer (FFAE has already been cleared). Tests distinguish
+the two scenes throughout the fade. This models the identified native update
+order, not scanline execution or video memory. Exact partial-tile publication,
+pause-entry alignment and the final-wait HUD/fade interaction still require
+original-reference validation; a one-update state split alone is not proof of
+complete display equivalence.
+
+## Roof direct-frame changes cancel pending animation waits (00:3d15)
+
+The expanded two-player campaign exposed a deterministic Roof stall on the
+hardest layout, with player two starting at global update 27,181. A balloon
+catch during a dynamic-frame animation left frameWaiting set. The resource
+completion passed while the balloon handler was active; subsequent animations
+waited forever for a completion that had already been consumed. A later bounce
+therefore never returned to normal falling or terminal result handling.
+
+The original balloon catch at 01:5be5 calls 00:3d15. That helper replaces the
+frame and orientation, sets animation-done (3d2a) and clears the frame-wait bit
+(3d2c). Roof had only replaced the frame. Its direct-frame paths now share a
+native setFrame helper, including balloon catch, rope catch at 5e13, normal
+falling pose selection and landing. The other four stunt engines already had
+these reset semantics. No forced timeout or invented recovery rule was added.
+
+Focused collision tests start with an outstanding animation wait and verify
+the balloon/rope resets. The local input-only reproducer now ends successfully
+instead of continuing below the level after the timer reaches zero. This is a
+source-backed Roof fix; it does not resolve the separately tracked Air crash.

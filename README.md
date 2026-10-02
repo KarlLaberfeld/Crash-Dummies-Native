@@ -86,6 +86,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 ./build/CrashDummies.exe --self-test
 ./build/CrashDummies.exe --capture
 ./build/CrashDummies.exe --audio-smoke-test
+./build/CrashDummies.exe --ui-smoke-test
 ```
 
 Native tests cover selected rules derived from the original, deterministic
@@ -98,6 +99,22 @@ human playthroughs or comparisons against the original. Tests **do not establish
 to the original game. Captured images and the generated title-music WAV remain local in the build
 directory. The audio smoke test checks Windows output over 300 updates; its
 device/drop report is saved locally as `audio-output.txt`.
+The UI smoke test sends Windows keyboard/focus/resize messages through the
+application window and records assertions in `ui-window-test.txt`. It is
+automated host integration coverage, not human visual acceptance.
+
+## Local preview packages
+
+After building, run `./package.ps1` to create a preview ZIP in ignored `dist/`.
+It contains the Windows executable and asset preparation tools, but no ROM or
+original assets. After extracting it, run `./Prepare-Assets.ps1 -Rom 'path/to/original.gb'`
+with Python 3.10+ once, then start `CrashDummies.exe` without Python.
+
+For a ready-to-run local copy, use `./package.ps1 -IncludeLocalAssets`. That
+archive includes extracted game data and must remain local. Both variants
+include file hashes and source revision information, and are explicitly
+unfinished previews. See [release acceptance](docs/ACCEPTANCE.md) for remaining
+requirements before a final release.
 
 ## Project layout
 

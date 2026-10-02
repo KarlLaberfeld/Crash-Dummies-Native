@@ -71,6 +71,7 @@ void Game::start(int level,int player) {
     spawn(15,0x1a00,0);
     hudMap=assets.hudMap;hudCursor=0;refreshHud();
     for(int j=0;j<13;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
+    publishVideo();
 }
 int Game::spawn(int kind,int x,int y,int placement) {
     if(kind<0||kind>=16)return -1;
@@ -88,6 +89,11 @@ int Game::spawn(int kind,int x,int y,int placement) {
 void Game::destroy(int i) {
     // 00:3da5 only frees the live slot. Collected/destroyed placements stay used.
     entities[i].alive=false;
+}
+void Game::setFrame(int i,int frame,int flags){
+    // 00:3d15 stops the animation and clears its dynamic-frame wait bit.
+    auto& e=entities[i];e.frame=frame;e.flags=(e.flags&31)|flags;
+    e.animDone=true;e.frameWaiting=false;
 }
 void Game::startAnimation(int i,int sequence,bool force) {
     auto& e=entities[i];if(!force&&!e.animDone)return;
@@ -156,7 +162,11 @@ void Game::finish(int i,int code) {
 void Game::tickTimer() {
     if(++secondTicks==60){secondTicks=0;if(seconds>0)--seconds;}
 }
+// 2430 publishes prepared objects; the display callback reads scroll before
+// 03db runs the next entity update. Keep visible and prepared state separate.
+void Game::publishVideo(){visibleSprites=sprites;visibleCamera=camera;}
 void Game::beginVideoTick() {
+    publishVideo();
     if(transferRemaining&&!mapTransfer){
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
@@ -183,7 +193,7 @@ void Game::land(int i) {
     if((e.y>>8)!=row)return;
     e.y=(row+1)*256;
     if(targetReached){
-        pendingSound=9;e.frame=29;e.flags&=31;e.animDone=true;e.handler=Handler::Idle;
+        pendingSound=9;setFrame(i,29);e.handler=Handler::Idle;
         resultFlags=breaksNeeded>=0?0x81:remaining!=0?0x03:0x07;
         pendingResult=(resultFlags&2)?3:5;
         spawn(4,e.x,e.y);
@@ -195,7 +205,7 @@ void Game::land(int i) {
         if(e.pose==28){
             spawn(4,e.x,e.y);e.handler=Handler::Animation;startAnimation(i,19,true);
         }else{
-            e.frame=25;e.flags&=31;e.animDone=true;
+            setFrame(i,25);
             spawn(4,e.x+64,e.y);finish(i,1);
         }
     }
@@ -223,7 +233,7 @@ void Game::collideWith(int player,int other) {
         }break;
     case 1: // 01:5bdb, balloon ride only in neutral posture.
         if(p.pose!=24)break;
-        p.frame=18;p.handler=Handler::BalloonRide;p.vy=0;p.vx=0;p.counter=192;
+        setFrame(player,18);p.handler=Handler::BalloonRide;p.vy=0;p.vx=0;p.counter=192;
         p.parent=other;p.offsetX=2;p.offsetY=31;o.collision=255;o.vy=12;
         decrementGoal(other);cameraLeadTarget=48;money+=5;pendingSound=7;break;
     case 2: // 01:5ad9, fire extinguishes on contact and costs money.
@@ -236,7 +246,7 @@ void Game::collideWith(int player,int other) {
         if(p.vy<0)break;
         if(p.pose==24){
             if(!(held&(Left|Right)))break;
-            p.frame=19;p.flags=(p.flags&~32)|((held&Right)?32:0);p.vx=(held&Right)?17:-17;
+            setFrame(player,19,(held&Right)?32:0);p.vx=(held&Right)?17:-17;
             p.handler=Handler::Rope;p.parent=other;p.offsetX=2;p.offsetY=0;
             startAnimation(player,16,true);startAnimation(other,17,true);money+=25;decrementGoal(other);
         }else{startAnimation(other,18,true);o.collision=255;decrementGoal(other);money+=10;pendingSound=5;}
@@ -286,8 +296,7 @@ void Game::update(int i) {
     case Handler::RopeRelease:{
         Handler before=e.handler;animate(i);
         if(before==Handler::Falling&&e.animDone){
-            e.frame=e.pose==20?34:e.pose==28?12:e.vx==0?9:13;
-            e.flags=(e.flags&31)|((e.pose==24&&e.vx<0)?32:0);
+            setFrame(i,e.pose==20?34:e.pose==28?12:e.vx==0?9:13,(e.pose==24&&e.vx<0)?32:0);
         }
         followCamera(e);
         if(before!=Handler::RopeRelease){if(held&Left)e.vx=-10;if(held&Right)e.vx=10;}
@@ -448,8 +457,8 @@ void Game::render(bool developmentOverlay) {
         text(16,110,"ENTER TO START");text(16,126,"1-4 DIFFICULTY");return;
     }
     const auto& l=assets.levels[difficulty];
-    for(int y=0;y<PlayHeight;++y){int row=camera/16+y;if(row>=0&&row<l.height)std::copy_n(l.pixels.begin()+row*Width,Width,screen.begin()+y*Width);}
-    sprites.draw(screen);
+    for(int y=0;y<PlayHeight;++y){int row=visibleCamera/16+y;if(row>=0&&row<l.height)std::copy_n(l.pixels.begin()+row*Width,Width,screen.begin()+y*Width);}
+    visibleSprites.draw(screen);
     drawHud();
     if(developmentOverlay&&(paused||result)){
         for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);

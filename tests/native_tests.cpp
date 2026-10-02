@@ -56,10 +56,11 @@ int runSelfTests(const Assets& assets) {
             scene.entities[0].alive=true;scene.entities[0].frame=0;scene.entities[0].x=0x1000;scene.entities[0].y=320;
             scene.entities[1].alive=true;scene.entities[1].frame=0;scene.entities[1].x=0x1000;scene.entities[1].y=10000;scene.entities[1].flags=16;
             scene.updateVisibility();require(scene.entities[1].alive,"Full sprite list stops later entity visibility/removal work");
-            frame.pieces.resize(1);scene.updateVisibility();require(!scene.entities[1].alive,"Available sprite capacity allows later offscreen removal");
+            frame.pieces.resize(1);scene.updateVisibility();require(!scene.entities[1].alive,"Available sprite capacity allows later offscreen removal");scene.publishVideo();
             scene.render();auto before=scene.screen;scene.entities[0].x+=160;scene.render();
             require(scene.screen==before,"Repaint consumes the stored sprite list rather than changed entity state");
-            scene.updateVisibility();scene.render();require(scene.screen!=before,"Next visibility pass publishes changed sprite positions");
+            scene.updateVisibility();scene.render();require(scene.screen==before,"Preparing the next sprite list does not change the visible frame");
+            scene.publishVideo();scene.render();require(scene.screen!=before,"Next display publication exposes prepared sprite positions");
             scene.ticks=0;bool oldDirection=scene.reverseSprites;scene.updateVisibility();
             require(scene.reverseSprites!=oldDirection,"Slot direction toggles per visibility pass independently of the global frame value");
         }
@@ -68,6 +69,16 @@ int runSelfTests(const Assets& assets) {
         require(assets.levels[3].objects.size()==46,"Very hard placement count");
         Game g(assets);g.start(0);
         require(g.entities[0].x==0x1290&&g.entities[0].y==0x150,"Original player origin");
+        {
+            Game contact(assets);contact.start(0);auto& player=contact.entities[0];
+            player.pose=24;player.flags=255;player.animDone=false;player.frameWaiting=true;
+            contact.entities[1].alive=true;contact.entities[1].collision=1;
+            contact.collideWith(0,1);
+            require(player.handler==Handler::BalloonRide&&player.frame==18&&player.flags==31&&player.animDone&&!player.frameWaiting,"Balloon catch cancels animation and dynamic-frame wait through 3d15");
+            player.handler=Handler::Falling;player.vy=0;player.animDone=false;player.frameWaiting=true;
+            contact.entities[1].collision=3;contact.held=Right;contact.collideWith(0,1);
+            require(player.handler==Handler::Rope&&player.frame==19&&player.flags==63&&!player.animDone&&!player.frameWaiting,"Rope catch clears stale transfer wait before starting its new animation");
+        }
         Entity p;p.x=0x1040;p.vx=-10;p.vy=24;p.y=0;
         g.moveFalling(p);require(p.x==0x1040&&p.y==24,"Left clamp / fixed point fall");
         p.x=0x1880;p.vx=10;g.moveFalling(p);require(p.x==0x1880,"Right clamp");

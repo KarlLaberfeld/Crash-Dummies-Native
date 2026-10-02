@@ -142,7 +142,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bool tests=argc>1&&std::wstring(argv[1])==L"--self-test";
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool audioSmoke=argc>1&&std::wstring(argv[1])==L"--audio-smoke-test";
-        bool smoke=audioSmoke||(argc>1&&std::wstring(argv[1])==L"--smoke-test");
+        bool uiSmoke=argc>1&&std::wstring(argv[1])==L"--ui-smoke-test";
+        bool smoke=uiSmoke||audioSmoke||(argc>1&&std::wstring(argv[1])==L"--smoke-test");
         LocalFree(argv);
         if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int audioResult=ticd::runAudioTests(*audioAssets);int spriteResult=ticd::runSpriteTests();int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:audioResult?audioResult:spriteResult?spriteResult:playthroughResult;}
         if(capture){
@@ -217,12 +218,41 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         // One gameplay update per DMG frame. No emulated CPU, interrupts or PPU.
         constexpr double step=70224.0/4194304.0;
         MSG message={};bool running=true;int smokeTicks=0;
+        FILE* uiLog=uiSmoke?_wfopen((directory+L"ui-window-test.txt").c_str(),L"w"):nullptr;
+        bool uiFailed=uiSmoke&&!uiLog;int pausedY=0;
+        auto checkWindow=[&](bool ok,const char* label){if(!ok)uiFailed=true;if(uiLog){fprintf(uiLog,"%s: %s\n",ok?"PASS":"FAIL",label);fflush(uiLog);}};
         while(running){
             while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(message.message==WM_QUIT){running=false;break;}TranslateMessage(&message);DispatchMessageW(&message);}
             if(!running)break;
             auto now=Clock::now();accumulator+=std::min(0.1,std::chrono::duration<double>(now-previousTime).count());previousTime=now;
             bool changed=false;
             while(accumulator>=step){
+                if(uiSmoke){
+                    auto down=[&](int key){SendMessageW(window,WM_KEYDOWN,key,0);};
+                    auto up=[&](int key){SendMessageW(window,WM_KEYUP,key,0);};
+                    switch(smokeTicks){
+                    case 380:checkWindow(ui->phase==ticd::UiPhase::Title,"Windows loop completes boot and title opening");down(VK_RETURN);break;
+                    case 381:case 501:case 561:case 581:case 641:up(VK_RETURN);break;
+                    case 500:checkWindow(ui->phase==ticd::UiPhase::Instructions,"Enter starts campaign instructions");down(VK_RETURN);break;
+                    case 550:checkWindow(ui->phase==ticd::UiPhase::Playing&&game->ticks>0,"Enter reaches native Roof gameplay");break;
+                    case 560:down(VK_RETURN);pausedY=game->entities[0].y;checkWindow(paused(),"Enter pauses gameplay");break;
+                    case 580:checkWindow(paused()&&game->entities[0].y==pausedY&&sound->paused,"Pause freezes player and audio sequencer");down(VK_RETURN);break;
+                    case 600:checkWindow(!paused()&&!sound->paused,"Enter resumes gameplay and audio");break;
+                    case 620:down(VK_F6);break;case 621:case 801:up(VK_F6);break;
+                    case 630:checkWindow(ui->phase==ticd::UiPhase::Title&&!ui->campaign.active,"F6 abandons campaign and returns to title");down(VK_F2);break;
+                    case 631:up(VK_F2);break;case 640:down(VK_RETURN);break;
+                    case 680:checkWindow(developerMode&&selectedStunt==1&&air->started&&air->ticks>0,"Development selection starts native Air through Windows keys");break;
+                    case 700:down(VK_ESCAPE);break;case 701:case 713:case 741:up(VK_ESCAPE);break;
+                    case 710:checkWindow(paused(),"Escape pauses development gameplay");break;
+                    case 712:down(VK_ESCAPE);break;
+                    case 720:checkWindow(!paused(),"Escape resumes development gameplay");down('Z');SendMessageW(window,WM_KILLFOCUS,0,0);checkWindow(paused()&&!keys['Z'],"Focus loss pauses and releases held keys");break;
+                    case 740:down(VK_ESCAPE);break;
+                    case 760:{SetWindowPos(window,nullptr,0,0,420,450,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);RECT r{};GetClientRect(window,&r);checkWindow(r.right>0&&r.bottom>0,"Small window retains a usable drawing area");InvalidateRect(window,nullptr,FALSE);UpdateWindow(window);break;}
+                    case 780:SetWindowPos(window,nullptr,0,0,980,800,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);InvalidateRect(window,nullptr,FALSE);UpdateWindow(window);break;
+                    case 800:down(VK_F6);break;
+                    case 820:checkWindow(!developerMode&&ui->phase==ticd::UiPhase::Title,"Return from development mode restores campaign title");break;
+                    }
+                }
                 int input=buttons();
                 if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&paused();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
                     if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
@@ -248,6 +278,12 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         else{game->render(false);ui->outroScene=game->screen;}
                         if(selectedStunt==4)ui->randomState=cruise->randomState;else if(selectedStunt==3)ui->randomState=bomb->randomState;else if(selectedStunt==1)ui->randomState=air->randomState;
                         ui->finishStunt(result(),pay,seconds,lives,selectedStunt==2?ski->collected:0);
+                        // 0400's final wait publishes the last prepared sprite
+                        // list before fading. FFAE is already clear: no extra
+                        // dynamic resource-transfer work or gameplay update.
+                        auto prepareOutro=[&](auto& stunt){stunt.publishVideo();stunt.render(false);ui->outroNextScene=stunt.screen;};
+                        if(selectedStunt==4)prepareOutro(*cruise);else if(selectedStunt==3)prepareOutro(*bomb);
+                        else if(selectedStunt==2)prepareOutro(*ski);else if(selectedStunt==1)prepareOutro(*air);else prepareOutro(*game);
                     }
                 }
                 int music=1;
@@ -283,12 +319,13 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 if(audioPaused!=sound->paused)audioDevice.discardQueued();
                 sound->setPaused(audioPaused);
                 sound->tick();sound->render(audioSamples);audioDevice.submit(audioSamples);
-                accumulator-=step;changed=true;if(smoke&&++smokeTicks==(audioSmoke?300:10))DestroyWindow(window);
+                accumulator-=step;changed=true;if(smoke&&++smokeTicks==(uiSmoke?840:audioSmoke?300:10))DestroyWindow(window);
             }
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
         }
         if(smoke){FILE* log=_wfopen((directory+L"audio-output.txt").c_str(),L"w");if(log){fprintf(log,"Windows output device: %s; dropped buffers: %u\n",audioDevice.available()?"available":"unavailable",audioDevice.droppedFrames);fclose(log);}}
-        DeleteObject(headingFont);DeleteObject(bodyFont);DeleteObject(smallFont);return 0;
+        if(uiLog){fprintf(uiLog,"%s: automated Windows messages; not a human visual acceptance test\n",uiFailed?"FAIL":"PASS");fclose(uiLog);}
+        DeleteObject(headingFont);DeleteObject(bodyFont);DeleteObject(smallFont);return uiFailed?1:0;
     }catch(const std::exception& e){MessageBoxA(nullptr,e.what(),"Crash Dummies - Startfehler",MB_ICONERROR);return 1;}
 }

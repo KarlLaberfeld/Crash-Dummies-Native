@@ -76,6 +76,7 @@ struct UiFlow {
     bool instructionAlternate=false;
     bool gameplayPaused=false;
     std::array<uint8_t,Width*Height> outroScene{};
+    std::array<uint8_t,Width*Height> outroNextScene{};
     int resultStage=0,resultWait=0,displaySavings=0,displayPay=0,displayTime=0;
     int resultFade=0,resultHold=0;
     int endingEnter=0; // Result fade out (32), setup wait (1), ending fade in (32).

@@ -135,6 +135,7 @@ void UiFlow::advanceText(){
 }
 void UiFlow::finishStunt(int flags,int earned,int seconds,int extraLives,int flagsCollected){
     if(phase!=UiPhase::Playing)throw std::logic_error("Stunt result outside gameplay");
+    outroNextScene=outroScene;
     displaySavings=campaign.players[campaign.current].savings;
     campaign.settle(flags,earned,seconds,extraLives);flagsHit=flagsCollected;
     displayPay=earned%1000000;displayTime=(flags&64)?0:seconds;
@@ -399,7 +400,7 @@ std::array<uint8_t,Width*Height> UiFlow::render(bool objects) const{
     }
     if(phase==UiPhase::StuntOutro){
         if(!phaseTicks)return renderGameplay(outroScene,false);
-        auto screen=outroScene;int palette=assets.fadePalettes[std::min(7,(phaseTicks-1)/4)];
+        auto screen=outroNextScene;int palette=assets.fadePalettes[std::min(7,(phaseTicks-1)/4)];
         for(auto& shade:screen)shade=(palette>>(shade*2))&3;
         return screen;
     }

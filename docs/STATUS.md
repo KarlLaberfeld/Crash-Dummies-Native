@@ -812,3 +812,70 @@ with transfer/publication scheduling and original-reference evidence, followed
 by broader human/Windows acceptance and final packaging. Exact hardware/audio
 equivalence remains unverified. The port is not complete; automatic continuation
 remains active. Original ROM, extracted data and diagnostic outputs stay local.
+
+## Visible-frame publication and Windows preview validation — 2026-10-02
+
+Previous implementation: remote `70f0a7f1bec35263b3ee3bfe0c95392003c97fbc`,
+tree `979f295ee3595705c2fd3111097e90e19cf2e42a`, local `b36f60b`.
+The user explicitly renewed work on all remaining points. Earlier hourly
+checks had stopped at polling because the saved prompt required a new limit
+interruption. The existing heartbeat now continues unfinished work when idle
+and usage is available, while retaining quiet notifications and this project.
+
+All five stunts now separate prepared objects/camera from the visible frame,
+following the original display-before-entity-update order. Terminal rendering
+also preserves the old visible scene until the final wait publishes the last
+prepared scene. Source notes explain remaining partial-transfer, pause-entry
+and HUD/fade alignment limitations; exact hardware equivalence is not claimed.
+
+Full validation passed in local/video-publication-build.log: 25 Python tests,
+every native suite and a 20-win/20-attempt campaign (savings 8,138, final-stunt
+global update 52,671). Roof now has 48,904 assertions. The final distinct-outro
+scene regression passes all 712 UI assertions in
+local/video-publication-ui-test.txt; the final EXE was rebuilt afterward.
+Air's 64-phase sweep is unchanged (local/air-phase-audit-publication.txt), so
+the known crash stall is still unresolved.
+
+The new --ui-smoke-test exercises the real Windows message handlers over 840
+updates. All 13 checks pass, including keyboard/menu flow, pause with audio,
+focus loss, resize and title return. package.ps1 generates isolated preview
+ZIPs with manifests/hashes. Both package policies were verified; the asset-free
+package was extracted into a path with spaces, prepared using the local ROM,
+and successfully launched/tested with a different working directory. The
+audio output device was available with zero dropped buffers. A missing helper
+dependency found by the initial packaging test was fixed before rerunning it.
+
+docs/ACCEPTANCE.md records release gates and distinguishes automated checks
+from original-reference and human evidence. External manual/longplay candidates
+were located, but manual retrieval failed; no completed image/audio comparison
+is claimed. Human playthroughs, full two-player acceptance, another Windows
+installation, original-reference timing/audio validation and the Air stall
+remain open. Packages are explicitly previews, not final releases. ROM,
+extracted data, ZIPs and captures stay local. Automatic work remains active.
+
+### Expanded campaign acceptance and Roof stall fix
+
+The full two-player acceptance run found an additional Roof stall: a balloon
+catch retained a dynamic-frame animation wait. The original 00:3d15 cancels
+that wait and the animation; Roof had omitted those side effects. Direct
+frame changes now use the same semantics as the other stunt engines. A local
+reproducer starting difficulty 3, player 2 at global update 27,181 previously
+ran below the level indefinitely; it now completes successfully. New collision
+regressions cover both balloon and rope catches. See REVERSE_ENGINEERING.md.
+
+Final validation in local/roof-reset-campaign-build.log passes all 25 Python
+tests and every native suite (Roof 48,906; UI 712). The campaign harness now
+checks three complete runs through ending/name entry/title return:
+
+- Single player: 20 wins, no failures, savings 7,987.
+- Both players finish: 20 wins each, two/three failures, savings 9,226/8,754.
+- Player one eliminated after five losses; player two finishes all 20 stunts
+  without failure, savings 8,109.
+
+The differing scores/phases supersede the earlier single-player baseline for
+this source revision. Actual gameplay buttons drive the measured runs, with
+no injected outcomes or extra lives. Player alternation, other-player state
+isolation and global counter wrap are exercised. Full two-player automated
+acceptance is now complete; human/original-reference acceptance remains open.
+The rebuilt EXE also passes all 13 Windows message tests with zero dropped
+audio buffers. The Air stall is unchanged and remains a release blocker.

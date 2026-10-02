@@ -55,7 +55,9 @@ struct Game {
     const Assets& assets;
     std::array<Entity,16> entities{};
     std::vector<Placement> placements;
-    SpriteLayer sprites{false};
+    SpriteLayer sprites{false},visibleSprites{false};
+    int visibleCamera=0;
+
     bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=60,secondTicks=0,money=0,remaining=0;
@@ -76,6 +78,7 @@ struct Game {
     void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);
     void animate(int i);
+    void setFrame(int i,int frame,int flags=0);
     void startAnimation(int i,int sequence,bool force=false);
     void update(int i);
     void collide(int i);
@@ -89,6 +92,7 @@ struct Game {
     void finish(int i,int code);
     void land(int i);
     void tickTimer();
+    void publishVideo();
     void beginVideoTick();
     void finishVideoTick(int oldFrame,int oldFlags);
     void updateVisibility();

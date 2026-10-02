@@ -54,8 +54,10 @@ int runUiTests(const UiAssets& assets){
             UiFlow outro(assets);outro.campaign.start(false);outro.phase=UiPhase::Playing;outro.gameplayFade=0;outro.outroScene=scene;
             outro.finishStunt(success?3:1,20,10);
             require(outro.phase==UiPhase::StuntOutro&&outro.render()==scene,"Terminal result preserves the full last scene for its initial wait");
+            auto prepared=scene;for(auto& shade:prepared)shade=3-shade;outro.outroNextScene=prepared;
+            require(outro.render()==scene,"Prepared terminal sprite list remains invisible before the final display wait");
             for(int frame=1;frame<=32;++frame){outro.step(frame%2?UiStart|A|B:0);
-                auto expected=scene;int palette=exitPalette[(frame-1)/4];for(auto& shade:expected)shade=(palette>>(shade*2))&3;
+                auto expected=prepared;int palette=exitPalette[(frame-1)/4];for(auto& shade:expected)shade=(palette>>(shade*2))&3;
                 require(outro.phase==UiPhase::StuntOutro&&outro.render()==expected,"Stunt exit waits once before its four-update palette steps; input cannot skip it");
             }
             outro.step(0);

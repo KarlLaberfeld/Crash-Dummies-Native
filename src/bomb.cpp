@@ -120,8 +120,13 @@ void BombGame::start(int level,int player){
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
     spawn(45,0,256);for(int x:{192,1088,1984})for(int y:{384,896})spawn(46,x,y);
     hudMap=assets.hudMap;refreshHud();for(int j=0;j<5;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
+    publishVideo();
 }
+// 2430 publishes prepared objects; the display callback reads scroll before
+// 03db runs the next entity update. Keep visible and prepared state separate.
+void BombGame::publishVideo(){visibleSprites=sprites;}
 void BombGame::beginVideoTick(){
+    publishVideo();
     // Bomb's room never scrolls: 00:10e7 can transfer four chunks each tick.
     if(transferRemaining){transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}}
@@ -238,7 +243,7 @@ void BombGame::render(bool developmentOverlay){
     auto room=assets.layout;for(int l=0;l<3;++l){int x=2+7*l,total=displayTotals[l];room[15*20+x]=47+2*(total/10);room[15*20+x+1]=67+2*(total%10);
         room[16*20+x]=room[15*20+x]+1;room[16*20+x+1]=room[15*20+x+1]+1;}
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x)screen[y*Width+x]=assets.tiles[room[(y/8)*20+x/8]*64+(y&7)*8+(x&7)];
-    if(started){sprites.draw(screen);
+    if(started){visibleSprites.draw(screen);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);text(8,72,"NATIVE PORT - WIP");text(32,88,"BOMB FACTORY");text(16,104,"ENTER TO START");text(16,120,"1-4 DIFFICULTY");}
     if(developmentOverlay&&(paused||result)){for(int y=48;y<104;++y)std::fill_n(screen.begin()+y*Width+8,144,0);text(40,56,paused?"PAUSED":"STUNT END");if(result)text(16,72,(result&2)?"TARGET REACHED":"TRY AGAIN");text(16,88,paused?"ESC TO RESUME":"R TO RESTART");}

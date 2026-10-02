@@ -52,7 +52,9 @@ struct AirGame {
     std::array<uint8_t,20> hudMap{};
     std::array<uint8_t,13> hudValues{};
     std::array<int,6> probes{};
-    SpriteLayer sprites{false};
+    SpriteLayer sprites{false},visibleSprites{false};
+    int visibleCameraX=0,visibleCameraY=0;
+
     bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;
     int difficulty=0,ticks=0,seconds=0,secondTicks=0,money=0,livesEarned=0;
@@ -76,6 +78,7 @@ struct AirGame {
     void movePlayer();
     void input();
     void lookupRate();
+    void publishVideo();
     void beginVideoTick();
     void finishVideoTick(int oldFrame,int oldFlags);
     int tileAt(int x,int y) const;
