@@ -879,3 +879,23 @@ isolation and global counter wrap are exercised. Full two-player automated
 acceptance is now complete; human/original-reference acceptance remains open.
 The rebuilt EXE also passes all 13 Windows message tests with zero dropped
 audio buffers. The Air stall is unchanged and remains a release blocker.
+
+### Publication resumed after usage reset — 2026-10-02
+
+The automatic approval service exhausted its usage allowance after creating
+an unpublished GitHub tree. No branch update occurred at that point. After
+usage became available, publication resumed through the same approval path.
+The tested code checkpoint is local `b70af44`, published on private main as
+`08d8fff45be1d53a8de215c2d6c92ef71e589daf` (tree
+`af207caa1019e0187448ea5b5604043dba411c01`).
+
+A ready-to-run local preview is at
+`dist/CrashDummies-preview-b70af44-6462a40b.zip`. Its manifest identifies a
+clean source revision; all listed file hashes were verified. The packaged
+EXE passed the 13 Windows checks when launched from a different working
+directory, with the output device available and zero dropped buffers.
+This package includes extracted assets for local use and was not uploaded.
+The repository contains English source documentation and extraction tools.
+The project remains incomplete; the next gameplay blocker is the Air crash
+stall, followed by the outstanding reference/human/second-host checks listed
+in ACCEPTANCE.md. Automatic continuation remains active.
