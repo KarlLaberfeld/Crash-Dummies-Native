@@ -35,19 +35,24 @@ template<class Stunt> bool verifyStuntOutroHud(Stunt& game,const UiAssets& uiAss
 template<class Stunt> bool verifyPausePublication(Stunt& game,const UiAssets& uiAssets){
  game.start(0);game.render(false);auto before=game.screen;
  Frame marker;marker.meta={};SpritePiece piece;piece.colors.fill(before[40*Width+24]==3?1:3);marker.pieces.push_back(piece);
- game.sprites.add(marker,24,40,0);game.transferRemaining=8;game.transferState=1;
- game.transferFrame=game.entities[0].frame;game.transferFlags=game.entities[0].flags;
+ game.sprites.add(marker,24,40,0);game.transferState=1;
+ // Use a real two-update resource, rather than an impossible eight-chunk
+ // transfer for a frame whose payload may contain fewer chunks.
+ game.transferFrame=0;
+ while(game.assets.transferChunks[game.transferFrame]<=4||game.assets.transferChunks[game.transferFrame]>8)++game.transferFrame;
+ int chunks=game.assets.transferChunks[game.transferFrame];game.transferRemaining=chunks;
+ game.transferFlags=game.entities[0].flags;
  // Isolate the pending display transfer from new requests made by intro logic.
  game.entities[0].handler=decltype(game.entities[0].handler)::Idle;
  if constexpr(!std::is_same_v<Stunt,BombGame>)game.mapTransfer=false;
  int x=game.entities[0].x,y=game.entities[0].y;
  UiFlow flow(uiAssets);flow.phase=UiPhase::Playing;flow.gameplayFade=8;flow.ticks=1;
  game.paused=true;flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);game.render(false);
- if(game.screen==before||!game.videoTickPrepared||game.transferRemaining!=4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
+ if(game.screen==before||!game.videoTickPrepared||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
  for(int n=0;n<3;++n){flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);}
- if(game.entities[0].x!=x||game.entities[0].y!=y||game.transferRemaining!=4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
+ if(game.entities[0].x!=x||game.entities[0].y!=y||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
  game.paused=false;flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);
- if(game.videoTickPrepared||game.transferRemaining!=4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
+ if(game.videoTickPrepared||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
  if constexpr(!std::is_same_v<Stunt,BombGame>)game.mapTransfer=false;
  flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);
  if(game.transferRemaining||game.hudCursor!=2)return false;

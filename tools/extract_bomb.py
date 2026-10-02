@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import json
 import struct
-from extract import pack_frames, address, read_rom, tile, sprite_frames, animation_records, roof_hud
+from extract import pack_frames, pack_sprite_resources, address, read_rom, tile, sprite_frames, animation_records, roof_hud
 
 HANDLERS={0x23e2:0,0x6ef2:1,0x737c:2,0x71b8:3,0x71c2:4,0x717c:5,
           0x7190:5,0x71a4:5,0x3bb3:6,0x727d:7,0x71f8:8,0x59be:9,0x59b6:10}
@@ -12,7 +12,7 @@ ANIMATIONS=[0x704e,0x705d,0x7094,0x70ac,0x720c,0x72e6]
 
 def extract_bomb(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    payload=bytearray(b'TICDBOM2')
+    payload=bytearray(b'TICDBOM3')
     for i in range(87):payload+=tile(rom,address(6,0x57e0)+i*16)
     room=rom[address(6,0x5d50):address(6,0x5d50)+7*17]
     layout=bytes(room[y*7+x%7] for y in range(17) for x in range(20))
@@ -39,8 +39,9 @@ def extract_bomb(rom,output):
     payload+=rom[0x6fad:0x6fb9]+rom[0x6fe4:0x6ff0]+rom[0x7007:0x700f]+rom[0x701e:0x7026]
     atlas,_,_=roof_hud(rom)
     payload+=atlas+rom[0x307a:0x308e]+bytes(rom[0x3071+i*2] for i in range(5))
+    payload+=pack_sprite_resources(rom,20,0xeb3d,0xeaed,9)
     (output/'bomb.dat').write_bytes(payload)
-    manifest=dict(format='TICDBOM2',frames=33,levels=levels)
+    manifest=dict(format='TICDBOM3',frames=33,levels=levels)
     (output/'bomb-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     return manifest
 

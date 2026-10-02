@@ -26,7 +26,7 @@ struct Reader {
 };
 Assets Assets::load(const std::wstring& path) {
     Reader r(path);char magic[8];r.raw(magic,8);
-    if(memcmp(magic,"TICDNAT5",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
+    if(memcmp(magic,"TICDNAT6",8))throw std::runtime_error("Falsches Datenformat. Bitte Daten mit build.ps1 neu extrahieren.");
     Assets a;r.raw(a.title.data(),a.title.size());r.raw(a.font.data(),a.font.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& level:a.levels){
@@ -54,6 +54,7 @@ Assets Assets::load(const std::wstring& path) {
     if(!validPixels(a.title,false)||!validPixels(a.font,false)||!validPixels(a.hudTiles,false))throw std::runtime_error("Ungueltige Bilddaten.");
     for(const auto& f:a.frames)if(!validPixels(f.pixels,true))throw std::runtime_error("Ungueltige Spritedaten.");
     for(const auto& l:a.levels)if(!validPixels(l.pixels,false))throw std::runtime_error("Ungueltige Hintergrunddaten.");
+    readSpriteResources(r,a.frames,35,8);
     if(r.pos!=r.bytes.size())throw std::runtime_error("Unerwartete Daten am Dateiende.");
     return a;
 }
@@ -69,6 +70,7 @@ void Game::start(int level,int player) {
     transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=camera+128;mapTransfer=true;
     spawn(0,0x1290,0x0150);
     spawn(15,0x1a00,0);
+    spriteResources.reset(assets.frames[entities[0].frame]);
     hudMap=assets.hudMap;hudCursor=0;refreshHud();
     for(int j=0;j<13;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
@@ -168,6 +170,7 @@ void Game::publishVideo(){visibleSprites=sprites;visibleCamera=camera;}
 void Game::beginVideoTick() {
     publishVideo();
     if(transferRemaining&&!mapTransfer){
+        spriteResources.advance(assets.frames[transferFrame],transferRemaining);
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
     }
@@ -438,7 +441,7 @@ void Game::updateVisibility() {
                 if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;
                 destroy(i);
             }else e.offscreen=true;
-        }else {sprites.add(assets.frames[e.frame],e.x/16-256,e.y/16-camera/16,e.flags);if(sprites.exhausted())return;}
+        }else {sprites.add(assets.frames[e.frame],e.x/16-256,e.y/16-camera/16,e.flags,e.frame<35?&spriteResources:nullptr);if(sprites.exhausted())return;}
     }
 }
 

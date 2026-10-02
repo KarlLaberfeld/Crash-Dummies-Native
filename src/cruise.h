@@ -28,6 +28,7 @@ struct CruiseGame {
     std::array<uint8_t,Width*Height> screen{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,7> hudValues{};
     SpriteLayer sprites{false},visibleSprites{false};
+    SpriteResources spriteResources;
     int visibleCameraX=0,visibleCameraY=0;
 
     bool reverseSprites=false;

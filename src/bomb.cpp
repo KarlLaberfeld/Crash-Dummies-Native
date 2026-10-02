@@ -86,7 +86,7 @@ void BombGame::text(int x,int y,const std::string& value){
 
 
 BombAssets BombAssets::load(const std::wstring& path){
-    BombReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDBOM2",8));
+    BombReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDBOM3",8));
     BombAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.layout.data(),340);
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){for(auto& v:l.speeds)v=r.byte();l.quota=r.byte();r.raw(l.distribution.data(),32);
@@ -104,6 +104,7 @@ BombAssets BombAssets::load(const std::wstring& path){
     r.raw(a.hudTiles.data(),a.hudTiles.size());r.raw(a.hudMap.data(),20);r.raw(a.hudColumns.data(),5);
     for(int v:a.tiles)check(v<4);for(int v:a.hudTiles)check(v<4);for(int v:a.layout)check(v<87);
     for(int v:a.hudColumns)check(v<20);for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);
+    readSpriteResources(r,a.frames,20,9);
     check(r.pos==r.data.size());return a;
 }
 int BombGame::spawn(int kind,int x,int y){
@@ -119,6 +120,7 @@ void BombGame::start(int level,int player){
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;videoTickPrepared=false;
     spawn(45,0,256);for(int x:{192,1088,1984})for(int y:{384,896})spawn(46,x,y);
+    spriteResources.reset(assets.frames[entities[0].frame]);
     hudMap=assets.hudMap;refreshHud();for(int j=0;j<5;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
 }
@@ -128,7 +130,8 @@ void BombGame::publishVideo(){visibleSprites=sprites;}
 void BombGame::beginVideoTick(){
     publishVideo();
     // Bomb's room never scrolls: 00:10e7 can transfer four chunks each tick.
-    if(transferRemaining){transferRemaining=std::max(0,transferRemaining-4);
+    if(transferRemaining){spriteResources.advance(assets.frames[transferFrame],transferRemaining);
+        transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}}
 }
 void BombGame::finishVideoTick(int oldFrame,int oldFlags){
@@ -144,7 +147,7 @@ void BombGame::updateVisibility(){
     for(auto& e:entities)if(e.alive){e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;int x=s16(e.x&0xfff0)/16+s8(m[0]),y=s16(e.y&0xfff0)/16+s8(m[1]);
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){if(e.flags&16)e.alive=false;else e.offscreen=true;}
-        else {sprites.add(assets.frames[e.frame],s16(e.x&0xfff0)/16,s16(e.y&0xfff0)/16,e.flags);if(sprites.exhausted())return;}
+        else {sprites.add(assets.frames[e.frame],s16(e.x&0xfff0)/16,s16(e.y&0xfff0)/16,e.flags,e.frame<20?&spriteResources:nullptr);if(sprites.exhausted())return;}
     }
 }
 void BombGame::movePlayer(bool down){

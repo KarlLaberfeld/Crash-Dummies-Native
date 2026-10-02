@@ -99,18 +99,21 @@ def sprite_frames(rom,count,pointers,descriptors,dynamic_count,static_base,inclu
         for x,y,idx,flags in pieces:
             if number<dynamic_count:
                 desc=descriptors+number*4
-                _,bank,ptr=struct.unpack_from('<BBH',rom,desc)
+                chunks,bank,ptr=struct.unpack_from('<BBH',rom,desc)
                 base=address(bank,ptr)+(idx & ~1)*16
             else:
                 base=static_base+(idx & ~1)*16
-            raw=tile(rom,base)+tile(rom,base+16)
+            # A zero-length descriptor reuses resident tiles. Its ROM pointer
+            # is not a fresh resource; the native renderer resolves the cache.
+            resident_only=number<dynamic_count and not chunks
+            raw=bytes(128) if resident_only else tile(rom,base)+tile(rom,base+16)
             decoded.append((x,y,flags,raw))
             for py in range(16):
                 sy=15-py if flags&64 else py
-                row=tile(rom,base+(sy//8)*16)
+                row=raw[sy*8:sy*8+8]
                 for px in range(8):
                     sx=7-px if flags&32 else px
-                    value=row[(sy%8)*8+sx]
+                    value=row[sx]
                     # 00:1cdb/1cf3 add the half extents before emitting OAM.
                     # The hardware's +8/+16 coordinate bias cancels on screen.
                     dx=x+px+48+signed(header[0])+header[6]
@@ -129,6 +132,29 @@ def pack_frames(frames):
     for header,pixels,pieces in frames:
         payload+=header+pixels+bytes([len(pieces)])
         for x,y,flags,raw in pieces:payload+=struct.pack("<bbB",x,y,flags)+raw
+    return payload
+
+def pack_sprite_resources(rom,count,pointers,descriptors,capacity):
+    """Decoded resources and shared piece indices for 185d / 1897 / 1c1e.
+
+    Include chunks not referenced by the player's own layout: Roof's detached
+    limbs refer to chunks loaded by the preceding landing frame.
+    """
+    payload=bytearray()
+    for number in range(count):
+        chunks,bank,pointer=struct.unpack_from('<BBH',rom,descriptors+number*4)
+        if chunks>capacity:raise ValueError('Sprite resource exceeds its buffer')
+        payload.append(chunks)
+        for chunk in range(chunks):
+            base=address(bank,pointer)+chunk*32
+            payload+=tile(rom,base)+tile(rom,base+16)
+        pos=address(3,struct.unpack_from('<H',rom,pointers+number*2)[0])+8
+        for _ in range(40):
+            if rom[pos]==255:break
+            chunk=(rom[pos+2]&254)//2;pos+=4
+            if chunk>=capacity or (chunks and chunk>=chunks):raise ValueError('Invalid resource piece index')
+            payload.append(chunk)
+        else:raise ValueError('Unterminated sprite')
     return payload
 
 def roof_map(rom, repeats):
@@ -182,12 +208,12 @@ def roof_hud(rom):
 def extract(rom, output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     frames=roof_frames(rom,True)
-    payload=bytearray(b'TICDNAT5')
+    payload=bytearray(b'TICDNAT6')
     payload+=title_image(rom)
     # Font is a standalone decoded tile atlas; no ROM instruction bytes.
     for i in range(52):payload+=tile(rom,0xc000+i*16)
     payload+=pack_frames(frames)
-    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT5','roof_difficulties':[]}
+    manifest={'source_sha256':ROM_SHA256,'format':'TICDNAT6','roof_difficulties':[]}
     for difficulty in range(4):
         ptr,repeats,quota,timer,fire_hits=struct.unpack_from('<HBBBB',rom,0x9b1+difficulty*6)
         height,pixels=roof_map(rom,repeats)
@@ -211,6 +237,7 @@ def extract(rom, output):
     for data in roof_hud(rom):payload+=data
     payload+=rom[0x5f8f:0x5f97]
     payload+=rom[0xd8d0:0xd95c:4]
+    payload+=pack_sprite_resources(rom,35,0xd95c,0xd8d0,8)
     (output/'crash.dat').write_bytes(payload)
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

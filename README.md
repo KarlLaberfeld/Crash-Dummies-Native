@@ -21,7 +21,9 @@ Native music and sound output now cover the original 14 songs and 26 effects,
 with animation and key gameplay events connected; exact audio equivalence is
 not yet established. Gameplay rendering now preserves individual sprite pieces,
 original palette/overlap rules, the 40-piece total limit and the ten-piece limit
-per image row. Exact presentation phase still needs reference validation.
+per image row. Dynamic graphics use the original two alternating resource
+buffers, including the shared body-part graphics after a Roof landing.
+Exact presentation phase still needs reference validation.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline

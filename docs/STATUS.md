@@ -1,4 +1,4 @@
-# Project status â€” October 1, 2026
+# Project status - October 2, 2026
 
 ## Objective
 
@@ -994,3 +994,38 @@ Air's crash deadline, partial-tile display, original audio/image comparisons
 and outstanding human/second-host acceptance remain open. No final version
 is claimed, and the automatic continuation remains active. Local ROM/data,
 reference artifacts and generated binaries remain excluded from GitHub.
+
+## Shared sprite resources and Roof landing graphics — 2026-10-02
+
+A new transfer-destination hypothesis identified the original two-buffer scheme.
+Ordinary uploads fill the inactive resource and swap only on completion, so
+partial player graphics are not expected from that path. The audit also found
+an actual extraction/rendering error: Roof frames 30-32 have no independent
+upload and use the three extra chunks loaded with landing frame 29. The old
+extractor incorrectly treated their descriptor pointers as fresh graphics.
+
+All five native stunts now retain decoded resource buffers, honor upload
+replacement and unwritten tails, and snapshot sprite colors for publication.
+Roof's detached body parts resolve shared resident data. No CPU emulation was
+introduced and gameplay scheduling, collisions and the Air deadline are unchanged.
+Updated local formats: TICDNAT6, TICDAIR5, TICDSKI3, TICDBOM3 and TICDCRU3.
+Re-extract the five gameplay packages when updating the executable. UI/audio
+formats are unchanged. See REVERSE_ENGINEERING.md for source addresses and limits.
+
+Validation: local/shared-sprite-build.log passes 26 Python tests, every native
+suite and all three full campaign scenarios. Results remain 7,987 (solo),
+9,226/8,754 (both complete) and 0/8,109 (first player eliminated). Additional
+focused landing/resource regressions pass 48,917 Roof assertions and 30 sprite
+assertions (local/self-test.txt and local/sprite-test.txt). Assertion counts
+include repeated replay invariants, not independent scenarios. The final EXE
+was rebuilt (local/shared-sprite-final-build.log) and passes all 13 Windows UI
+checks. Tests and source analysis establish this reconstruction correction;
+they do not establish original-hardware image/audio parity.
+
+The Air crash stall, matched original captures, human playthrough, physical
+audio-device removal and a second Windows installation remain release gates.
+Do not rerun the unchanged Air phase sweep without a new timing hypothesis.
+The new resource evidence narrows the partial-tile issue; exact sub-frame
+publication and unreferenced startup buffer contents still need references.
+The project and repository remain private and incomplete. Automatic continuation
+stays active. ROM, decoded assets, captures, binaries and preview ZIPs stay local.

@@ -109,6 +109,7 @@ void SkiGame::beginVideoTick(){
     // 00:0ebc / 00:1897: a map row has priority; otherwise copy at most four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
     if(transferRemaining&&!mapTransfer){
+        spriteResources.advance(assets.frames[transferFrame],transferRemaining);
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
     }
@@ -138,7 +139,7 @@ void SkiGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags,e.frame<13?&spriteResources:nullptr);if(sprites.exhausted())return;}
     }
 }
 
@@ -148,7 +149,7 @@ void SkiGame::text(int x,int y,const std::string& value){
 }
 
 SkiAssets SkiAssets::load(const std::wstring& path){
-    SkiReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDSKI2",8));
+    SkiReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDSKI3",8));
     SkiAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.quadrants.data(),256);r.raw(a.collision.data(),128);
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){
@@ -170,6 +171,7 @@ SkiAssets SkiAssets::load(const std::wstring& path){
     for(int v:a.tiles)check(v<4);for(int v:a.hudTiles)check(v<4);for(int v:a.quadrants)check(v<127);
     for(int v:a.hudColumns)check(v<20);for(int v:a.jumpFrames)check(v<39);
     for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);
+    readSpriteResources(r,a.frames,13,9);
     check(r.pos==r.data.size());return a;
 }
 void SkiGame::start(int level,int player){
@@ -179,6 +181,7 @@ void SkiGame::start(int level,int player){
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=128;mapTransfer=true;
     finishTimer=64;finishZone=false;started=true;paused=false;videoTickPrepared=false;spawn(35,cameraX+1024,0xff00);
+    spriteResources.reset(assets.frames[entities[0].frame]);
     hudMap=assets.hudMap;refreshHud();for(int j=0;j<7;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
 }

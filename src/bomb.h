@@ -28,6 +28,7 @@ struct BombGame {
     std::array<int,3> speeds{},totals{},spawnPending{},displayTotals{};
     std::array<uint8_t,20> hudMap{};std::array<uint8_t,5> hudValues{};
     SpriteLayer sprites{false},visibleSprites{false};
+    SpriteResources spriteResources;
 
     bool reverseSprites=false;
     int playerNumber=0,pendingSound=-1;

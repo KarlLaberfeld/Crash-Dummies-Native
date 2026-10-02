@@ -970,3 +970,44 @@ checks all five stunts with a just-earned score and pending resource transfer:
 the thousands digit reaches its HUD column within two cycles, while world
 position, timer and transfer accounting stay fixed. Exact hardware palette
 interaction and partial-tile display still require original references.
+
+## Shared dynamic sprite resources (00:185d / 1897 / 1c1e / 3f69)
+
+A new examination of the transfer destination, rather than its budget, shows
+that ordinary dynamic sprite uploads target the inactive resource. 3f69-3f7b
+XORs the current tile base with the stunt's buffer stride; 193e-1944 swaps that
+base only on completion. 1c1e uses the selected base for every dynamic entity,
+not just the player. Static entities use twice the stride (1c0d-1c20).
+The per-buffer capacities are eight 32-byte chunks for Roof, thirteen for Air,
+and nine for Ski/Bomb/Cruise. All nonempty descriptors and their piece indices
+fit those bounds. Thus progressive copying does not normally display a partly
+replaced player. The previously broad partial-tile caveat is narrowed by this
+source evidence; exact interrupt/scanline alignment still needs a reference.
+
+The former extractor incorrectly decoded Roof frames 30-32 as independent
+resources. Their descriptors have zero length and are never uploaded. Their
+single pieces instead select chunks 2, 3 and 4 from the shared active resource.
+Landing frame 29 uploads five chunks although its own layout uses only 0 and 1.
+Its three remaining chunks supply the detached body parts. The old extraction
+added each piece offset to the alias descriptor's already offset pointer,
+producing wrong graphics. Before the landing upload completes, these pieces
+can still refer to the previous active resource, as in the original pipeline.
+
+The five asset formats now append decoded chunk payloads and dynamic piece
+indices: TICDNAT6 / TICDAIR5 / TICDSKI3 / TICDBOM3 / TICDCRU3. Regenerate the
+local data. Resource-free aliases have a blank standalone offline preview;
+their native rendering resolves the currently resident data. No source bytes,
+ROM or generated graphics are added to Git. The runtime stores two sets of
+decoded colors, copies up to four chunks on each eligible display update and
+swaps only at completion. Replaced uploads restart at chunk zero and preserve
+unwritten contents. Prepared sprite lists own color snapshots, so copying a
+game for predictive input tests cannot retain pointers into another game's
+resource buffers. No CPU, address bus or video-memory execution is introduced.
+
+Tests independently decode all source chunks, verify capacity/index bounds,
+exercise partial/cancelled uploads and retained tails, check copied-game
+isolation, and verify the actual Roof landing/limb resource handoff. Existing
+map priority, animation waits and gameplay deadlines are unchanged. This is a
+rendering/data reconstruction fix, not a proposed repair for the Air stall.
+Unreferenced startup buffer contents and sub-frame hardware effects are not
+claimed to match without an original capture.

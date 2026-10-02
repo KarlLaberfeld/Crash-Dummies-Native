@@ -98,13 +98,42 @@ class LocalCartridge(unittest.TestCase):
         if not files:raise unittest.SkipTest('Local ROM not present; no copyrighted fixture in repository')
         cls.rom=extract.read_rom(files[0])
 
+    def test_sprite_resource_buffers_and_roof_limb_aliases(self):
+        configurations=[(35,0xd95c,0xd8d0,8),(12,0xe0bf,0xe08f,13),
+                        (13,0xe6f0,0xe6bc,9),(20,0xeb3d,0xeaed,9),(12,0xefd8,0xefa8,9)]
+        for count,pointers,descriptors,capacity in configurations:
+            packed=extract.pack_sprite_resources(self.rom,count,pointers,descriptors,capacity)
+            pos=0
+            for number in range(count):
+                chunks,bank,source=struct.unpack_from('<BBH',self.rom,descriptors+4*number)
+                self.assertEqual(packed[pos],chunks);pos+=1
+                self.assertLessEqual(chunks,capacity)
+                base=extract.address(bank,source)
+                for chunk in range(chunks):
+                    colors=[]
+                    for row in range(16):
+                        low,high=self.rom[base+chunk*32+row*2:base+chunk*32+row*2+2]
+                        colors.extend(((low>>bit)&1)+2*((high>>bit)&1) for bit in range(7,-1,-1))
+                    self.assertEqual(packed[pos:pos+128],bytes(colors));pos+=128
+                layout=extract.address(3,struct.unpack_from('<H',self.rom,pointers+2*number)[0])+8
+                while self.rom[layout]!=255:
+                    self.assertEqual(packed[pos],self.rom[layout+2]//2)
+                    self.assertLess(packed[pos],capacity)
+                    if chunks:self.assertLess(packed[pos],chunks)
+                    pos+=1;layout+=4
+            self.assertEqual(pos,len(packed))
+        frames=extract.roof_frames(self.rom,True)
+        for number in (30,31,32):
+            self.assertEqual(self.rom[0xd8d0+number*4],0)
+            self.assertTrue(all(not any(piece[3]) for piece in frames[number][2]))
+
     def test_exact_extraction_structure(self):
         with scratch_directory() as directory:
             manifest=extract.extract(self.rom,directory)
             self.assertEqual([l['objects'] for l in manifest['roof_difficulties']],[36,39,49,46])
             self.assertEqual([l['height'] for l in manifest['roof_difficulties']],[1888,1696,1952,1952])
             pack=(Path(directory)/'crash.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDNAT5')
+            self.assertEqual(pack[:8],b'TICDNAT6')
             self.assertNotIn(self.rom,pack)
             first=pack
             extract.extract(self.rom,directory)
@@ -119,7 +148,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[40,60,70,70])
             self.assertEqual([x['quota'] for x in levels],[14,15,24,16])
             pack=(Path(directory)/'air.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDAIR4')
+            self.assertEqual(pack[:8],b'TICDAIR5')
             extract_air.extract_air(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'air.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_air.ANIMATIONS,extract_air.HANDLERS)
@@ -142,7 +171,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['seconds'] for x in levels],[80,80,90,90])
             self.assertTrue(all(x['rows']==x['expanded_rows'] for x in levels))
             pack=(Path(directory)/'ski.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDSKI2')
+            self.assertEqual(pack[:8],b'TICDSKI3')
             extract_ski.extract_ski(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'ski.dat').read_bytes())
         roots,commands=extract.animation_records(self.rom,extract_ski.ANIMATIONS,extract_ski.HANDLERS)
@@ -158,7 +187,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['quota'] for x in result['levels']],[40,50,60,70])
             self.assertEqual([x['speeds'] for x in result['levels']],[[3,3,3],[3,4,3],[5,4,3],[5,3,5]])
             pack=(Path(directory)/'bomb.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDBOM2')
+            self.assertEqual(pack[:8],b'TICDBOM3')
             extract_bomb.extract_bomb(self.rom,directory)
             self.assertEqual(pack,(Path(directory)/'bomb.dat').read_bytes())
         with self.assertRaisesRegex(ValueError,'Unported native animation callback'):
@@ -174,7 +203,7 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual([x['objects'] for x in result['levels']],[13,27,34,38])
             self.assertEqual([x['seconds'] for x in result['levels']],[60]*4)
             pack=(Path(directory)/'cruise.dat').read_bytes()
-            self.assertEqual(pack[:8],b'TICDCRU2')
+            self.assertEqual(pack[:8],b'TICDCRU3')
             start=8+82*64
             self.assertEqual(pack[start:start+2048],self.rom[0x1c180:0x1c980])
             extract_cruise.extract_cruise(self.rom,directory)

@@ -89,6 +89,7 @@ void CruiseGame::beginVideoTick(){
     // 00:1325 / 00:1897: a map column has priority; otherwise copy four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
     if(transferRemaining&&!mapTransfer){
+        spriteResources.advance(assets.frames[transferFrame],transferRemaining);
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
     }
@@ -118,7 +119,7 @@ void CruiseGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags,e.frame<12?&spriteResources:nullptr);if(sprites.exhausted())return;}
     }
 }
 
@@ -129,7 +130,7 @@ void CruiseGame::text(int x,int y,const std::string& value){
 
 
 CruiseAssets CruiseAssets::load(const std::wstring& path){
-    CruiseReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDCRU2",8));
+    CruiseReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDCRU3",8));
     CruiseAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.cells.data(),2048);r.raw(a.quadrants.data(),192);r.raw(a.collision.data(),128);
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){l.initial=r.byte();l.seconds=r.byte();int count=r.word();check(count<=512&&l.seconds<=99);
@@ -145,7 +146,7 @@ CruiseAssets CruiseAssets::load(const std::wstring& path){
     for(auto& probe:a.probes)for(auto& v:probe)v=s16(r.word());for(auto& v:a.wave)v=s8(r.byte());
     r.raw(a.hudTiles.data(),a.hudTiles.size());r.raw(a.hudMap.data(),20);r.raw(a.hudColumns.data(),7);
     for(int v:a.tiles)check(v<4);for(int v:a.hudTiles)check(v<4);for(int v:a.cells)check(v<48);for(int v:a.quadrants)check(v<82);
-    for(int v:a.hudColumns)check(v<20);for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);check(r.pos==r.data.size());return a;
+    for(int v:a.hudColumns)check(v<20);for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);readSpriteResources(r,a.frames,12,9);check(r.pos==r.data.size());return a;
 }
 int CruiseGame::spawn(int kind,int x,int y,int placement){
     if(kind!=49&&kind!=50&&(kind<57||kind>65))return -1;
@@ -159,7 +160,7 @@ void CruiseGame::start(int level,int player){
     seconds=assets.levels[difficulty].seconds;cameraX=0;cameraY=1920;
     ticks=secondTicks=money=introTimer=balls=randomState=extraLives=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=128;mapTransfer=true;finishTimer=64;started=true;paused=false;videoTickPrepared=false;
-    spawn(57,1040,3424);hudMap=assets.hudMap;refreshHud();for(int j=0;j<7;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
+    spawn(57,1040,3424);spriteResources.reset(assets.frames[entities[0].frame]);hudMap=assets.hudMap;refreshHud();for(int j=0;j<7;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
 }
 int CruiseGame::tileAt(int x,int y)const{

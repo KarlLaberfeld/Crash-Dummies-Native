@@ -56,6 +56,7 @@ struct Game {
     std::array<Entity,16> entities{};
     std::vector<Placement> placements;
     SpriteLayer sprites{false},visibleSprites{false};
+    SpriteResources spriteResources;
     int visibleCamera=0;
 
     bool reverseSprites=false;

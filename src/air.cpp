@@ -30,7 +30,7 @@ struct AirReader {
 void check(bool ok){if(!ok)throw std::runtime_error("Invalid Air Bumper asset record. Rebuild the local data.");}
 }
 AirAssets AirAssets::load(const std::wstring& path){
-    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR4",8));
+    AirReader r(path);char magic[8];r.raw(magic,8);check(!memcmp(magic,"TICDAIR5",8));
     AirAssets a;r.raw(a.tiles.data(),a.tiles.size());r.raw(a.quadrants.data(),a.quadrants.size());r.raw(a.collision.data(),a.collision.size());
     for(auto& f:a.frames){r.raw(f.meta.data(),8);r.raw(f.pixels.data(),f.pixels.size());readSpritePieces(r,f);}
     for(auto& l:a.levels){
@@ -64,6 +64,7 @@ AirAssets AirAssets::load(const std::wstring& path){
     for(int v:a.quadrants)check(v<128);
     for(const auto& f:a.frames)for(int v:f.pixels)check(v<4||v==255);
     for(const auto& p:a.tilts)check(p[0]>=0&&p[0]<59&&p[2]>=-2&&p[2]<=2&&p[3]==2);
+    readSpriteResources(r,a.frames,12,13);
     check(r.pos==r.data.size());return a;
 }
 
@@ -79,6 +80,7 @@ void AirGame::start(int level,int player){
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
+    spriteResources.reset(assets.frames[entities[0].frame]);
     hudMap=assets.hudMap;refreshHud();
     for(int j=0;j<13;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
@@ -193,6 +195,7 @@ void AirGame::beginVideoTick(){
     // 00:0c3f / 00:1897: a map row has priority; otherwise copy at most four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
     if(transferRemaining&&!mapTransfer){
+        spriteResources.advance(assets.frames[transferFrame],transferRemaining);
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
     }
@@ -362,7 +365,7 @@ void AirGame::updateVisibility(){
         if(x < -2*m[6]-16||x>176||y < -2*m[7]-16||y>152){
             if(e.flags&16){if((e.flags&4)&&e.placement>=0)placements[e.placement].active=false;e.alive=false;}
             else e.offscreen=true;
-        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags);if(sprites.exhausted())return;}
+        }else {sprites.add(assets.frames[e.frame],relativePixel(e.x,cameraX),relativePixel(e.y,cameraY),e.flags,e.frame<12?&spriteResources:nullptr);if(sprites.exhausted())return;}
     }
 }
 void AirGame::step(int buttons){

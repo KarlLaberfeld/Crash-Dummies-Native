@@ -119,6 +119,25 @@ int runSelfTests(const Assets& assets) {
         g.updateVisibility();require(!g.entities[0].offscreen,"Original lower visibility boundary is inclusive");
         g.entities[0].y+=16;g.updateVisibility();require(g.entities[0].offscreen,"Original lower visibility boundary + one pixel");
 
+        // Landing loads five shared chunks, including three limbs absent from
+        // frame 29's own two-piece layout. Zero-length frames keep using them.
+        {
+            g.start(0);int oldFrame=g.entities[0].frame,oldFlags=g.entities[0].flags;
+            auto original=g.spriteResources.colors(0);
+            g.setFrame(0,29);g.finishVideoTick(oldFrame,oldFlags);g.mapTransfer=false;
+            g.beginVideoTick();
+            require(g.transferRemaining==1&&g.spriteResources.colors(0)==original,"Landing resource remains invisible until all five chunks arrive");
+            g.beginVideoTick();
+            require(g.entities[0].frame==29&&assets.frames[29].resource.size()==5,"Landing publishes the complete body resource");
+            for(int frame=30;frame<=32;++frame){
+                const auto& alias=assets.frames[frame];int chunk=frame-28;
+                require(alias.resource.empty()&&alias.pieces.size()==1&&alias.pieces[0].chunk==chunk,"Detached limb references the shared landing chunk without its own upload");
+                SpriteLayer layer(false);layer.add(alias,40,40,0,&g.spriteResources);
+                bool found=false;for(const auto& slot:layer.slots)if(slot.present){found=true;
+                    require(slot.colors==assets.frames[29].resource[chunk],"Limb receives original landing pixels rather than a descriptor-relative slice");}
+                require(found,"Detached limb emits a visible piece");
+            }
+        }
         // Landing uses the original result bitfield and body-piece scripts.
         const int landing=(assets.levels[0].height-32)*16;
         for(int allObjects=0;allObjects<2;++allObjects){

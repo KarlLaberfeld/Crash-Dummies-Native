@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse
 import json
 import struct
-from extract import pack_frames, address, read_rom, tile, sprite_frames, animation_records, roof_hud
+from extract import pack_frames, pack_sprite_resources, address, read_rom, tile, sprite_frames, animation_records, roof_hud
 from extract_air import template_map
 
 HANDLERS={0x23e2:0,0x697d:1,0x6986:2,0x69fa:3,0x6a6d:4,0x3bb3:5,
@@ -13,14 +13,14 @@ ANIMATIONS=[0x6b69,0x6b7b,0x6b9f,0x6ba5,0x6c66,0x6cdf,0x6d57,0x6d74,
 
 def extract_ski(rom,output):
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    payload=bytearray(b'TICDSKI2')
+    payload=bytearray(b'TICDSKI3')
     for i in range(127):payload+=tile(rom,address(5,0x67e0)+i*16)
     payload+=bytes(64) # Tile 127 is not loaded or referenced by Ski's metatiles.
     quadrants=rom[address(5,0x7390):address(5,0x7490)]
     if max(quadrants)>=127:raise ValueError('Ski metatile references an unloaded tile')
     payload+=quadrants+rom[address(5,0x7490):address(5,0x7510)]
     payload+=pack_frames(sprite_frames(rom,39,0xe6f0,0xe6bc,13,address(5,0x6220),True))
-    manifest={'format':'TICDSKI2','difficulties':[]}
+    manifest={'format':'TICDSKI3','difficulties':[]}
     for d in range(4):
         x,quota,timer,rows,map_ptr,object_ptr=struct.unpack_from('<BBBBHH',rom,0xe9c+d*8)
         # The final (0x80,0x1f) pair references RAM at d5c5, outside the declared
@@ -49,6 +49,7 @@ def extract_ski(rom,output):
     atlas,_,_=roof_hud(rom)
     atlas[0xf2*64:0xf3*64]=tile(rom,address(3,0x5800))
     payload+=atlas+rom[0x3013:0x3027]+bytes(rom[0x3006+i*2] for i in range(7))
+    payload+=pack_sprite_resources(rom,13,0xe6f0,0xe6bc,9)
     (output/'ski.dat').write_bytes(payload)
     (output/'ski-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     return manifest

@@ -7,7 +7,7 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 |---|---|---|
 | Five stunts / four difficulties | Native rules, deterministic replay and a 20-stunt input-only campaign | Original comparisons for normal play, collisions, success and failure |
 | Air crash recovery | Reproducer and 64-phase sweep; twelve cases stall | Resolve the cause or demonstrate the same behavior on the original |
-| Presentation | Source-derived menus, ending, name entry, transitions and palette tests | Reference captures at matched input/update boundaries, including gameplay entry, pause and exit |
+| Presentation | Source-derived menus, transitions, palette tests and double-buffered shared sprite resources | Reference captures at matched input/update boundaries, including gameplay entry, pause, landing/body parts and exit |
 | Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |
 | Windows | Native executable builds; UI tests pass with normal audio and an injected audio-open failure | Human input/focus/resize/pause tests, physical audio-device removal and a separate Windows installation |
@@ -70,3 +70,12 @@ another on videogamemanual.com, and World of Longplays' Game Boy recordings.
 The manual URLs failed to open in the retrieval tool. These are candidates,
 not completed comparisons or proof of original-hardware capture. No image or
 audio parity result is claimed from search snippets.
+
+The dynamic-sprite transfer audit found two alternating buffers, not ordinary
+in-place replacement of the visible player. Every nonempty descriptor fits its
+buffer. The native renderer now retains that resource state and uses it for all
+dynamic entities. This fixes Roof's three descriptor-free body-part layouts,
+which share the five-chunk landing upload. Tests cover progressive and replaced
+uploads, bank-tail retention, prepared pixel snapshots and actual landing data.
+This narrows the partial-tile question; it does not replace matched original
+captures or establish exact scanline timing. The Air crash deadline is unchanged.

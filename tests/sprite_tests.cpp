@@ -11,6 +11,34 @@ int runSpriteTests(){
     FILE* log=fopen("sprite-test.txt","w");if(!log)return 2;int assertions=0;
     auto check=[&](bool ok,const char* message){++assertions;if(!ok)throw std::runtime_error(message);};
     try{
+        {
+            Frame old,next,replacement,alias;old.resource.resize(8);next.resource.resize(8);replacement.resource.resize(5);
+            for(auto& chunk:old.resource)chunk.fill(1);
+            for(auto& chunk:next.resource)chunk.fill(3);
+            for(auto& chunk:replacement.resource)chunk.fill(2);
+            SpriteResources resources;resources.reset(old);
+            alias.pieces.resize(1);alias.pieces[0].chunk=0;
+            SpriteLayer prepared(false);prepared.add(alias,20,20,0,&resources);
+            resources.advance(next,8);
+            check(resources.colors(0)[0]==1,"Partial upload does not alter the active sprite resource");
+            auto copied=resources;copied.advance(next,4);
+            check(copied.colors(0)[0]==3&&resources.colors(0)[0]==1,"Copied games own independent decoded resource buffers");
+            // Replace an unfinished transfer: its first four chunks remain in
+            // the inactive buffer, then the shorter replacement overwrites 0..4.
+            resources.advance(replacement,5);resources.advance(replacement,1);
+            check(resources.colors(0)[0]==2&&resources.colors(4)[0]==2&&resources.colors(5)[0]==0,"Replacement uploads restart at zero and preserve the inactive tail");
+            Image image{};prepared.draw(image);
+            check(image[20*Width+20]==1,"Prepared sprites retain their pixel snapshot across buffer swaps");
+            SpriteLayer resident(false);resident.add(alias,20,20,0,&resources);image.fill(0);resident.draw(image);
+            check(image[20*Width+20]==0,"Descriptor-free aliases use the active shared tiles and original palette");
+            // Reuse the other bank, preserving its old tail after a short upload.
+            resources.advance(replacement,5);resources.advance(replacement,1);
+            check(resources.colors(5)[0]==1,"Unwritten chunks retain the previous contents of that bank");
+            resources.reset(old);resources.advance(next,8);
+            Frame shortFrame;shortFrame.resource.resize(1);shortFrame.resource[0].fill(2);
+            resources.advance(shortFrame,1);
+            check(resources.colors(0)[0]==2&&resources.colors(3)[0]==3&&resources.colors(4)[0]==0,"Cancelled transfer leaves its copied tail in the inactive bank");
+        }
         auto light=solid(1),dark=solid(3),white=solid(2),transparent=solid(0),behind=solid(3,128);
         Image image{};
         SpriteLayer normal(false);normal.add(light,20,20,0);normal.add(dark,20,20,0);normal.draw(image);
