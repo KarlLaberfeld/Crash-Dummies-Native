@@ -899,3 +899,27 @@ The repository contains English source documentation and extraction tools.
 The project remains incomplete; the next gameplay blocker is the Air crash
 stall, followed by the outstanding reference/human/second-host checks listed
 in ACCEPTANCE.md. Automatic continuation remains active.
+
+## Air crash transfer-contention experiment — 2026-10-02
+
+New hypothesis tested: map-row priority delays the crash animation beyond its
+80-update recovery deadline, rather than a stale animation wait like the Roof
+bug. The local diagnostic `local/air_transfer_budget.cpp` runs the same 64
+initial phases and button schedule twice: unchanged native behavior, and an
+explicitly non-original counterfactual that removes map contention only during
+the crash handler. It does not alter the production engine.
+
+Results in `local/air-transfer-budget.csv`: unchanged native behavior has 12
+stalls, each with the crash script still active at recovery; the counterfactual
+has zero late recovery boundaries and zero stalls across all 64 phases.
+This narrows the issue to the animation/transfer budget. It does not establish
+which timing differs from the original, or whether the original also stalls.
+Removing map priority is not an accepted fix: the original explicitly gives
+row updates priority. The runtime, known Air blocker and release status remain
+unchanged. No full-suite rerun was needed for this diagnostic-only experiment.
+
+Next useful Air evidence is a matching original capture around crash entry,
+row transfers and the 80th crash update, or a newly identified source difference
+in that scheduling path. Do not repeat the unchanged static audit or the same
+64-phase sweep without a new hypothesis. Presentation pause-entry/publication
+alignment and original audio/Windows acceptance remain independent open work.
