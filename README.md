@@ -87,6 +87,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 ./build/CrashDummies.exe --capture
 ./build/CrashDummies.exe --audio-smoke-test
 ./build/CrashDummies.exe --ui-smoke-test
+./build/CrashDummies.exe --ui-no-audio-test
 ```
 
 Native tests cover selected rules derived from the original, deterministic
@@ -102,6 +103,12 @@ device/drop report is saved locally as `audio-output.txt`.
 The UI smoke test sends Windows keyboard/focus/resize messages through the
 application window and records assertions in `ui-window-test.txt`. It is
 automated host integration coverage, not human visual acceptance.
+The no-audio variant requests an invalid Windows output device to exercise
+the real audio-open failure path while running the same UI checks. It does
+not change system devices. Its separate logs are `ui-window-no-audio-test.txt`
+and `audio-output-no-device.txt`. This verifies graceful startup after an
+audio-open error; physical device removal and another Windows host remain
+manual acceptance checks.
 
 ## Local preview packages
 

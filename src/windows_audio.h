@@ -18,10 +18,10 @@ class WindowsAudio {
     size_t cursor=0;
 public:
     unsigned droppedFrames=0;
-    WindowsAudio(){
+    explicit WindowsAudio(UINT deviceId=WAVE_MAPPER){
         WAVEFORMATEX format{};format.wFormatTag=WAVE_FORMAT_PCM;format.nChannels=2;format.nSamplesPerSec=48000;
         format.wBitsPerSample=16;format.nBlockAlign=4;format.nAvgBytesPerSec=192000;
-        if(waveOutOpen(&device,WAVE_MAPPER,&format,0,0,CALLBACK_NULL)!=MMSYSERR_NOERROR){device=nullptr;return;}
+        if(waveOutOpen(&device,deviceId,&format,0,0,CALLBACK_NULL)!=MMSYSERR_NOERROR){device=nullptr;return;}
         for(auto& buffer:buffers){buffer.header.lpData=reinterpret_cast<char*>(buffer.samples.data());buffer.header.dwBufferLength=sizeof(buffer.samples);
             buffer.prepared=waveOutPrepareHeader(device,&buffer.header,sizeof(WAVEHDR))==MMSYSERR_NOERROR;}
     }

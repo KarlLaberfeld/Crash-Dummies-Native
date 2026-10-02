@@ -143,7 +143,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bool tests=argc>1&&std::wstring(argv[1])==L"--self-test";
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool audioSmoke=argc>1&&std::wstring(argv[1])==L"--audio-smoke-test";
-        bool uiSmoke=argc>1&&std::wstring(argv[1])==L"--ui-smoke-test";
+        bool noAudioSmoke=argc>1&&std::wstring(argv[1])==L"--ui-no-audio-test";
+        bool uiSmoke=noAudioSmoke||(argc>1&&std::wstring(argv[1])==L"--ui-smoke-test");
         bool smoke=uiSmoke||audioSmoke||(argc>1&&std::wstring(argv[1])==L"--smoke-test");
         LocalFree(argv);
         if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int audioResult=ticd::runAudioTests(*audioAssets);int spriteResult=ticd::runSpriteTests();int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:audioResult?audioResult:spriteResult?spriteResult:playthroughResult;}
@@ -204,7 +205,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
         ui->beginBoot();
-        ticd::WindowsAudio audioDevice;std::vector<int16_t> audioSamples;
+        // The diagnostic uses an invalid identifier to exercise the real
+        // waveOutOpen failure path without changing any Windows audio devices.
+        ticd::WindowsAudio audioDevice(noAudioSmoke?static_cast<UINT>(-2):WAVE_MAPPER);std::vector<int16_t> audioSamples;
         int lastMusic=-1,lastMusicGeneration=-1;auto lastAudioPhase=ui->phase;
         SetProcessDPIAware();
         headingFont=CreateFontW(-24,0,0,0,FW_BOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
@@ -219,9 +222,10 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         // One gameplay update per DMG frame. No emulated CPU, interrupts or PPU.
         constexpr double step=70224.0/4194304.0;
         MSG message={};bool running=true;int smokeTicks=0;
-        FILE* uiLog=uiSmoke?_wfopen((directory+L"ui-window-test.txt").c_str(),L"w"):nullptr;
+        FILE* uiLog=uiSmoke?_wfopen((directory+(noAudioSmoke?L"ui-window-no-audio-test.txt":L"ui-window-test.txt")).c_str(),L"w"):nullptr;
         bool uiFailed=uiSmoke&&!uiLog;int pausedY=0;
         auto checkWindow=[&](bool ok,const char* label){if(!ok)uiFailed=true;if(uiLog){fprintf(uiLog,"%s: %s\n",ok?"PASS":"FAIL",label);fflush(uiLog);}};
+        if(noAudioSmoke)checkWindow(!audioDevice.available(),"Invalid device identifier exercises the audio-open failure path");
         while(running){
             while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(message.message==WM_QUIT){running=false;break;}TranslateMessage(&message);DispatchMessageW(&message);}
             if(!running)break;
@@ -325,7 +329,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
         }
-        if(smoke){FILE* log=_wfopen((directory+L"audio-output.txt").c_str(),L"w");if(log){fprintf(log,"Windows output device: %s; dropped buffers: %u\n",audioDevice.available()?"available":"unavailable",audioDevice.droppedFrames);fclose(log);}}
+        if(smoke){FILE* log=_wfopen((directory+(noAudioSmoke?L"audio-output-no-device.txt":L"audio-output.txt")).c_str(),L"w");if(log){fprintf(log,"Windows output device: %s; dropped buffers: %u\n",audioDevice.available()?"available":"unavailable",audioDevice.droppedFrames);fclose(log);}}
         if(uiLog){fprintf(uiLog,"%s: automated Windows messages; not a human visual acceptance test\n",uiFailed?"FAIL":"PASS");fclose(uiLog);}
         DeleteObject(headingFont);DeleteObject(bodyFont);DeleteObject(smallFont);return uiFailed?1:0;
     }catch(const std::exception& e){MessageBoxA(nullptr,e.what(),"Crash Dummies - Startfehler",MB_ICONERROR);return 1;}

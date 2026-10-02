@@ -10,7 +10,7 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 | Presentation | Source-derived menus, ending, name entry, transitions and palette tests | Reference captures at matched input/update boundaries, including gameplay entry, pause and exit |
 | Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |
-| Windows | Native executable builds and audio/device smoke test passes on the development host | Interactive input/focus/resize/pause tests and a separate Windows installation |
+| Windows | Native executable builds; UI tests pass with normal audio and an injected audio-open failure | Human input/focus/resize/pause tests, physical audio-device removal and a separate Windows installation |
 | Distribution | Local preview packaging script, no ROM upload | Final acceptance results, reproducible package verification and versioned final release |
 
 For every reference comparison, record the source and capture method, cartridge
@@ -35,6 +35,14 @@ containing spaces, using a different working directory. The output device is
 available and reports no dropped buffers. This is one Windows host and uses
 synthetic messages; human observation and another Windows installation remain
 unchecked.
+
+The `--ui-no-audio-test` variant passes the same 13 UI checks plus a check
+that an invalid Windows device identifier actually fails to open. The native
+application continues through gameplay, pause/resume and title return with
+no output device. A subsequent normal run again opens the output device and
+passes all 13 checks. Logs are separate for the two modes. This exercises the
+real API error path without disabling or removing system devices; it does
+not establish behavior on actual device removal or a different driver/host.
 
 The expanded input-only campaign harness now completes three scenarios through
 ending/name-entry/title return: single-player (20 wins, no failures), both

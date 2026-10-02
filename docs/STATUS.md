@@ -950,3 +950,25 @@ its no-map-contention experiment remains diagnostic only. The native EXE in
 build/ was rebuilt; the earlier b70af44 ZIP remains the prior preview checkpoint.
 Automatic continuation stays active. ROM, extracted data and diagnostics remain
 local and are not uploaded.
+
+## Windows audio-open failure acceptance — 2026-10-02
+
+Added a targeted `--ui-no-audio-test` mode. It asks the real Windows waveOut
+API to open an invalid device identifier, verifies that opening fails, and
+then runs the normal hidden-window gameplay/input/pause/focus/resize checks.
+No system device is disabled and ordinary startup still uses WAVE_MAPPER.
+Separate diagnostic logs preserve both normal and unavailable-output results.
+
+The rebuilt EXE passes all 14 no-audio checks. A subsequent normal invocation
+passes all 13 UI checks with an available output device and zero dropped
+buffers. Build log: local/audio-failure-build.log. Runtime logs:
+build/ui-window-no-audio-test.txt, build/audio-output-no-device.txt,
+build/ui-window-test.txt and build/audio-output.txt. Gameplay, asset extraction
+and audio synthesis code are unchanged; their latest complete suite remains
+local/pause-publication-build.log. No redundant full-campaign rerun was needed.
+
+This closes automated coverage of startup audio-open failure, not physical
+unplugging, another audio driver, human play testing or a second Windows host.
+ACCEPTANCE.md retains those evidence limits. Air crash timing and original
+image/audio comparisons remain open; no final release is claimed. Automatic
+continuation stays active, with original data and all generated outputs local.
