@@ -952,3 +952,21 @@ are held idle in the fixture so new frame requests cannot replace the transfer
 under test. Windows message tests separately exercise real gameplay pausing.
 This narrows the earlier pause-entry limitation; exact sub-frame drawing,
 partial tile publication and original audio behavior still need references.
+
+## HUD publication during the outgoing stunt fade
+
+The gameplay display callback remains selected through the final wait at 0400
+and the fade at 0406. For example, Air's 0c3f callback still calls 3198 to
+publish a HUD column and 2f4c to refresh its buffered values. FFAE prevents
+dynamic resource work, but does not disable the HUD callback. The native
+outro previously captured one immutable screen, so a score earned near the
+end could remain stale throughout the fade.
+
+UiFlow::refreshStuntOutro now cycles the native HUD and refreshes the outgoing
+scene on visible fade updates 1 through 32. It performs no entity, timer or
+resource-transfer update. Update zero retains the previous visible scene;
+the result-screen transition discards the gameplay HUD. A shared regression
+checks all five stunts with a just-earned score and pending resource transfer:
+the thousands digit reaches its HUD column within two cycles, while world
+position, timer and transfer accounting stay fixed. Exact hardware palette
+interaction and partial-tile display still require original references.

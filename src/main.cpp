@@ -291,6 +291,10 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                         else if(selectedStunt==2)prepareOutro(*ski);else if(selectedStunt==1)prepareOutro(*air);else prepareOutro(*game);
                     }
                 }
+                if(!developerMode&&ui->phase==ticd::UiPhase::StuntOutro){
+                    if(selectedStunt==4)ui->refreshStuntOutro(*cruise);else if(selectedStunt==3)ui->refreshStuntOutro(*bomb);
+                    else if(selectedStunt==2)ui->refreshStuntOutro(*ski);else if(selectedStunt==1)ui->refreshStuntOutro(*air);else ui->refreshStuntOutro(*game);
+                }
                 int music=1;
                 if(developerMode){if(started())music=8+selectedStunt;}
                 else switch(ui->phase){

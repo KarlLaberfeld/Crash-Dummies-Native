@@ -99,6 +99,12 @@ struct UiFlow {
         game.step(previous&63);
     }
     void beginInstructions(bool first=false,bool alternate=false);
+    template<class Stunt> void refreshStuntOutro(Stunt& game) {
+        // The gameplay callback keeps cycling HUD columns through 0400's
+        // wait and the outgoing fade. FFAE is clear: no resource/entity step.
+        if(phase!=UiPhase::StuntOutro||phaseTicks<1||phaseTicks>32)return;
+        game.tickHud();game.render(false);outroNextScene=game.screen;
+    }
     void finishStunt(int flags,int earned,int seconds,int extraLives=0,int flagsCollected=0);
     std::array<uint8_t,Width*Height> render(bool objects=true) const;
     std::array<uint8_t,Width*Height> renderGameplay(const std::array<uint8_t,Width*Height>& scene,bool paused) const;

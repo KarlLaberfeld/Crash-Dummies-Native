@@ -972,3 +972,25 @@ unplugging, another audio driver, human play testing or a second Windows host.
 ACCEPTANCE.md retains those evidence limits. Air crash timing and original
 image/audio comparisons remain open; no final release is claimed. Automatic
 continuation stays active, with original data and all generated outputs local.
+
+## Outgoing HUD publication — 2026-10-02
+
+Corrected another identified presentation gap: the original gameplay callback
+continues updating the HUD during the outgoing stunt fade, even though FFAE
+has disabled dynamic resource transfers. The native snapshot had frozen that
+HUD, potentially hiding score changes from the final gameplay updates.
+UiFlow now refreshes the outgoing HUD during the visible fade, preserving
+frozen entities, timer and resource-transfer state. Source notes explain the
+callback ordering and remaining hardware/palette evidence limits.
+
+The targeted all-five-stunt regression passes (local/outro-hud-test.txt), and
+the Windows EXE was rebuilt successfully (local/outro-hud-build.log). The
+regression is also part of the existing native campaign test entry point.
+Gameplay rules and outcomes are unchanged; their latest complete campaign
+suite is still local/pause-publication-build.log. This targeted change did
+not require repeating the unchanged campaign pilots or extractor tests.
+
+Air's crash deadline, partial-tile display, original audio/image comparisons
+and outstanding human/second-host acceptance remain open. No final version
+is claimed, and the automatic continuation remains active. Local ROM/data,
+reference artifacts and generated binaries remain excluded from GitHub.

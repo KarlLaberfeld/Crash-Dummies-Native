@@ -15,6 +15,23 @@ int skiTestInput(const SkiGame&);
 int bombTestInput(const BombGame&);
 int cruiseTestInput(const CruiseGame&);
 void prepareCruiseTestInput(const CruiseGame&);
+template<class Stunt> bool verifyStuntOutroHud(Stunt& game,const UiAssets& uiAssets){
+ game.start(0);game.publishVideo();game.render(false);
+ UiFlow flow(uiAssets);flow.campaign.start(false);flow.phase=UiPhase::Playing;
+ flow.outroScene=game.screen;flow.finishStunt(3,1234,0);
+ game.money=1234;game.transferRemaining=8;game.transferState=1;
+ const auto player=game.entities[0];int seconds=0,ticks=game.ticks;
+ if constexpr(!std::is_same_v<Stunt,BombGame>)seconds=game.seconds;
+ flow.refreshStuntOutro(game);if(game.hudCursor!=0)return false;
+ for(int n=0;n<32;++n){flow.step(0);flow.refreshStuntOutro(game);}
+ // Even the 13-column HUD must publish the last score within two cycles.
+ if(game.hudMap[game.assets.hudColumns[1]]!=0xf7||game.transferRemaining!=8||game.transferState!=1||
+    game.entities[0].x!=player.x||game.entities[0].y!=player.y||game.ticks!=ticks)return false;
+ if constexpr(!std::is_same_v<Stunt,BombGame>)if(game.seconds!=seconds)return false;
+ int cursor=game.hudCursor;flow.step(0);flow.refreshStuntOutro(game);
+ if(game.hudCursor!=cursor||flow.phase!=UiPhase::Result)return false;
+ game.start(0);return true;
+}
 template<class Stunt> bool verifyPausePublication(Stunt& game,const UiAssets& uiAssets){
  game.start(0);game.render(false);auto before=game.screen;
  Frame marker;marker.meta={};SpritePiece piece;piece.colors.fill(before[40*Width+24]==3?1:3);marker.pieces.push_back(piece);
@@ -84,6 +101,9 @@ int runPlaythroughTests(const Assets& shared,const AirAssets& aa,const SkiAssets
  if(!verifyPausePublication(roofGame,ua)||!verifyPausePublication(airGame,ua)||!verifyPausePublication(skiGame,ua)||!verifyPausePublication(bombGame,ua)||!verifyPausePublication(cruiseGame,ua)){
   fprintf(log,"FAIL: pause entry/resume display boundary\n");fclose(log);return 1;}
  fprintf(log,"PASS: pause publishes one display update, preserves pending transfers, freezes gameplay and resumes without a duplicate display update in all five stunts\n");
+ if(!verifyStuntOutroHud(roofGame,ua)||!verifyStuntOutroHud(airGame,ua)||!verifyStuntOutroHud(skiGame,ua)||!verifyStuntOutroHud(bombGame,ua)||!verifyStuntOutroHud(cruiseGame,ua)){
+  fprintf(log,"FAIL: outgoing HUD refresh without gameplay/transfer updates\n");fclose(log);return 1;}
+ fprintf(log,"PASS: final score reaches the HUD during the outgoing fade without entity, timer or resource updates in all five stunts\n");
  auto verifyBoundary=[&](auto& game){
   game.start(0);UiFlow flow(ua);flow.campaign.start(false);flow.beginInstructions();
   flow.step(UiStart|A);for(int t=0;t<33;++t)flow.step(A);
