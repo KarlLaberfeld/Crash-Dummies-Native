@@ -117,7 +117,7 @@ void BombGame::start(int level,int player){
     playerNumber=player&1;pendingSound=-1;sprites=SpriteLayer(false);reverseSprites=false;
     difficulty=std::clamp(level,0,3);entities={};speeds=assets.levels[difficulty].speeds;totals={};spawnPending={};displayTotals={};
     ticks=money=cooldown=action=lostLanes=randomState=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
-    transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;
+    transferState=transferRemaining=transferFrame=transferFlags=0;finishTimer=64;started=true;paused=false;videoTickPrepared=false;
     spawn(45,0,256);for(int x:{192,1088,1984})for(int y:{384,896})spawn(46,x,y);
     hudMap=assets.hudMap;refreshHud();for(int j=0;j<5;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
@@ -231,8 +231,13 @@ void BombGame::update(int i){
 }
 void BombGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
-    beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
+    if(!started||result)return;
+    // 03cb completes the display callback before 03d5 enters the pause loop.
+    // 14f1 resumes the interrupted update without another display callback.
+    if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
+    if(paused)return;
+    videoTickPrepared=false;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
+    int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();
 }

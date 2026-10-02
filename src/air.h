@@ -67,6 +67,7 @@ struct AirGame {
     bool started=false,paused=false;
     AirGame(const AirAssets& a,const Assets& s):assets(a),shared(s){}
     void start(int level,int player=0);
+    bool videoTickPrepared=false; // Display callback already ran before a blocking pause.
     void step(int buttons);
     void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);

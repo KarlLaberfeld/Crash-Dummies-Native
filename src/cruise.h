@@ -38,6 +38,7 @@ struct CruiseGame {
     int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
     bool mapTransfer=true;
     CruiseGame(const CruiseAssets& a,const Assets& s):assets(a),shared(s){}
+    bool videoTickPrepared=false; // Display callback already ran before a blocking pause.
     void start(int level,int player=0);void step(int buttons);void render(bool developmentOverlay=true);void update(int i);
     int spawn(int kind,int x,int y,int placement=-1);void setFrame(int i,int frame,int flags=0);
     void startAnimation(int i,int sequence,bool force=false);void animate(int i);

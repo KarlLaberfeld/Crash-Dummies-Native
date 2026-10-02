@@ -65,7 +65,7 @@ void Game::start(int level,int player) {
     ticks=0;seconds=l.seconds;secondTicks=0;money=0;remaining=l.quota;fireHits=l.fireHits;
     breaksNeeded=10;camera=(l.height-152)*16;cameraLead=cameraLeadTarget=24;
     scan=0;introCounter=128;finishTimer=64;result=pendingResult=resultFlags=0;previous=held=pressed=0;
-    paused=false;launched=false;hazardsActive=false;targetReached=false;started=true;animationFaults=0;
+    paused=false;videoTickPrepared=false;launched=false;hazardsActive=false;targetReached=false;started=true;animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=camera+128;mapTransfer=true;
     spawn(0,0x1290,0x0150);
     spawn(15,0x1a00,0);
@@ -376,9 +376,13 @@ void Game::update(int i) {
 }
 void Game::step(int buttons) {
     pendingSound=-1;
-    if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;beginVideoTick();
-    tickHud();
+    if(!started||result)return;
+    // 03cb completes the display callback before 03d5 enters the pause loop.
+    // 14f1 resumes the interrupted update without another display callback.
+    if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
+    if(paused)return;
+    videoTickPrepared=false;
+    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int i=0;i<16;++i)if(entities[i].alive)update(i);
     finishVideoTick(oldFrame,oldFlags);

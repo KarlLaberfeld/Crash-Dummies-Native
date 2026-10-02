@@ -178,7 +178,7 @@ void SkiGame::start(int level,int player){
     cameraX=l.cameraX;cameraY=0;seconds=l.seconds;remaining=l.quota;needed=l.quota/2;collected=0;
     ticks=secondTicks=money=jumpVelocity=jumpContact=returnX=returnY=scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=0;
     transferState=transferRemaining=transferFrame=transferFlags=0;lastMapCamera=128;mapTransfer=true;
-    finishTimer=64;finishZone=false;started=true;paused=false;spawn(35,cameraX+1024,0xff00);
+    finishTimer=64;finishZone=false;started=true;paused=false;videoTickPrepared=false;spawn(35,cameraX+1024,0xff00);
     hudMap=assets.hudMap;refreshHud();for(int j=0;j<7;++j)hudMap[assets.hudColumns[j]]=hudValues[j];
     publishVideo();
 }
@@ -273,8 +273,13 @@ void SkiGame::update(int i){
 }
 void SkiGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
-    beginVideoTick();tickHud();int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
+    if(!started||result)return;
+    // 03cb completes the display callback before 03d5 enters the pause loop.
+    // 14f1 resumes the interrupted update without another display callback.
+    if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
+    if(paused)return;
+    videoTickPrepared=false;held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
+    int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);updateVisibility();mapTransfer=((lastMapCamera^cameraY)&128)!=0;lastMapCamera=cameraY;
     for(int n=0;n<8&&!placements.empty();++n){auto& p=placements[scan];int low=cameraY>>8,high=(low+14)&255,row=((p.y>>8)+3)&255;

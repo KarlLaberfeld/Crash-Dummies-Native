@@ -926,3 +926,29 @@ Focused collision tests start with an outstanding animation wait and verify
 the balloon/rope resets. The local input-only reproducer now ends successfully
 instead of continuing below the level after the timer reaches zero. This is a
 source-backed Roof fix; it does not resolve the separately tracked Air crash.
+
+## Pause entry and resumption display boundary (00:03cb / 1476)
+
+03cb waits for the display update before 03d1-03d5 checks Start and calls the
+blocking pause routine. 1476 selects the pause callback; its 14b9 loop waits
+for a new Start press. 14f1 then returns into the interrupted main-loop
+iteration, before entity updates at 03db. A second gameplay display callback
+does not run between leaving pause and those entity updates.
+
+Previously the Windows pause flag skipped the entire native stunt step. The
+prepared sprites/camera and pending resource transfer were consequently not
+published at pause entry, and resuming performed an extra display update.
+Each stunt now remembers whether the display part of the pending update has
+already run. The first paused step publishes once, advances one HUD column
+and the eligible resource transfer, then freezes the entity update. Further
+paused steps preserve that state. Resumption completes the pending entity
+update before permitting another display update. Restart clears this state.
+
+The campaign fade uses the same boundary: it advances on the entry display
+update, freezes inside pause and does not advance on the first resumed entity
+update. Shared synthetic tests cover all five stunts, with a pending transfer,
+a distinct prepared sprite, HUD cursor and fade assertions. Intro handlers
+are held idle in the fixture so new frame requests cannot replace the transfer
+under test. Windows message tests separately exercise real gameplay pausing.
+This narrows the earlier pause-entry limitation; exact sub-frame drawing,
+partial tile publication and original audio behavior still need references.

@@ -74,7 +74,7 @@ void AirGame::start(int level,int player){
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
     cameraLead=cameraLeadTarget=176;tilt=speed=rate=lastForce=returnX=returnY=0;
     scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=randomState=0;
-    finishTimer=128;started=true;paused=false;probes={};
+    finishTimer=128;started=true;paused=false;videoTickPrepared=false;probes={};
     transferState=transferRemaining=transferFrame=transferFlags=0;
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
@@ -367,8 +367,13 @@ void AirGame::updateVisibility(){
 }
 void AirGame::step(int buttons){
     pendingSound=-1;
-    if(!started||paused||result)return;
-    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;beginVideoTick();tickHud();
+    if(!started||result)return;
+    // 03cb completes the display callback before 03d5 enters the pause loop.
+    // 14f1 resumes the interrupted update without another display callback.
+    if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
+    if(paused)return;
+    videoTickPrepared=false;
+    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);

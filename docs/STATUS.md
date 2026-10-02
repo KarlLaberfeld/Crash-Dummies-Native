@@ -923,3 +923,30 @@ row transfers and the 80th crash update, or a newly identified source difference
 in that scheduling path. Do not repeat the unchanged static audit or the same
 64-phase sweep without a new hypothesis. Presentation pause-entry/publication
 alignment and original audio/Windows acceptance remain independent open work.
+
+## Pause display boundary — 2026-10-02
+
+Completed the next independent presentation gap using 00:03cb/03d5 and
+1476-14f1: the display callback runs before entering pause, and resumption
+returns directly into the pending entity update. All five native stunts now
+publish the pending display once at pause entry, preserve the resource/HUD
+state during pause, and avoid a duplicate display update on resumption.
+The campaign fade follows the same entry/resume boundary. No CPU execution
+or hardware interrupt emulation was introduced.
+
+Validation: local/pause-publication-build.log passes all 25 Python tests,
+every native suite, and all three full campaign scenarios. Savings/results
+are unchanged from the previous checkpoint (7,987; 9,226/8,754; 0/8,109).
+A new shared regression covers prepared sprite publication, in-progress
+resource transfer, HUD/fade suspension and resumption in all five stunts.
+The fixture isolates intro logic so legitimate new frame requests do not
+replace its controlled transfer. The Windows message test also passes all
+13 checks, with the audio output device available and zero dropped buffers.
+
+Source details are in REVERSE_ENGINEERING.md. Exact sub-frame drawing,
+partial tile publication, original audio/reference comparisons, human and
+second-Windows-host acceptance remain open. The Air crash blocker is unchanged;
+its no-map-contention experiment remains diagnostic only. The native EXE in
+build/ was rebuilt; the earlier b70af44 ZIP remains the prior preview checkpoint.
+Automatic continuation stays active. ROM, extracted data and diagnostics remain
+local and are not uploaded.

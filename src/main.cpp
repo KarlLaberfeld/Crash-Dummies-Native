@@ -39,6 +39,7 @@ bool developerMode=false;
 int selectedStunt=0,musicGeneration=0;
 bool started(){return selectedStunt==4?cruise->started:selectedStunt==3?bomb->started:selectedStunt==2?ski->started:selectedStunt==1?air->started:game->started;}
 bool& paused(){return selectedStunt==4?cruise->paused:selectedStunt==3?bomb->paused:selectedStunt==2?ski->paused:selectedStunt==1?air->paused:game->paused;}
+bool videoTickPrepared(){return selectedStunt==4?cruise->videoTickPrepared:selectedStunt==3?bomb->videoTickPrepared:selectedStunt==2?ski->videoTickPrepared:selectedStunt==1?air->videoTickPrepared:game->videoTickPrepared;}
 int& difficulty(){return selectedStunt==4?cruise->difficulty:selectedStunt==3?bomb->difficulty:selectedStunt==2?ski->difficulty:selectedStunt==1?air->difficulty:game->difficulty;}
 int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->terminalFlags();}
 void restart(){++musicGeneration;int player=developerMode?0:ui->campaign.current;if(selectedStunt==4)cruise->start(cruise->difficulty,player);else if(selectedStunt==3)bomb->start(bomb->difficulty,player);else if(selectedStunt==2)ski->start(ski->difficulty,player);else if(selectedStunt==1)air->start(air->difficulty,player);else game->start(game->difficulty,player);}
@@ -254,7 +255,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                     }
                 }
                 int input=buttons();
-                if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&paused();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
+                if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&videoTickPrepared();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
                     if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
                         if(selectedStunt==4){cruise->secondTicks=ui->timerPhase;cruise->randomState=(ui->ticks&255)<<8;}
                         else if(selectedStunt==3)bomb->randomState=(ui->ticks&255)<<8;
