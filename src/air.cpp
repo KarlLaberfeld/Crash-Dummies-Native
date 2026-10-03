@@ -1,4 +1,5 @@
 #include "air.h"
+#include "air_work.h"
 #include "sprites.h"
 #include <algorithm>
 #include <cstdio>
@@ -78,6 +79,7 @@ void AirGame::start(int level,int player){
     finishTimer=128;started=true;paused=false;videoTickPrepared=false;probes={};crashRecoveryPending=false;
     transferState=transferRemaining=transferFrame=transferFlags=0;
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
+    mapWorkCycles=placementWorkCycles=spriteWorkCycles=clearWorkCycles=0;
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
     spriteResources.reset(assets.frames[entities[0].frame]);
@@ -89,6 +91,12 @@ int AirGame::spawn(int kind,int x,int y,int placement){
     if(kind<17||kind>34)return -1;
     for(int j=0;j<16;++j)if(!entities[j].alive){
         const auto& d=assets.definitions[kind-17];AirEntity e;
+        // 00:1acd changes only done/waiting in the animation block. A reused
+        // slot retains its delay, period and script/loop cursors. Clearing
+        // them advances the new object's first animation frame too early.
+        const auto& previousEntity=entities[j];
+        e.anim=previousEntity.anim;e.delay=previousEntity.delay;e.period=previousEntity.period;
+        e.loop=previousEntity.loop;e.loopStart=previousEntity.loopStart;
         e.alive=true;e.kind=kind;e.frame=d.frame;e.flags=d.flags;e.collision=d.collision;
         e.handler=d.handler;e.params=d.params;e.x=x&65535;e.y=y&65535;e.placement=placement;
         entities[j]=e;return j;
@@ -393,11 +401,32 @@ void AirGame::step(int buttons){
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive)update(j);
     finishVideoTick(oldFrame,oldFlags);
+    if(measureWork){const auto spriteWork=airSpriteWork(*this);
+        spriteWorkCycles=spriteWork.prepare;clearWorkCycles=spriteWork.clear;}
     updateVisibility();
-    mapTransfer=((lastMapCamera^cameraY)&128)!=0;lastMapCamera=cameraY;
+    mapTransfer=((lastMapCamera^cameraY)&128)!=0;
+    // 03ed..19a2: indirect callback + 1ead's sixteen-cell row preparation.
+    // The downward branch at 1ef2 costs four more T-cycles. No ROM execution
+    // or measured frame indices are involved in this source-work calculation.
+    mapWorkCycles=mapTransfer?2228+((static_cast<uint16_t>(lastMapCamera-cameraY)&0x8000)?4:0):304;
+    lastMapCamera=cameraY;
+    // 19a2: entry + eight wrappers (final JR not taken) + RET. Every placement
+    // adds the 19b5 call/pointer advance, its range/allocation path and wrap.
+    placementWorkCycles=placements.empty()?0:608;
     for(int n=0;n<8&&!placements.empty();++n){
         auto& p=placements[scan];int low=cameraY>>8,high=(low+14)&255,row=((p.y>>8)+3)&255;
-        if(!p.active&&low<row&&high>=row){int slot=spawn(p.kind,p.x,p.y,scan);if(slot>=0)p.active=true;}
+        placementWorkCycles+=156;
+        if(low>=row)placementWorkCycles+=144; // 19f2 return.
+        else if(high<row)placementWorkCycles+=168; // 19f6 return.
+        else if(p.active)placementWorkCycles+=188; // 19f9 return.
+        else{
+            int slot=spawn(p.kind,p.x,p.y,scan);
+            // 1abc allocation: 52 per occupied slot; successful fixed copy
+            // 816, failed full-table scan 868. Includes caller bookkeeping.
+            placementWorkCycles+=slot>=0?1148+52*slot:1140;
+            if(slot>=0)p.active=true;
+        }
+        if(scan+1==static_cast<int>(placements.size()))placementWorkCycles+=84;
         scan=(scan+1)%static_cast<int>(placements.size());
     }
 }

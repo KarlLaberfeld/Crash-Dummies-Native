@@ -53,6 +53,25 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
     auto require=[&](bool ok,const char* label){++assertions;if(!ok)throw std::runtime_error(label);};
     try{
         AirGame g(assets,shared);g.start(0);
+        {
+            AirGame reused(assets,shared);reused.start(1);
+            // 1acd reuses the entity record but preserves the animation block.
+            // A countdown object can disappear with an outstanding delay;
+            // the next animation in that slot must consume the old remainder.
+            auto& old=reused.entities[2];
+            old.alive=false;old.anim=assets.animationStarts[3];old.delay=3;
+            old.period=7;old.loop=4;old.loopStart=assets.animationStarts[4];
+            old.animDone=false;old.frameWaiting=true;
+            int slot=reused.spawn(27,0x5300,0x8500);
+            require(slot==2,"Allocation reuses the first free native slot");
+            auto& fresh=reused.entities[slot];
+            require(fresh.animDone&&!fresh.frameWaiting&&fresh.delay==3&&fresh.period==7&&fresh.loop==4&&fresh.loopStart==assets.animationStarts[4]&&fresh.anim==assets.animationStarts[3],"Reused slot retains script timing and clears only done/wait state");
+            reused.startAnimation(slot,9);
+            int originalFrame=fresh.frame;
+            for(int n=2;n>=0;--n){reused.animate(slot);require(fresh.frame==originalFrame&&fresh.delay==n,"A new script first consumes the inherited delay");}
+            reused.start(1);
+            require(reused.entities[2].delay==0&&reused.entities[2].period==0,"Restart clears the complete animation pool");
+        }
         // Regression for the reachable crash/recovery handoff, including all
         // twelve phases that previously stranded the player in a stopped script.
         int recovered=0,deferredPhases=0;bool checkedPending=false;

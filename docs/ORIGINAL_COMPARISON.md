@@ -105,6 +105,11 @@ and outcome; the comparison reports differences rather than hiding them.
 
 ## Remaining work
 
+The follow-up [source timing analysis](AIR_TIMING.md) identifies the placement
+work overruns, verifies four routine-cost models and fixes retained animation
+delays when native Air entity slots are reused. Full native scheduling remains
+open; recorded-clock comparisons must not be described as real-time parity.
+
 - Investigate the original counter increments during long game updates and
   model the relevant scheduling behavior natively. Do not hardcode these two
   replay indices as a runtime fix, and do not embed a CPU emulator in the port.

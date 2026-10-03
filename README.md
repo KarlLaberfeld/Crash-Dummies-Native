@@ -140,6 +140,7 @@ requirements before a final release.
 - `tests/`: synthetic format checks and native rule/replay tests.
 - [Reverse-engineering notes](docs/REVERSE_ENGINEERING.md): documented structures and routines.
 - [Project status](docs/STATUS.md): current progress and remaining work.
+- [Air timing reconstruction](docs/AIR_TIMING.md): verified partial work costs, reused-slot animation correction and remaining scheduler work.
 
 ROMs, extracted original graphics, asset packages, and local analysis dumps
 are excluded from the repository. Generate assets from your own original

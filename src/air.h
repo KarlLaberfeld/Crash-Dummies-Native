@@ -65,6 +65,10 @@ struct AirGame {
     int held=0,pressed=0,previous=0,animationFaults=0,randomState=0;
     int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
     bool mapTransfer=true;
+    // Source-derived work accounting, in original T-cycles. These are partial
+    // costs, not a complete frame budget; they do not yet drive scheduling.
+    int mapWorkCycles=0,placementWorkCycles=0,spriteWorkCycles=0,clearWorkCycles=0;
+    bool measureWork=false; // Enable partial graphics accounting in reference probes.
     // Native liveness safeguard: retain a recovery rejected by 00:3b84.
     bool crashRecoveryPending=false;
     bool started=false,paused=false;

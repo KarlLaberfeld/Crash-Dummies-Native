@@ -6,7 +6,7 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 | Area | Evidence already available | Required before final release |
 |---|---|---|
 | Five stunts / four difficulties | Native rules, deterministic replay and a 20-stunt input-only campaign | Original comparisons for normal play, collisions, success and failure |
-| Air crash recovery | Native fix passes all 64 phase replays; original-ROM trace and control without hooks reproduce the failure in PyBoy | Retain the intentional fix; verify on independent reference/hardware and investigate measured global-counter cadence differences |
+| Air crash recovery / timing | Native safeguard passes all 64 phase replays; original trace/control reproduce the failure; four source-work costs are reference-checked and reused-slot animation delay is corrected | Retain the intentional recovery fix; complete handler/interrupt cost accounting and ordinary-clock scheduling comparison; verify on independent reference/hardware |
 | Presentation | Source-derived menus, transitions, palette tests and double-buffered shared sprite resources | Reference captures at matched input/update boundaries, including gameplay entry, pause, landing/body parts and exit |
 | Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |

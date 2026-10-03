@@ -1110,3 +1110,56 @@ Next concrete fidelity work: investigate native modeling of the measured display
 counter cadence, followed by more reference inputs/layouts and matched pixels/
 audio. Human, physical audio-device and second-Windows-host acceptance remain
 open. Keep the repository private and automatic continuation active.
+
+## Source timing reconstruction checkpoint - 2026-10-03
+
+**Original-time scheduling is still incomplete.** Native Air gameplay still
+advances once per display interval. Do not describe this checkpoint as the fix
+for the extra original VBlanks, and do not enable scheduling from partial costs.
+
+The measured overrun occurs during placement scanning/creation, with FFAE zero;
+the original then waits for another VBlank at 2617. Variable display/audio
+service costs also affect the available work interval. New control-verified
+timing instrumentation records every completed update, VBlank and STAT service.
+Its final memory matches the existing uninstrumented original control exactly.
+
+Four source-derived cost models now match all 3,059 reference updates: sprite
+preparation, unused sprite-list clearing, map-row preparation and eight-placement
+scanning. C++ models use native semantic state and decoded layouts, without CPU
+emulation or frame-index exceptions. Optional graphics-cost collection is used
+by the native probe, not ordinary Windows gameplay. Native exports with that
+collection enabled and disabled match byte for byte.
+
+The expanded comparison exposed a real timing defect: native Air slot reuse
+cleared an animation delay/period that original 1acd preserves. Fixed allocation
+to retain delay, period, script and loop cursors while marking animation done
+and clearing its frame wait. A synthetic regression fails against the previous
+allocator. Restart still clears all slots. Recorded-clock comparison now matches
+the four actual native costs through update 2470, and occupied non-player frame,
+flags and positions through 2578. The first player difference remains the
+intentional recovery safeguard at 2458. These are scoped comparisons, not full
+world, image, audio or real-time parity.
+
+See AIR_TIMING.md and tools/air_timing.py. Local evidence is in local/air-timing/;
+all original state, layouts and captures stay local. No asset format changed.
+
+Validation currently available: 39 Python tests, 822,497 focused Air assertions
+including all 64 recovery phases, all four input-only difficulty successes, and
+13 Windows UI checks with zero dropped audio buffers. The full build, every
+native suite and all three campaign scenarios pass in
+local/air-work-verified-build.log: 8,478 solo (one failed attempt), 8,620/8,455
+with both players completing (three/two failed attempts), and 0/8,493 with the
+first player eliminated (five/zero failures). The rebuilt Windows EXE is
+build/CrashDummies.exe; no new preview ZIP was produced. The faithful animation
+change makes the existing pilot retry one solo Air attempt. The campaign harness
+now checks failure life loss and preserved progress/savings on every loss,
+retaining all twenty wins, ending and title-return requirements. It no longer
+mistakes a perfect pilot run for a game-correctness condition. No outcome is
+injected or game logic changed to assist the pilot.
+
+Next: source-account 03d8..03e4 (entity handlers, animation, collisions and resource
+queue), then variable interrupt/audio/HUD work and wait-loop phase. Only with a
+complete budget should display and completed-game-update progression be split.
+Require ordinary-clock comparison without supplied per-update ticks, then expand
+inputs/difficulties. Do not repeat the unchanged placement/sprite audits without
+a new hypothesis. Keep the private repository and continuation automation active.

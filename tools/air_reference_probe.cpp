@@ -7,23 +7,45 @@
 
 using namespace ticd;
 int main(int argc,char**argv){
-    if(argc<2||argc>3){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock]\n");return 2;}
-    const bool aligned=argc==3&&std::string(argv[2])=="--recorded-clock";
-    if(argc==3&&!aligned){fprintf(stderr,"Unknown counter mode\n");return 2;}
+    if(argc<2){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock] [--work-csv path] [--entities-csv path]\n");return 2;}
+    bool aligned=false;std::string workPath,entityPath;
+    for(int i=2;i<argc;++i){
+        std::string option=argv[i];
+        if(option=="--recorded-clock")aligned=true;
+        else if(option=="--work-csv"&&i+1<argc)workPath=argv[++i];
+        else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
+        else{fprintf(stderr,"Unknown or incomplete option\n");return 2;}
+    }
     try{
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto game=std::make_unique<AirGame>(*assets,*shared);game->start(1);
+        game->measureWork=!workPath.empty();
         std::ifstream inputs(argv[1]);
         if(!(inputs>>game->ticks>>game->secondTicks>>game->randomState))return 2;
+        std::ofstream work;
+        std::ofstream entityLog;
+        if(!entityPath.empty()){
+            entityLog.open(entityPath);if(!entityLog)throw std::runtime_error("Could not open entity output");
+            entityLog<<"update,slot,frame,flags,x,y\n";
+        }
+        if(!workPath.empty()){
+            work.open(workPath);if(!work)throw std::runtime_error("Could not open workload output");
+            work<<"sprites,spritesDone,mapCallback,placements\n";
+        }
         puts("tick,handler,frame,flags,x,y,cameraX,cameraY,speed,rate,tilt,count,crash,anim,done,waiting,delay,period,transfer,remaining,map,result,seconds,secondTicks,random,pending");
-        int tick,held;
+        int tick,held,index=0;
         while(inputs>>tick>>held){
+            if(entityLog.is_open())for(int slot=0;slot<16;++slot){const auto& e=game->entities[slot];
+                entityLog<<index<<','<<slot<<','<<(e.alive?e.frame:255)<<','<<((e.flags&~2)|(e.offscreen?2:0))<<','<<e.x<<','<<e.y<<'\n';
+            }
+            ++index;
             int buttons=((held&1)?A:0)|((held&2)?B:0)|((held&16)?Right:0)|((held&32)?Left:0)|((held&64)?Up:0)|((held&128)?Down:0);
             // Diagnostic alignment only; contiguous mode advances the ordinary
             // native clock. Neither mode copies original player/world state.
             if(aligned)game->ticks=(tick-1)&65535;
             game->step(buttons);const auto& p=game->entities[0];
+            if(work.is_open())work<<game->spriteWorkCycles<<','<<game->clearWorkCycles<<','<<game->mapWorkCycles<<','<<game->placementWorkCycles<<'\n';
             printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
                    game->ticks,int(p.handler),p.frame,p.flags,p.x,p.y,game->cameraX,game->cameraY,
                    game->speed,game->rate,game->tilt,p.params[0],p.params[2],p.anim,p.animDone,p.frameWaiting,
