@@ -28,8 +28,9 @@ Exact presentation phase still needs reference validation.
 Air Bumper includes one documented native stability correction: if the crash
 animation is still running when recovery is requested, the request is retained
 until that animation finishes. This prevents a reproducible permanent stall.
-Original-cartridge behavior at this boundary remains unverified; see
-[the recovery analysis](docs/AIR_RECOVERY.md).
+The original ROM reproduces the failure in a separate reference emulator.
+Physical-hardware behavior and a measured game-update cadence difference remain
+open; see [the original comparison](docs/ORIGINAL_COMPARISON.md).
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline

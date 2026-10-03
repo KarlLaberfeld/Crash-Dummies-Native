@@ -1,5 +1,12 @@
 # Air Bumper crash recovery
 
+Update, October 3: [the original-ROM comparison](ORIGINAL_COMPARISON.md)
+reproduces this failure in PyBoy, including a control run without hooks.
+The native safeguard is now supported as an intentional original-bug fix for
+that reference environment. Hardware equivalence and a separately observed
+global-counter scheduling difference remain open. The earlier evidence limits
+below describe the state before that measurement.
+
 ## Failure and source evidence
 
 The medium-layout replay `A | (((elapsed + 24) / 24) % 2 ? Left : Right)`
@@ -40,9 +47,10 @@ stunt, entering a new crash or starting a terminal result clears it. This
 adds one explicit native state flag, with no CPU interpretation, forced
 animation restart, coordinate teleport or arbitrary recovery timeout.
 
-This is a liveness fix in the native port, **not a newly proven translation
-of original behavior**. A matched original trace remains necessary to decide
-whether the cartridge has this edge case or another timing detail is missing.
+This is a liveness fix in the native port, **not a translation of the original
+recovery behavior**. The subsequent matched trace reproduces the failure in
+the emulated original and also identifies a separate counter-cadence difference.
+It does not establish behavior on physical hardware.
 If a source-backed scheduling correction makes late requests unreachable,
 remove the safeguard only after keeping these regression scenarios passing.
 

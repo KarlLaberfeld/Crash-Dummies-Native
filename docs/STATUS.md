@@ -9,11 +9,12 @@ Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 **The overall task is not complete.** The Windows executable is a development
 build of Roof Jump, Air Bumper, Ski Slope, Bomb Factory and Cruise Missile, not a complete game.
 
-Latest change: the reproducible Air crash/recovery stall is fixed with an
-explicit deferred recovery request. All 64 phase replays finish, including
-the twelve previously stalled phases. This is a documented native stability
-correction; original timing at that boundary remains unverified. See
-[AIR_RECOVERY.md](AIR_RECOVERY.md) and the latest entry below.
+Latest evidence: the original ROM also stalls in the Air crash/recovery case
+in a separate reference emulator, confirmed without hooks. The native safeguard
+is retained. Recorded-clock comparison matches 23 gameplay fields through
+2,458 updates; ordinary native clock progression exposes a separate cadence
+difference. See [ORIGINAL_COMPARISON.md](ORIGINAL_COMPARISON.md) and the latest
+entry below. Hardware, image and audio equivalence remain unverified.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -1073,3 +1074,39 @@ Remaining release gates are matched original timing/image/audio references,
 human playthrough, physical audio-device removal, a second Windows installation
 and final distribution acceptance. The repository stays private and the
 automatic continuation stays active; this Air fix does not finish the port.
+
+## Original-ROM Air comparison - 2026-10-03
+
+The user authorized a separate reference emulator for measurement only. The
+original local US/EU ROM now has a reproducible Air trace using PyBoy 2.7.0,
+Python 3.13.5, normal UI/password inputs and read-only gameplay instrumentation.
+At update 2458 it reaches the same stopped-script recovery failure. It remains
+frozen for another 600 observed updates. A control replay without hooks produces
+the same 32,768-byte memory snapshot; the finding is not hook-dependent in this
+reference environment. This is emulated-original evidence, not hardware proof.
+
+The native probe matches all 23 compared gameplay fields for 2,458 updates when
+supplied the observed original global counter. The next difference is the
+intentional recovery safeguard. However, the original counter increments during
+updates 895 and 1222. With ordinary native clock progression, speed/rate already
+diverge at update 898. The original can span another display interval during
+an update; native scheduling does not yet account for that. Do not claim full
+timing parity or hardcode those two indices as a fix.
+
+Reproduction tools: tools/air_reference.py and tools/air_reference_probe.cpp.
+Report and instructions: docs/ORIGINAL_COMPARISON.md. Evidence remains under
+local/original-air-verified/, including capture-summary.json, original trace,
+input log, control state/images and both native comparison reports. The optional
+emulator is not a runtime/build/package dependency. No original data is uploaded.
+
+Validation: repeatable hooked/control capture, compiled native replay in ordinary
+and recorded-clock modes, and 29 Python tests including comparison normalization,
+divergence detection and truncated-trace rejection. No native runtime code or
+asset formats changed in this comparison checkpoint; the previous full native,
+campaign and Windows results remain the relevant build checks. No redundant
+campaign rerun or replacement EXE was needed.
+
+Next concrete fidelity work: investigate native modeling of the measured display
+counter cadence, followed by more reference inputs/layouts and matched pixels/
+audio. Human, physical audio-device and second-Windows-host acceptance remain
+open. Keep the repository private and automatic continuation active.
