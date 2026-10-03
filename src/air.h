@@ -65,6 +65,8 @@ struct AirGame {
     int held=0,pressed=0,previous=0,animationFaults=0,randomState=0;
     int transferState=0,transferRemaining=0,transferFrame=0,transferFlags=0,lastMapCamera=0;
     bool mapTransfer=true;
+    // Native liveness safeguard: retain a recovery rejected by 00:3b84.
+    bool crashRecoveryPending=false;
     bool started=false,paused=false;
     AirGame(const AirAssets& a,const Assets& s):assets(a),shared(s){}
     void start(int level,int player=0);

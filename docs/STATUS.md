@@ -1,4 +1,4 @@
-# Project status - October 2, 2026
+# Project status - October 3, 2026
 
 ## Objective
 
@@ -8,6 +8,12 @@ Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 
 **The overall task is not complete.** The Windows executable is a development
 build of Roof Jump, Air Bumper, Ski Slope, Bomb Factory and Cruise Missile, not a complete game.
+
+Latest change: the reproducible Air crash/recovery stall is fixed with an
+explicit deferred recovery request. All 64 phase replays finish, including
+the twelve previously stalled phases. This is a documented native stability
+correction; original timing at that boundary remains unverified. See
+[AIR_RECOVERY.md](AIR_RECOVERY.md) and the latest entry below.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -1029,3 +1035,41 @@ The new resource evidence narrows the partial-tile issue; exact sub-frame
 publication and unreferenced startup buffer contents still need references.
 The project and repository remain private and incomplete. Automatic continuation
 stays active. ROM, decoded assets, captures, binaries and preview ZIPs stay local.
+
+## Air crash/recovery handoff fixed - 2026-10-03
+
+Implemented an explicit deferred recovery request for the player. If the crash
+script is still active at the original 80-update boundary, conditional start
+rejects recovery. The native port now remembers that request, lets the current
+script finish (including its final sound), and starts the original recovery
+script once. On-time recovery, map-row priority, transfer budgets, movement
+and animation periods are unchanged. Pause retains the request; restart, a new
+crash and a terminal result clear it.
+
+This resolves the reachable native liveness failure, but is deliberately a
+native safeguard, not a proven correction to original timing. The source
+audit has not established whether the cartridge reaches the same edge case.
+See AIR_RECOVERY.md for exact source addresses, behavior and evidence limits.
+Do not mark original-reference timing accepted on the strength of this fix.
+
+The new regression failed on the previous implementation. It now passes all
+64 initial phases, including all twelve formerly stalled cases, with 232
+completed returns to player control and every replay reaching a stunt result.
+Additional checks cover on-time startup, preserved crash sound, one-time
+recovery, pause/restart, terminal cancellation and unrelated entity updates.
+The focused Air suite passes 822,125 assertions (including repeated replay
+invariants) and successful ordinary-input runs on all four difficulties.
+The rebuilt Windows EXE passes all 13 UI checks with zero dropped audio buffers.
+Detailed original data and diagnostic logs remain local.
+
+Full validation also passes: 26 Python tests, every native suite and all three
+complete campaign scenarios (local/air-recovery-build.log). Their results are
+unchanged: 7,987 solo; 9,226/8,754 with both players completing; and 0/8,109
+with player one eliminated before player two completes. The executable at
+build/CrashDummies.exe contains the fix. Preview packaging now describes the
+stability correction instead of listing the reproduced stall as unfixed.
+
+Remaining release gates are matched original timing/image/audio references,
+human playthrough, physical audio-device removal, a second Windows installation
+and final distribution acceptance. The repository stays private and the
+automatic continuation stays active; this Air fix does not finish the port.

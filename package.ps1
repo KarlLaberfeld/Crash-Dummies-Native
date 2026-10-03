@@ -53,8 +53,9 @@ Z/X: A/B actions. Escape: pause. F6: abandon campaign and return to title.
 High scores: arrows choose a character; Z/X confirm; select End to finish.
 Scores are retained only for the current application session.
 
-Known limitations: Air Bumper can stall after certain collisions; exact
-original timing, image and audio equivalence remain unverified. Automated
+Air Bumper retains delayed crash-recovery requests to prevent a reproduced
+stall. This is a documented native stability correction; exact original
+timing, image and audio equivalence remain unverified. Automated
 completion tests do not replace original-reference or human play tests.
 The development window uses German labels. See the repository status for
 the current evidence and remaining work.

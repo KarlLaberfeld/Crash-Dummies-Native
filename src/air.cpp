@@ -75,7 +75,7 @@ void AirGame::start(int level,int player){
     ticks=secondTicks=money=livesEarned=0;seconds=l.seconds;
     cameraLead=cameraLeadTarget=176;tilt=speed=rate=lastForce=returnX=returnY=0;
     scan=hudCursor=result=resultFlags=held=pressed=previous=animationFaults=randomState=0;
-    finishTimer=128;started=true;paused=false;videoTickPrepared=false;probes={};
+    finishTimer=128;started=true;paused=false;videoTickPrepared=false;probes={};crashRecoveryPending=false;
     transferState=transferRemaining=transferFrame=transferFlags=0;
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
@@ -215,7 +215,7 @@ void AirGame::finishVideoTick(int oldFrame,int oldFlags){
     }
 }
 void AirGame::tickTimer(){if(++secondTicks==60){secondTicks=0;if(seconds)--seconds;}}
-void AirGame::beginFinish(int flags){resultFlags=flags;entities[0].handler=AirHandler::FinishDelay;if(--finishTimer==0)result=resultFlags;}
+void AirGame::beginFinish(int flags){crashRecoveryPending=false;resultFlags=flags;entities[0].handler=AirHandler::FinishDelay;if(--finishTimer==0)result=resultFlags;}
 void AirGame::damage(int amount){
     auto& value=entities[0].params[5];int sum=value+amount;value=static_cast<uint8_t>(sum);
     if(sum>255)beginFinish(0x21);
@@ -236,7 +236,7 @@ void AirGame::walls(){
     auto& p=entities[0];
     if(probes[2]&2){
         speed=std::min(speed,-6);returnX=p.x;returnY=p.y;
-        p.handler=AirHandler::Crash;p.params[0]=80;p.params[2]=255;startAnimation(0,0,true);
+        crashRecoveryPending=false;p.handler=AirHandler::Crash;p.params[0]=80;p.params[2]=255;startAnimation(0,0,true);
     }else if((probes[0]|probes[1])&2){
         if(tilt){impact();return;}
         setFrame(0,8,(probes[0]&2)?0:32);p.handler=AirHandler::WallSlide;p.params[0]=128;
@@ -309,7 +309,12 @@ void AirGame::update(int i){
         if(probes[base]&32){lastForce=4;e.move(4,0);}else if(probes[base+1]&32){lastForce=-4;e.move(-4,0);}
         if(!(ticks&3)&&((probes[0]|probes[1]|probes[2])&4))speed=speed<0?-2:4;
         walls();finishGate();collide();break;}
-    case AirHandler::Animation:animate(i);break;
+    case AirHandler::Animation:
+        animate(i);
+        if(i==0&&crashRecoveryPending&&e.animDone){
+            crashRecoveryPending=false;startAnimation(i,1);
+        }
+        break;
     case AirHandler::FinishMotion:
         followCamera();e.move(0,s8(2*rate));if(!(ticks&15))speed=approach(speed,0);
         lookupRate();sampleProbes(tilt);terrainBounce();if(--finishTimer==0)result=resultFlags;
@@ -324,7 +329,15 @@ void AirGame::update(int i){
         if(held&Left)e.move(-16,0);if(held&Right)e.move(16,0);e.move(0,s8(2*rate));collide();
         if(--e.params[0])break;
         e.params[2]=0;sampleProbes(tilt);
-        if((probes[0]|probes[1]|probes[2])&64){e.handler=AirHandler::Animation;startAnimation(i,1);break;}
+        if((probes[0]|probes[1]|probes[2])&64){
+            e.handler=AirHandler::Animation;
+            // 01:6307 calls the conditional starter. A map-delayed crash can
+            // still be active at this deadline, so its recovery is rejected.
+            // Deliberate native fix: remember that request, finish the crash
+            // normally, then start the unchanged recovery script exactly once.
+            // This is not evidence of the original cartridge's timing.
+            crashRecoveryPending=!e.animDone;startAnimation(i,1);break;
+        }
         if(!((probes[0]|probes[1]|probes[2]|probes[3]|probes[4]|probes[5])&1)){e.handler=AirHandler::Play;break;}
         e.handler=AirHandler::Exploding;e.params[0]=64;setFrame(i,6);[[fallthrough]];
     case AirHandler::Exploding:

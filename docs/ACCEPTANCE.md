@@ -6,7 +6,7 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 | Area | Evidence already available | Required before final release |
 |---|---|---|
 | Five stunts / four difficulties | Native rules, deterministic replay and a 20-stunt input-only campaign | Original comparisons for normal play, collisions, success and failure |
-| Air crash recovery | Reproducer and 64-phase sweep; twelve cases stall | Resolve the cause or demonstrate the same behavior on the original |
+| Air crash recovery | Deferred-request fix; all 64 phase replays finish, including the twelve previously stalled phases | Compare the deadline/transfer boundary with the original; retain the documented native correction until timing is established |
 | Presentation | Source-derived menus, transitions, palette tests and double-buffered shared sprite resources | Reference captures at matched input/update boundaries, including gameplay entry, pause, landing/body parts and exit |
 | Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |
@@ -56,7 +56,9 @@ This is automated native acceptance, not a human or original-game comparison.
 The first expanded run found a Roof animation wait left active after balloon
 contact. The missing reset from the original 3d15 helper was implemented and
 covered by balloon/rope collision regressions. All three campaigns pass after
-that correction. The unrelated Air crash reproducer remains unresolved.
+that correction. The unrelated Air crash reproducer was subsequently fixed
+with deferred recovery; see [the recovery analysis](AIR_RECOVERY.md) for the
+deliberate native behavior difference and remaining reference requirement.
 
 Both preview archive manifests and file hashes have been verified. The default
 archive excludes ROM and asset packages; its bundled extraction was run from
@@ -78,4 +80,5 @@ dynamic entities. This fixes Roof's three descriptor-free body-part layouts,
 which share the five-chunk landing upload. Tests cover progressive and replaced
 uploads, bank-tail retention, prepared pixel snapshots and actual landing data.
 This narrows the partial-tile question; it does not replace matched original
-captures or establish exact scanline timing. The Air crash deadline is unchanged.
+captures or establish exact scanline timing. The Air crash deadline is unchanged;
+the subsequent recovery-request safeguard is documented separately.

@@ -53,6 +53,55 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
     auto require=[&](bool ok,const char* label){++assertions;if(!ok)throw std::runtime_error(label);};
     try{
         AirGame g(assets,shared);g.start(0);
+        // Regression for the reachable crash/recovery handoff, including all
+        // twelve phases that previously stranded the player in a stopped script.
+        int recovered=0,deferredPhases=0;bool checkedPending=false;
+        for(int phase=0;phase<64;++phase){
+            AirGame run(assets,shared);run.start(1);run.ticks=phase;
+            bool returning=false,deferred=false;int recoveryAge=0;
+            for(int elapsed=0;elapsed<12000&&!run.result;++elapsed){
+                auto before=run.entities[0].handler;
+                run.step(A|(((elapsed+24)/24)%2?Left:Right));
+                const auto& p=run.entities[0];
+                require(!(p.handler==AirHandler::Animation&&p.animDone),"Crash recovery must not strand the player in a stopped animation");
+                if(before==AirHandler::Crash&&p.handler==AirHandler::Animation){
+                    returning=true;recoveryAge=0;
+                    if(!run.crashRecoveryPending)require(p.anim==assets.animationStarts[1]&&!p.animDone,"On-time recovery still starts at the original deadline");
+                }
+                if(run.crashRecoveryPending){
+                    deferred=true;
+                    require(!p.animDone&&p.anim!=assets.animationStarts[1],"Deferred recovery preserves the still-running crash script");
+                    if(!checkedPending){
+                        checkedPending=true;auto probe=std::make_unique<AirGame>(run);
+                        probe->paused=true;for(int n=0;n<30;++n)probe->step(0);
+                        require(probe->crashRecoveryPending&&probe->entities[0].anim==p.anim&&probe->entities[0].delay==p.delay&&probe->ticks==run.ticks,"Pause preserves the pending recovery without advancing its script");
+                        probe->paused=false;
+                        int wait=0;while(probe->crashRecoveryPending&&++wait<128)probe->step(0);
+                        require(!probe->crashRecoveryPending&&probe->entities[0].anim==assets.animationStarts[1]&&!probe->entities[0].animDone,"The crash stop starts the deferred recovery exactly once");
+                        require(probe->pendingSound==4,"Deferred handoff retains the crash script's final sound");
+                        probe->step(0);
+                        require(!probe->crashRecoveryPending&&probe->pendingSound==15,"The next update executes the original recovery script");
+                        probe=std::make_unique<AirGame>(run);probe->start(1);
+                        require(!probe->crashRecoveryPending,"Restart clears pending crash recovery");
+                        probe=std::make_unique<AirGame>(run);probe->beginFinish(0x21);
+                        require(!probe->crashRecoveryPending&&probe->entities[0].handler==AirHandler::FinishDelay,"A terminal result cancels pending crash recovery");
+                        probe=std::make_unique<AirGame>(run);probe->entities[1].handler=AirHandler::Animation;probe->entities[1].animDone=true;probe->update(1);
+                        require(probe->crashRecoveryPending&&probe->entities[0].anim==p.anim,"Other entities cannot consume the player's recovery request");
+                    }
+                }
+                if(returning){
+                    require(++recoveryAge<512,"Crash recovery must return control within a bounded time");
+                    if(p.handler==AirHandler::Play){returning=false;++recovered;}
+                }
+                require(run.animationFaults==0,"Crash phase replay keeps animation graphs valid");
+            }
+            require(run.result!=0&&!returning,"Every crash phase replay reaches a stunt result after recovery");
+            if(deferred)++deferredPhases;
+            fprintf(log,"crash recovery phase=%d ticks=%d result=%02x\n",phase,run.ticks,run.result);
+        }
+        require(recovered>=64,"Phase sweep exercises actual returns to player control");
+        require(deferredPhases==12,"All twelve formerly stalled phases exercise deferred recovery");
+        fprintf(log,"crash recovery: %d deferred phases, %d completed returns to play\n",deferredPhases,recovered);
         require(g.cameraX==0x4f00&&g.cameraY==0xae80,"Original Air camera origin");
         require(g.entities[0].x==0x5300&&g.entities[0].y==0xb600,"Original Air player origin");
         require(g.seconds==40&&assets.levels[0].quota==14,"Original easy timer and quota");

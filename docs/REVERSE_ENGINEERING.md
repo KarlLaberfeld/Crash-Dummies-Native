@@ -1011,3 +1011,9 @@ map priority, animation waits and gameplay deadlines are unchanged. This is a
 rendering/data reconstruction fix, not a proposed repair for the Air stall.
 Unreferenced startup buffer contents and sub-frame hardware effects are not
 claimed to match without an original capture.
+
+The later [Air recovery correction](AIR_RECOVERY.md) retains a recovery request
+rejected by `00:3b84` until the current crash script stops. It eliminates the
+native reproducer without changing map priority or forcing an animation restart.
+This deliberately adds native state and is not evidence of original timing;
+the original-reference question in the earlier audit entries remains open.
