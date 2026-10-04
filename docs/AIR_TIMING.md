@@ -143,9 +143,9 @@ latch is not certified as a normally returning service.
 | Entry body before DMA | 180 | Source cost checked |
 | DMA call and transfer delay | 704 | Source cost checked |
 | Joypad sampling | 280 | Source cost checked |
-| Display callback dispatch/body | 884–7,464 | Measured; source model incomplete |
+| Display callback dispatch/body | 884–7,464 | Source model checked across 3,063 services |
 | Counter/bookkeeping/reset guard | 240 | Conditional source cost checked |
-| Pending effect setup | 64–620 | Measured; source model incomplete |
+| Pending effect setup | 64–620 | Source model checked across 3,063 services |
 | Audio bank switch | 68 | Source cost checked |
 | Music driver | 1,612–13,008 | Measured; source model incomplete |
 | Bank/register restoration | 120 | Source cost checked |
@@ -176,16 +176,17 @@ python tools/air_timing.py report
 $env:ZIG_GLOBAL_CACHE_DIR = Join-Path $PWD '.tools/zig-cache'
 $env:ZIG_LOCAL_CACHE_DIR = Join-Path $PWD '.tools/zig-local-cache'
 & .tools/zig-x86_64-windows-0.16.0/zig.exe c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tools/air_reference_probe.cpp src/air.cpp src/game.cpp -o local/air-reference-probe.exe
-& ./local/air-reference-probe.exe local/original-air-verified/inputs.txt --recorded-clock --work-csv local/air-timing/native-work.csv --entities-csv local/air-timing/native-entities.csv --handlers-csv local/air-timing/native-handlers.csv > local/air-timing/native-state.csv
+& ./local/air-reference-probe.exe local/original-air-verified/inputs.txt --recorded-clock --work-csv local/air-timing/native-work.csv --entities-csv local/air-timing/native-entities.csv --handlers-csv local/air-timing/native-handlers.csv --display-csv local/air-timing/native-display.csv > local/air-timing/native-state.csv
 python tools/air_timing.py compare local/air-timing/native-work.csv
 python tools/air_timing.py compare-handlers local/air-timing/native-handlers.csv
 python tools/air_timing.py compare-entities local/air-timing/native-entities.csv
+python tools/air_timing.py compare-display local/air-timing/native-display.csv
 python tools/air_reference.py compare local/air-timing/native-state.csv --out local/original-air-verified
 ```
 
 The pure analysis and synthetic Python tests do not import or require PyBoy.
-Capture schema 6 requires handler, animation, collision, motion, input and
-VBlank component hooks; older timing captures
+Capture schema 8 requires handler, animation, collision, motion, input,
+VBlank components, nested display boundaries and effect-root workloads; older timing captures
 are rejected with a recapture instruction rather than silently skipping evidence.
 The standalone C++ checks use synthetic data only and run as part of
 `build.ps1 -Test`; they can also be compiled from `tests/air_work_tests.cpp`, `src/air.cpp`
@@ -195,6 +196,59 @@ does not use original positions, allocation results or layouts to drive native
 gameplay. Native entity logging occurs before `step`; exclude the player from
 that pre-step comparison because the original's preceding display callback can
 complete a player resource upload. The separate post-step comparator covers it.
+
+## Display/effect source checkpoint, 2026-10-04
+
+The independent Python source formulas agree with all **3,063** measured display
+callbacks and effect-setup intervals. The display model separates map transfer,
+dynamic resources, one HUD column, scroll, LCD control, fade and full HUD refresh.
+Map transfer remains active when the main-update resource gate is closed; it
+takes priority over dynamic copying. The refresh cost includes the mathematical
+division quotient's bit count and progress-bar return paths. These formulas use
+semantic state, not instruction execution, recorded frame indices or a fitted
+allowance. Native models are in `src/air_video_work.h` and `src/audio_work.h`;
+unknown display components propagate as -1.
+
+Source analysis also corrected a native progress-bar glyph. For an exact positive
+multiple of eight below the six-segment maximum, the original writes full segments
+followed by tile 0xf0. The previous native loop left that next tile empty. Zero
+progress remains empty, six full segments have no extra terminator, and the
+low-byte quotient wrap is retained. All **235** original HUD refreshes match the
+independent tile formula. This verifies the refreshed values, not when native
+display services occur.
+
+The new direct native display comparison makes the remaining phase gap explicit:
+at game update zero the original HUD cursor is 2 and native is 1. The first
+display-cost difference is update 11; bar values first differ at 414/622. A
+separate control-verified startup trace explains the initial gap. At 03c6, just
+after enabling the LCD, IF=0x13 and IE=3; a pending VBlank is serviced at scanline
+zero, followed by pending STAT. Only then does 03cb call the counter-change wait
+at 2617. The next VBlank precedes the first game update at 03d8. The original
+therefore performs two display callbacks before that update. This is source/phase
+evidence for future scheduling, not permission to seed the native cursor to a
+fitted value. Hooks inside the HALT wait helper stalled the reference tool and
+were discarded; only outer boundaries were used for the successful startup trace.
+
+Both expanded captures retain the unchanged control memory SHA-256
+`03783c97b547d3d3ee69b720ae5b78228e04ebc961f31eeffadf7ab9cd954eb8`.
+Accounting-enabled and disabled native state exports still match the prior
+checkpoint, hash `8b41e9d4d7a8c2b21d37c54abf16a77b4699de691727e0a765f680f66622a382`.
+Those exports do not include HUD pixels. Effect-cost accounting also preserves
+native PCM byte for byte through 240 frames of music and overlapping effects;
+this is an accounting regression, not an original-audio parity result.
+
+Validation: **52 Python tests, 65 synthetic C++ source-work checks, 822,497 Air
+assertions, 131 audio assertions**, a rebuilt Windows EXE and **13 automated
+Windows UI checks**. All 64 recovery phases and four difficulty pilots pass.
+Unchanged full campaign suites were not repeated. Evidence stays in ignored
+`local/air-display-effect-timing/`, `local/startup-phase.json`,
+`local/startup-phase.log`, `local/air-display-build.log`, and the native test logs
+under `build/`. No new preview ZIP or final release is produced.
+
+**Runtime timing is still unfinished.** The ordinary Windows loop still advances
+one game update per display interval. Display/effect formulas establish source
+work, not native phase alignment. Music-driver work, STAT/wait phase and the
+independent service/update scheduler remain outstanding.
 
 ## Required next work
 
@@ -214,11 +268,12 @@ and continues to require all twenty wins, the ending and return to title. The
 earlier zero-failure solo requirement tested pilot perfection rather than game
 correctness; it is not retained as a fidelity oracle. No game results are injected.
 
-1. Reconstruct the remaining variable VBlank display callback, effect setup and
-   music driver from source, using their new measured boundaries. Extend reference
+1. Reconstruct the remaining variable music driver from source, using its measured
+   boundaries. Display and effect setup now have checked source models. Extend reference
    inputs to timeout, finish, wall-slide, boosted motion and exploding branches;
    source/synthetic coverage alone cannot establish original parity.
-2. Complete STAT and main-loop wait/interrupt phase accounting. The observed
+2. Complete STAT and main-loop wait/interrupt phase accounting, including the
+   pending startup VBlank before the first wait. The observed
    min/max is not a service-work model. Keep unknown paths explicitly unknown.
 3. Introduce separate display and completed-game-update progression. An extra
    VBlank must advance global input/audio/HUD/display work without inventing an

@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "audio_work.h"
 #include <algorithm>
 #include <cstdio>
 #include <stdexcept>
@@ -21,6 +22,25 @@ int runAudioTests(const AudioAssets& assets){
     FILE* log=fopen("audio-test.txt","w");if(!log)return 2;int assertions=0;
     auto check=[&](bool valid,const char* message){++assertions;if(!valid)throw std::runtime_error(message);};
     try{
+        auto setup=fixture();setup.effects[0]={1,1};setup.effects[1]={1,0};setup.effects[2]={0,1};
+        command(setup,4,1,MusicOp::Stop,2,{});command(setup,5,1,MusicOp::Stop,2,{});
+        NativeAudio work(setup);work.measureWork=true;work.playMusic(0);work.tick();
+        check(work.effectWorkCycles==64,"No pending effect pays only the original setup early return");
+        for(int effect=0;effect<4;++effect){work.queueEffect(effect);work.tick();
+            check(work.effectWorkCycles==(effect==0?620:effect==1?472:effect==2?368:220),"Only selected square/noise effect roots require voice initialization");}
+        work.setPaused(true);work.queueEffect(0);work.tick();
+        check(work.effectWorkCycles==-1&&work.pendingEffect==0,"Paused native sequencing cannot certify an original setup interval");
+        work.setPaused(false);work.tick();check(work.effectWorkCycles==620&&work.pendingEffect==-1,"Resume consumes the retained request and accounts for both roots");
+        check(audioEffectSetupWork(26,true,true)==-1,"Invalid effect index never reports a completed cost");
+        NativeAudio measured(assets),unmeasured(assets);measured.measureWork=true;
+        measured.playMusic(1);unmeasured.playMusic(1);std::vector<int16_t> measuredPcm,unmeasuredPcm;
+        bool sameWorkAudio=true;
+        for(int frame=0;frame<240;++frame){
+            if(frame%40==0){measured.queueEffect(frame/40);unmeasured.queueEffect(frame/40);}
+            measured.tick();unmeasured.tick();measured.render(measuredPcm);unmeasured.render(unmeasuredPcm);
+            sameWorkAudio&=measuredPcm==unmeasuredPcm;
+        }
+        check(sameWorkAudio,"Optional effect work accounting preserves PCM through music and overlapping effects");
         auto a=fixture();
         command(a,0,1,MusicOp::Envelope,2,{0x40,1,1});command(a,0,2,MusicOp::EnvelopeMode,3,{1});
         command(a,0,3,MusicOp::Note,4,{24,3});command(a,0,4,MusicOp::Note,5,{25,0});command(a,0,5,MusicOp::Stop,6,{});

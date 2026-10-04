@@ -7,26 +7,32 @@
 
 using namespace ticd;
 int main(int argc,char**argv){
-    if(argc<2){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock] [--work-csv path] [--entities-csv path] [--handlers-csv path]\n");return 2;}
-    bool aligned=false;std::string workPath,entityPath,handlerPath;
+    if(argc<2){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock] [--work-csv path] [--entities-csv path] [--handlers-csv path] [--display-csv path]\n");return 2;}
+    bool aligned=false;std::string workPath,entityPath,handlerPath,displayPath;
     for(int i=2;i<argc;++i){
         std::string option=argv[i];
         if(option=="--recorded-clock")aligned=true;
         else if(option=="--work-csv"&&i+1<argc)workPath=argv[++i];
         else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
         else if(option=="--handlers-csv"&&i+1<argc)handlerPath=argv[++i];
+        else if(option=="--display-csv"&&i+1<argc)displayPath=argv[++i];
         else{fprintf(stderr,"Unknown or incomplete option\n");return 2;}
     }
     try{
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto game=std::make_unique<AirGame>(*assets,*shared);game->start(1);
-        game->measureWork=!workPath.empty()||!handlerPath.empty();
+        game->measureWork=!workPath.empty()||!handlerPath.empty()||!displayPath.empty();
         std::ifstream inputs(argv[1]);
         if(!(inputs>>game->ticks>>game->secondTicks>>game->randomState))return 2;
         std::ofstream work;
         std::ofstream entityLog;
         std::ofstream handlerLog;
+        std::ofstream displayLog;
+        if(!displayPath.empty()){
+            displayLog.open(displayPath);if(!displayLog)throw std::runtime_error("Could not open display output");
+            displayLog<<"update,cost,cursor,fade,bar0,bar1,bar2,bar3,bar4,bar5\n";
+        }
         if(!handlerPath.empty()){
             handlerLog.open(handlerPath);if(!handlerLog)throw std::runtime_error("Could not open handler output");
             handlerLog<<"update,slot,handler,cost\n";
@@ -51,6 +57,11 @@ int main(int argc,char**argv){
             // native clock. Neither mode copies original player/world state.
             if(aligned)game->ticks=(tick-1)&65535;
             game->step(buttons);const auto& p=game->entities[0];
+            if(displayLog.is_open()){
+                displayLog<<index-1<<','<<game->displayWorkCycles<<','<<game->hudCursor<<','<<game->displayFadeRemaining;
+                for(int j=7;j<13;++j)displayLog<<','<<static_cast<int>(game->hudValues[j]);
+                displayLog<<'\n';
+            }
             if(handlerLog.is_open())for(int slot=0;slot<16;++slot)if(game->handlerWorkCycles[slot]!=-2)
                 handlerLog<<index-1<<','<<slot<<','<<game->handlerWorkKinds[slot]<<','<<game->handlerWorkCycles[slot]<<'\n';
             if(work.is_open())work<<game->entityWorkCycles<<','<<game->resourceWorkCycles<<','<<game->spriteWorkCycles<<','<<game->clearWorkCycles<<','<<game->mapWorkCycles<<','<<game->placementWorkCycles<<','<<(game->animationWorkComplete?game->animationWorkCycles:-1)<<','<<game->collisionScanWorkCycles<<','<<game->collisionCallbackWorkCycles<<','<<game->playerMotionWorkCycles<<','<<game->playerInputWorkCycles<<'\n';

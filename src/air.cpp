@@ -1,5 +1,6 @@
 #include "air.h"
 #include "air_work.h"
+#include "air_video_work.h"
 #include "sprites.h"
 #include <algorithm>
 #include <cstdio>
@@ -84,6 +85,7 @@ void AirGame::start(int level,int player){
     starterWorkCycles=cameraWorkCycles=0;animationWorkComplete=true;
     collisionScanWorkCycles=collisionCallbackWorkCycles=0;
     playerMotionWorkCycles=playerInputWorkCycles=0;complexBodyWorkCycles=entityWorkCycles=-1;
+    displayWorkCycles=-1;displayFadeRemaining=8;
     handlerWorkCycles.fill(-2);handlerWorkKinds.fill(-1);
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
@@ -215,6 +217,9 @@ void AirGame::lookupRate(){rate=assets.speeds.at(speed+20);}
 // 03db runs the next entity update. Keep visible and prepared state separate.
 void AirGame::publishVideo(){visibleSprites=sprites;visibleCameraX=cameraX;visibleCameraY=cameraY;}
 void AirGame::beginVideoTick(){
+    if(measureWork)displayWorkCycles=airDisplayWork(mapTransfer,true,transferRemaining,hudCursor,
+        ticks,displayFadeRemaining,entities[0].params[1],assets.levels[difficulty].quota).total();
+    if(!(ticks&1)&&displayFadeRemaining)--displayFadeRemaining;
     publishVideo();
     // 00:0c3f / 00:1897: a map row has priority; otherwise copy at most four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
@@ -512,7 +517,12 @@ void AirGame::refreshHud(){
     hudValues[1]=0xf6+score/1000;hudValues[2]=0xf6+score/100%10;hudValues[3]=0xf6+score/10%10;hudValues[4]=0xf6+score%10;
     hudValues[5]=0xf6+seconds/10;hudValues[6]=0xf6+seconds%10;
     int bar=(entities[0].params[1]*48/assets.levels[difficulty].quota)&255;
-    for(int j=7;j<13;++j){if(bar>=8){hudValues[j]=0xe9;bar-=8;}else if(bar){hudValues[j]=0xe9+(bar^7);bar=0;}else hudValues[j]=0;}
+    int j=7;
+    if(bar){
+        while(j<13&&bar>=8){hudValues[j++]=0xe9;bar-=8;}
+        if(j<13)hudValues[j++]=0xe9+(bar^7); // 317d tests zero only before the first segment.
+    }
+    while(j<13)hudValues[j++]=0;
 }
 void AirGame::tickHud(){hudMap[assets.hudColumns[hudCursor]]=hudValues[hudCursor];hudCursor=(hudCursor+1)%13;if(!hudCursor)refreshHud();}
 

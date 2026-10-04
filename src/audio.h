@@ -54,6 +54,8 @@ struct NativeAudio {
     bool waveTrigger=true;
     bool waveDac=true;
     bool paused=false;
+    bool measureWork=false; // Optional source-work diagnostics; music remains unmodeled.
+    int effectWorkCycles=-1;
     uint64_t ticks=0,sampleRemainder=0;
     std::array<double,2> capacitor{};
     explicit NativeAudio(const AudioAssets& a):assets(a){}

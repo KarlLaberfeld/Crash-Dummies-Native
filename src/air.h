@@ -76,6 +76,7 @@ struct AirGame {
     int complexBodyWorkCycles=-1;
     int playerMotionWorkCycles=0;
     int playerInputWorkCycles=0;
+    int displayWorkCycles=-1,displayFadeRemaining=8;
     bool animationWorkComplete=true;
     bool measureWork=false; // Enable partial source-work accounting in reference probes.
     // Native liveness safeguard: retain a recovery rejected by 00:3b84.

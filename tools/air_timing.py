@@ -26,6 +26,9 @@ IRQ_PHASES = {0x2430: 'dma', 0x2433: 'joypad', 0x2436: 'display',
 # Routine bodies plus their source callers; no measured allowance or emulator
 # state feeds these constants. Variable display/effect/music work is separate.
 VBLANK_FIXED = dict(prefix=180, dma=704, joypad=280, audioBank=68, restore=120)
+DISPLAY_PHASES = {0x0c3f: 'map', 0x0c42: 'resources', 0x0c49: 'hud',
+                  0x0c4c: 'scroll', 0x0c4f: 'lcd', 0x0c55: 'fade',
+                  0x0c58: 'refresh', 0x0c5b: 'tail'}
 ENTITY_HOOKS = (0x1b25, 0x1b26)
 ANIMATION_ENTRY = 0x3bb3
 ANIMATION_RETURNS = (0x6249, 0x6625, 0x667e, 0x675c, 0x67c4,
@@ -35,7 +38,7 @@ COLLISION_RETURNS = (0x61e8, 0x626c)
 COLLISION_CALLBACK_HOOKS = (0x17b8, 0x184f, 0x1852)
 MOTION_ENTRY, MOTION_RETURN = 0x659c, 0x5fe2
 INPUT_ENTRY, INPUT_RETURN = 0x5fef, 0x6026
-CAPTURE_VERSION = 6
+CAPTURE_VERSION = 8
 
 
 def placement_cycles(camera_row, scan, placements, occupied):
@@ -258,6 +261,47 @@ def vblank_bookkeeping_work(reset_enabled, held, reset_latched):
     return 248 if reset_latched else -1
 
 
+def progress_bar_tiles(value):
+    value &= 255
+    if not value:
+        return [0]*6
+    full = min(value//8, 6)
+    return [0xe9]*full + ([0xe9+((value%8)^7)] + [0]*(5-full) if full < 6 else [])
+
+
+def display_cycles(map_pending, ready, chunks, cursor, tick, fade_remaining, collected, quota):
+    """Source-derived display work, without executing instructions or copying pixels."""
+    if not 0 <= cursor < 13 or not 0 <= collected <= 255 or not 1 <= quota <= 255 or chunks < 0:
+        raise ValueError('Invalid display workload')
+    upload = 36 if not ready else 60 if not chunks else 3112 if chunks > 4 else 456+672*chunks
+    quotient = 48*collected//quota
+    full = min((quotient & 255)//8, 6)
+    bar_work = 172 if not quotient & 255 else 288 if full == 6 else 304 if full == 5 else 208+20*full
+    refresh = 708 + (8 if ((2*collected)&255)+collected > 255 else 0) + 2632 - 20*quotient.bit_count() + bar_work
+    return dict(prefix=116, map=24+(736 if map_pending else 40),
+                resources=32 if map_pending else 44+upload, hud=248+(12 if cursor == 12 else 0),
+                scroll=176, lcd=32, fade=24+(40 if tick & 1 else 208 if fade_remaining else 68),
+                refresh=24+(refresh if cursor == 12 else 40), tail=16)
+
+
+def display_work(irq):
+    if set(irq.get('displayPhases', {})) != set(DISPLAY_PHASES.values()):
+        raise ValueError('Incomplete display phases')
+    names = ['prefix', *DISPLAY_PHASES.values()]
+    times = [irq['phases']['display'], *(irq['displayPhases'][name] for name in DISPLAY_PHASES.values()), irq['phases']['bookkeeping']]
+    if any(a >= b for a, b in zip(times, times[1:])):
+        raise ValueError('Invalid display phase order')
+    return {name: b-a for name, a, b in zip(names, times, times[1:])}
+
+
+def effect_cycles(pending, square_root, noise_root):
+    if pending == 255:
+        return 64
+    if not 0 <= pending < 26:
+        raise ValueError('Invalid effect index')
+    return 220 + 252*bool(square_root) + 148*bool(noise_root)
+
+
 def analyze(data):
     if data.get('version') != CAPTURE_VERSION:
         raise ValueError('Timing capture schema changed; repeat capture with the current tool')
@@ -327,10 +371,25 @@ def analyze(data):
     fixed_irq_mismatches = [dict(interrupt=i, phase=name, original=parts[name], source=cost)
                            for i, parts in enumerate(vblank_parts) for name, cost in VBLANK_FIXED.items()
                            if parts[name] != cost]
+    display_mismatches, bar_mismatches, effect_mismatches = [], [], []
     for i, (irq, parts) in enumerate(zip((irq for irq in interrupts if irq['kind'] == 'vblank'), vblank_parts)):
         predicted = vblank_bookkeeping_work(irq['resetEnabled'], irq['held'], irq['resetLatched'])
         if predicted != parts['bookkeeping']:
             fixed_irq_mismatches.append(dict(interrupt=i, phase='bookkeeping', original=parts['bookkeeping'], source=predicted))
+        predicted_display, measured_display = display_cycles(**irq['displayWorkload']), display_work(irq)
+        if sum(measured_display.values()) != parts['display']:
+            raise ValueError('Display decomposition does not add to its measured interval')
+        for name, cost in predicted_display.items():
+            if cost != measured_display[name]:
+                display_mismatches.append(dict(interrupt=i, phase=name, original=measured_display[name], source=cost))
+        w = irq['displayWorkload']
+        if w['cursor'] == 12:
+            expected_bar = progress_bar_tiles(48*w['collected']//w['quota'])
+            if irq['hudBar'] != expected_bar:
+                bar_mismatches.append(dict(interrupt=i, original=irq['hudBar'], source=expected_bar))
+        predicted_effect = effect_cycles(**irq['effectWorkload'])
+        if predicted_effect != parts['effects']:
+            effect_mismatches.append(dict(interrupt=i, original=parts['effects'], source=predicted_effect))
     summary = dict(completedUpdates=len(rows), overruns=overruns,
                    placementModelMismatches=mismatches,
                    mapModelMismatches=map_mismatches,
@@ -341,6 +400,8 @@ def analyze(data):
                    vblankCyclesMin=min(durations) if durations else None,
                    vblankCyclesMax=max(durations) if durations else None,
                    fixedVBlankModelMismatches=fixed_irq_mismatches,
+                   displayModelMismatches=display_mismatches, progressBarMismatches=bar_mismatches,
+                   effectModelMismatches=effect_mismatches,
                    vblankPhaseRanges={name: dict(min=min(p[name] for p in vblank_parts), max=max(p[name] for p in vblank_parts))
                                       for name in ['prefix', *IRQ_PHASES.values()]} if vblank_parts else {},
                    runtimeSchedulingFixed=False,
@@ -376,6 +437,20 @@ def capture(args):
             return
         now = player._cycles()  # Measurement API, pinned above; not wall time.
         state = dict(cycles=now, tick=word(0xc00a), transfer=player.memory[0xffae])
+        if address in DISPLAY_PHASES:
+            if irq_open is None or irq_open['kind'] != 'vblank':
+                raise ValueError('Display phase outside VBlank')
+            name = DISPLAY_PHASES[address]
+            if name in irq_open['displayPhases']:
+                raise ValueError('Repeated display phase')
+            irq_open['displayPhases'][name] = now
+            if name == 'map':
+                irq_open['displayWorkload'] = dict(map_pending=player.memory[0xc00d], ready=player.memory[0xffae],
+                    chunks=player.memory[0xffb5], cursor=player.memory[0xc04c], tick=word(0xc00a),
+                    fade_remaining=player.memory[0xffc9], collected=player.memory[0xc20a], quota=player.memory[0xffab])
+            if name == 'tail':
+                irq_open['hudBar'] = list(player.memory[0xc046:0xc04c])
+            return
         if address in IRQ_PHASES:
             if irq_open is None or irq_open['kind'] != 'vblank':
                 raise ValueError('VBlank phase outside its interrupt')
@@ -385,6 +460,12 @@ def capture(args):
             irq_open['phases'][name] = now
             if name == 'display':
                 irq_open['held'] = player.memory[0xff8a]
+            if name == 'effects':
+                pending = player.memory[0xffc6]
+                root = 0x37f3+4*pending
+                irq_open['effectWorkload'] = dict(pending=pending,
+                    square_root=int(pending != 255 and word(root) != 0),
+                    noise_root=int(pending != 255 and word(root+2) != 0))
             return
         if address == INPUT_ENTRY:
             if current is None or input_open is not None:
@@ -484,7 +565,7 @@ def capture(args):
                 raise ValueError('Unexpected nested IRQ')
             sp = player.register_file.SP
             irq_open = dict(kind=IRQ_START[address], start=now, tick=word(0xc00a),
-                            transfer=player.memory[0xffae], returnAddress=word(sp), phases={},
+                            transfer=player.memory[0xffae], returnAddress=word(sp), phases={}, displayPhases={},
                             resetEnabled=player.memory[0xc005], resetLatched=player.memory[0xc004])
         elif address in IRQ_END:
             if irq_open is None or irq_open['kind'] != IRQ_END[address]:
@@ -554,7 +635,7 @@ def capture(args):
     try:
         with (args.capture / 'setup.state').open('rb') as stream:
             player.load_state(stream)
-        for address in (*STAGES, *IRQ_START, *IRQ_END, *IRQ_PHASES, *ENTITY_HOOKS, ANIMATION_ENTRY,
+        for address in (*STAGES, *IRQ_START, *IRQ_END, *IRQ_PHASES, *DISPLAY_PHASES, *ENTITY_HOOKS, ANIMATION_ENTRY,
                         COLLISION_ENTRY, *COLLISION_CALLBACK_HOOKS):
             player.hook_register(0, address, hook, address)
         for address in (*ANIMATION_RETURNS, *COLLISION_RETURNS, MOTION_ENTRY, MOTION_RETURN, INPUT_ENTRY, INPUT_RETURN):
@@ -592,7 +673,7 @@ def report(args):
     write_json(args.out / 'summary.json', summary)
     write_json(args.out / 'costs.json', costs)
     print(json.dumps(summary, indent=2))
-    if any(summary[k] for k in ('placementModelMismatches', 'mapModelMismatches', 'spriteModelMismatches', 'clearModelMismatches', 'resourceModelMismatches', 'dispatchModelMismatches', 'fixedVBlankModelMismatches')):
+    if any(summary[k] for k in ('placementModelMismatches', 'mapModelMismatches', 'spriteModelMismatches', 'clearModelMismatches', 'resourceModelMismatches', 'dispatchModelMismatches', 'fixedVBlankModelMismatches', 'displayModelMismatches', 'progressBarMismatches', 'effectModelMismatches')):
         raise ValueError('Source-derived workload does not match reference routine cost')
 
 
@@ -613,6 +694,44 @@ def compare(args):
     summary = dict(comparedUpdates=len(costs), fields=list(native[0]), firstDifferences=first,
                    matchingPrefix=differences[0]['update'] if differences else len(costs),
                    differingUpdates=len(differences), runtimeSchedulingFixed=False)
+    write_json(args.native_csv.with_suffix('.comparison.json'), summary)
+    write_json(args.native_csv.with_suffix('.differences.json'), differences)
+    print(json.dumps(summary, indent=2))
+
+
+def compare_display(args):
+    data = json.loads((args.out / 'timing.json').read_text(encoding='utf-8'))
+    if data.get('version') != CAPTURE_VERSION:
+        raise ValueError('Repeat capture with the current tool before comparing display work')
+    with args.native_csv.open(encoding='utf-8-sig', newline='') as stream:
+        native = [{k: int(v) for k, v in row.items()} for row in csv.DictReader(stream)]
+    if len(native) != len(data['updates']):
+        raise ValueError('Expected one native display row per game update')
+    services = [irq for irq in data['interrupts'] if irq['kind'] == 'vblank']
+    at, differences, first = -1, [], {}
+    for i, (row, update) in enumerate(zip(native, data['updates'])):
+        if row['update'] != i:
+            raise ValueError('Unordered native display rows')
+        while at+1 < len(services) and services[at+1]['end']+16 <= update['update']['cycles']:
+            at += 1
+        if at < 0 or (services[at]['tick']+1)&65535 != update['update']['tick']:
+            raise ValueError('No matching pre-update display service')
+        irq = services[at]
+        w = irq['displayWorkload']
+        expected = dict(cost=sum(display_work(irq).values()), cursor=(w['cursor']+1)%13,
+                        fade=w['fade_remaining']-int(not w['tick']&1 and bool(w['fade_remaining'])))
+        expected.update({f'bar{j}': value for j, value in enumerate(irq['hudBar'])})
+        delta = {name: [value, row[name]] for name, value in expected.items() if value != row[name]}
+        for name, value in delta.items():
+            first.setdefault(name, dict(update=i, original=value[0], native=value[1]))
+        if delta:
+            differences.append(dict(update=i, fields=delta))
+    summary = dict(comparedUpdates=len(native), firstDifferences=first,
+                   matchingPrefix=differences[0]['update'] if differences else len(native),
+                   runtimeSchedulingFixed=False,
+                   evidenceLimit='Native display work before each recorded-clock game update only. '
+                                 'Pending startup VBlank and extra original VBlanks during work '
+                                 'still require independent scheduling; recorded counters do not align HUD phase.')
     write_json(args.native_csv.with_suffix('.comparison.json'), summary)
     write_json(args.native_csv.with_suffix('.differences.json'), differences)
     print(json.dumps(summary, indent=2))
@@ -716,6 +835,9 @@ if __name__ == '__main__':
     handler_diff = sub.add_parser('compare-handlers')
     handler_diff.add_argument('native_csv', type=Path)
     handler_diff.add_argument('--out', type=Path, default=Path('local/air-timing'))
+    display_diff = sub.add_parser('compare-display')
+    display_diff.add_argument('native_csv', type=Path)
+    display_diff.add_argument('--out', type=Path, default=Path('local/air-timing'))
     args = parser.parse_args()
     {'capture': capture, 'report': report, 'compare': compare, 'compare-entities': compare_entities,
-     'compare-handlers': compare_handlers}[args.mode](args)
+     'compare-handlers': compare_handlers, 'compare-display': compare_display}[args.mode](args)

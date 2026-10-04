@@ -1238,3 +1238,46 @@ Only then split display/game-update progression and require ordinary-clock
 agreement without supplied per-update counters. Do not repeat unchanged phase
 checks without a new hypothesis. Keep the repository private, reports in English,
 and the continuation automation active until all ACCEPTANCE.md requirements pass.
+
+## Display/effect timing and startup phase checkpoint - 2026-10-04
+
+**Original-time scheduling is still unfinished.** The native Windows loop still
+advances one game update per display interval. This checkpoint completes the
+display/effect source-work models and fixes a progress-bar glyph; it does not
+claim a final timing or audio match.
+
+The independent source formulas match all 3,063 original display callbacks and
+effect-setup intervals. Display work separates map/resource transfer, HUD column,
+scroll, LCD, fade and full HUD refresh. The source formula reproduces all 235
+original refreshed bars. Native rendering now emits the original 0xf0 terminator
+after exact positive eight-point segments below a full bar, instead of leaving
+the next tile blank. Zero/full bars and quotient wrapping remain covered.
+
+Direct native display comparison exposes a remaining startup phase difference:
+the first original game update follows HUD cursor 2, native cursor 1. A separate
+control-verified measurement shows a pending VBlank serviced immediately after
+03c6 enables interrupts, then pending STAT, then 03cb's wait for another VBlank.
+IF=0x13 and IE=3 at entry; the first service starts at scanline zero. Preserve
+this mechanism in the future scheduler, rather than inserting a fitted cursor
+offset. Extra display services during long work remain outstanding as well.
+
+Original final control memory remains byte-identical. Native exported state
+with accounting enabled/disabled remains identical to the previous checkpoint;
+that export does not cover HUD pixels. Optional effect accounting preserves PCM
+through 240 frames of music and overlapping effects. Original-audio equivalence
+is not established.
+
+Validation: 52 Python tests; 65 synthetic C++ source-work checks; 822,497 Air
+assertions with all 64 recovery phases and four input-only difficulty successes;
+131 audio assertions; rebuilt build/CrashDummies.exe; 13 automated Windows UI
+checks. Unchanged full campaign suites were not repeated. Evidence stays in
+local/air-display-effect-timing/, local/startup-phase.json and related local/build
+logs. No new ZIP, final release, ROM, extracted data or original recordings are
+published.
+
+Next: reconstruct the music-driver body, complete STAT/wait phase including the
+pending startup service, then split display and completed-game-update progression.
+Require ordinary-clock comparison without supplied per-update counters before
+accepting timing. Expand remaining Air branches, inputs and difficulties, then
+other stunts and image/audio comparisons under ACCEPTANCE.md. Keep GitHub text
+English, the repository private and the continuation automation active.

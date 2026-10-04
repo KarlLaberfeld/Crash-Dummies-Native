@@ -5,9 +5,47 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from air_timing import elapsed_work, placement_cycles, map_cycles, sprite_cycles, clear_cycles, entity_difference, resource_cycles, analyze, scoped_work, collision_work, vblank_work, vblank_bookkeeping_work, IRQ_PHASES
+from air_timing import display_cycles, display_work, progress_bar_tiles, DISPLAY_PHASES, effect_cycles
 
 
 class AirTimingTests(unittest.TestCase):
+    def test_effect_setup_keeps_absent_roots_and_no_pending_request_distinct(self):
+        self.assertEqual(effect_cycles(255, 0, 0), 64)
+        self.assertEqual(effect_cycles(0, 0, 0), 220)
+        self.assertEqual(effect_cycles(0, 1, 0), 472)
+        self.assertEqual(effect_cycles(0, 0, 1), 368)
+        self.assertEqual(effect_cycles(0, 1, 1), 620)
+        with self.assertRaises(ValueError):
+            effect_cycles(26, 0, 0)
+
+    def test_display_priority_and_ready_gate_are_independent(self):
+        w = dict(map_pending=0, ready=1, chunks=8, cursor=0, tick=1, fade_remaining=0, collected=0, quota=6)
+        self.assertEqual(display_cycles(**w)['resources'], 3156)
+        w['ready'] = 0
+        self.assertEqual(display_cycles(**w)['resources'], 80)
+        w['map_pending'] = 1
+        self.assertEqual(display_cycles(**w)['map'], 760)
+        self.assertEqual(display_cycles(**w)['resources'], 32)
+
+    def test_progress_bar_exact_boundaries_and_low_byte_wrap(self):
+        self.assertEqual(progress_bar_tiles(0), [0]*6)
+        self.assertEqual(progress_bar_tiles(8), [0xe9, 0xf0, 0, 0, 0, 0])
+        self.assertEqual(progress_bar_tiles(40), [0xe9]*5+[0xf0])
+        self.assertEqual(progress_bar_tiles(48), [0xe9]*6)
+        self.assertEqual(progress_bar_tiles(256), [0]*6)
+
+    def test_display_rejects_unordered_or_incomplete_nested_phases(self):
+        with self.assertRaisesRegex(ValueError, 'Incomplete display'):
+            display_work(dict(displayPhases={}))
+        with self.assertRaisesRegex(ValueError, 'phase order'):
+            display_work(dict(displayPhases=dict.fromkeys(DISPLAY_PHASES.values(), 100), phases=dict(display=0, bookkeeping=1000)))
+
+    def test_invalid_display_quota_or_hud_cursor_cannot_certify_work(self):
+        w = dict(map_pending=0, ready=1, chunks=0, cursor=0, tick=1, fade_remaining=0, collected=0, quota=6)
+        for field, value in [('quota', 0), ('cursor', 13), ('collected', 256)]:
+            with self.assertRaisesRegex(ValueError, 'Invalid display workload'):
+                display_cycles(**{**w, field: value})
+
     def test_software_reset_guard_is_variable_work_not_a_fixed_irq_allowance(self):
         self.assertEqual(vblank_bookkeeping_work(0, 15, 0), 160)
         self.assertEqual(vblank_bookkeeping_work(1, 1, 0), 240)

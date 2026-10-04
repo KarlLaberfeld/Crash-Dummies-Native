@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "audio_work.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -169,7 +170,11 @@ void NativeAudio::updateVoice(int index){
     modulation(index);
 }
 void NativeAudio::tick(){
+    effectWorkCycles=-1;
     if(paused)return;
+    if(measureWork)effectWorkCycles=audioEffectSetupWork(pendingEffect,
+        pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][0],
+        pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][1]);
     if(pendingEffect>=0){startEffect(pendingEffect);pendingEffect=-1;}
     if(enabled)for(int i=0;i<6;++i)updateVoice(i);
     ++ticks;

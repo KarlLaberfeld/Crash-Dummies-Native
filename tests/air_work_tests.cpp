@@ -1,5 +1,6 @@
 // Synthetic workload boundaries. No ROM, extracted assets or emulator needed.
 #include "air_work.h"
+#include "air_video_work.h"
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -113,6 +114,28 @@ int main(){
         require(airSimpleHandlerWork(g,before,after,0,0,0)==92,"Finish delay expiration publishes the result after its final decrement");
         before.handler=AirHandler::BeginFinish;
         require(airSimpleHandlerWork(g,before,after,0,0,0)==188,"Begin-finish includes the handler setter and immediate delay expiration");
+        require(airUploadWork(false,8)==36&&airUploadWork(true,0)==60,"Busy main update skips resource copying before reading its descriptor");
+        require(airUploadWork(true,1)==1128&&airUploadWork(true,4)==3144&&airUploadWork(true,5)==3112,"Completion publishes the player frame while partial transfers retain the descriptor");
+        auto video=airDisplayWork(false,true,0,0,1,0,0,6);
+        require(video.total()==884,"Idle display service still samples scroll and one HUD column");
+        auto mapVideo=airDisplayWork(true,false,8,0,1,0,0,6);
+        require(mapVideo.map==760&&mapVideo.resources==32,"Map rows transfer even during work and take priority over dynamic sprites");
+        require(airProgressBarWork(0)==172&&airProgressBarWork(8)==228&&airProgressBarWork(40)==304&&airProgressBarWork(48)==288,"Empty, partial and full progress bars take distinct source return paths");
+        require(airHudRefreshWork(0,6)==3512&&airHudRefreshWork(1,6)==3548,"HUD refresh includes quotient-dependent division and bar drawing work");
+        require(airHudRefreshWork(1,0)==-1,"Invalid HUD quota cannot certify a divide workload");
+        require(airDisplayWork(false,true,0,12,2,8,1,0).total()==-1,"Unknown HUD work propagates through the complete display service");
+        auto refreshing=airDisplayWork(false,true,0,12,2,8,1,6);
+        require(refreshing.hud==260&&refreshing.refresh==3572&&refreshing.fade==232,"HUD wrap and fade are separate display components");
+        assets->levels[g.difficulty].quota=6;p.params[1]=0;g.refreshHud();
+        require(std::all_of(g.hudValues.begin()+7,g.hudValues.end(),[](int v){return v==0;}),"Zero progress clears every segment");
+        p.params[1]=1;g.refreshHud();
+        require(g.hudValues[7]==0xe9&&g.hudValues[8]==0xf0&&g.hudValues[9]==0,"Exact segment boundary emits the original terminator glyph");
+        p.params[1]=5;g.refreshHud();
+        require(g.hudValues[11]==0xe9&&g.hudValues[12]==0xf0,"Five exact segments retain the final partial terminator");
+        p.params[1]=6;g.refreshHud();
+        require(std::all_of(g.hudValues.begin()+7,g.hudValues.end(),[](int v){return v==0xe9;}),"A full bar returns without writing a terminator beyond the six slots");
+        assets->levels[g.difficulty].quota=3;p.params[1]=32;g.refreshHud();
+        require(std::all_of(g.hudValues.begin()+7,g.hudValues.end(),[](int v){return v==0;}),"Progress rendering retains the original low-byte quotient wrap");
 
         // A non-yielding loop is invalid game data; its partial count cannot be
         // accepted as a complete source interval.
