@@ -54,6 +54,19 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
     try{
         AirGame g(assets,shared);g.start(0);
         {
+            AirGame finishing(assets,shared);finishing.start(0);
+            finishing.entities[0].handler=AirHandler::FinishMotion;
+            finishing.entities[0].params[3]=1;finishing.ticks=16;finishing.finishTimer=16;
+            finishing.update(0);
+            require(finishing.finishTimer==15&&finishing.pendingSound==-1,"Finish sound cannot trigger from the global display phase alone (source/synthetic)");
+            finishing.entities[0].params[3]=1;finishing.ticks=3;finishing.finishTimer=17;
+            finishing.update(0);
+            require(finishing.finishTimer==16&&finishing.pendingSound==14,"Finish countdown's sixteenth phase queues its original sound (source/synthetic)");
+            finishing.entities[0].params[3]=1;finishing.finishTimer=1;finishing.resultFlags=3;finishing.pendingSound=-1;
+            int seed=finishing.randomState;finishing.update(0);
+            require(finishing.result==3&&finishing.randomState==seed&&finishing.pendingSound==-1,"Final finish phase reads the completed result byte and skips random particles (original/source regression)");
+        }
+        {
             AirGame reused(assets,shared);reused.start(1);
             // 1acd reuses the entity record but preserves the animation block.
             // A countdown object can disappear with an outstanding delay;
@@ -141,7 +154,17 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         require(g.entities[0].x==x+32&&g.entities[0].y==y-32,"Tilt multiplies original fixed-point speed");
         require(g.entities[0].frame==2&&!(g.entities[0].flags&32),"Right tilt frame and mirror flag");
         g.entities[0].params[3]=1;g.entities[0].params[4]=static_cast<uint8_t>(-2);x=g.entities[0].x;
-        g.movePlayer();require(g.entities[0].x==x-32&&g.entities[0].params[3]==0,"Final boost tick still uses stored direction");
+        g.movePlayer();require(g.entities[0].x==x+32&&g.entities[0].params[3]==0,"Expired boost uses the ordinary tilt because DEC set the zero flag");
+        g.entities[0].params[3]=255;g.entities[0].params[4]=static_cast<uint8_t>(-2);x=g.entities[0].x;
+        g.movePlayer();require(g.entities[0].x==x+32&&g.entities[0].params[3]==0,"Signed boost expiration also sets zero after INC");
+        {
+            AirGame drag(assets,shared);drag.start(1);
+            for(int slot=1;slot<16;++slot)drag.entities[slot].alive=false;
+            drag.entities[0].handler=AirHandler::Play;drag.entities[0].params[3]=2;drag.entities[0].params[5]=192;
+            drag.speed=1;drag.rate=0;drag.ticks=16;drag.randomState=0x1234;
+            drag.update(0);
+            require(drag.speed==0&&drag.randomState==0x1234,"Severity drag reaching zero returns before random debris allocation");
+        }
         g.ticks=16;g.held=A;g.speed=0;g.rate=0;g.input();
         require(g.speed==0,"A acceleration and neutral-axis drag both run on tick sixteen");
         g.ticks=20;g.input();require(g.speed==-1,"A accelerates every four ticks");

@@ -3,6 +3,8 @@
 
 namespace ticd {
 struct AirSpriteWork {int prepare=0,clear=0;};
+struct AirSpritePieceWork {int before=0;bool writes=false;};
+struct AirSpriteEntityWork {int geometry=0,tail=0;std::vector<AirSpritePieceWork> pieces;};
 
 inline int airResourceWork(const AirGame& game,int oldFrame){
     int state=game.transferState,frame=game.entities[0].frame;
@@ -63,8 +65,8 @@ inline int airDamageWork(int value,int amount,int finishTimer){
     return 276+(finishTimer==1?48:0); // Overflow enters 59b6/59be.
 }
 inline int airTimerWork(int secondTicks,int seconds){return secondTicks!=59?64:seconds?136:116;}
-inline int airApproachByteWork(int value){return !value?32:value<0?68:64;} // 3d5a, old-byte flags.
-inline int airCameraLeadWork(int value,int target){return value==target?56:value>target?88:84;} // 161a.
+inline int airApproachByteWork(int value){return !value?32:value<0?68:64;} // 3d5a branch work; INC/DEC updates Z.
+inline int airCameraLeadWork(int value,int target){return value==target?56:value>target?84:80;} // 161a.
 inline int airInputWork(const AirGame& g){
     int tilt=g.tilt,speed=g.speed,cost=(g.cameraY>>8)<15?160:252;
     auto steer=[&](int direction){
@@ -116,15 +118,16 @@ inline int airWallWork(const AirGame& g){
     cost+=36;
     if(!(g.probes[0]&2)){cost+=36;if(!(g.probes[1]&2))return cost+16;}
     cost+=4;
-    return cost+(g.tilt?32+airImpactWork(g):404+(g.speed<-6?0:24));
+    return cost+(g.tilt?32+airImpactWork(g):368+(g.speed<-6?0:24));
 }
 constexpr int AirProbeWork=328+28+6*(148+292+44); // 6459 and six 1628/163a calls.
 inline int airPlayerMotionWork(const AirGame& game){
-    const auto& p=game.entities[0];bool boosted=p.params[3]!=0;
+    const auto& p=game.entities[0];bool active=p.params[3]!=0;
+    bool boosted=active&&p.params[3]!=1&&p.params[3]!=255;
     int pose=boosted?static_cast<int8_t>(p.params[4]):game.tilt;
     const auto& motion=game.assets.tilts.at(pose+2);
     static constexpr int multiplyBody[5]={28,24,20,16,20}; // 1379 table selects -2..2.
-    int cost=360+28+(game.tilt>=0?8:0)+(boosted?(p.params[3]&128?128:124):92);
+    int cost=360+28+(game.tilt>=0?8:0)+(active?(p.params[3]&128?128:124):92);
     if(!game.transferState)cost+=12+148; // Conditional 3d15 and frame/animation flags.
     if(boosted)cost+=12+60+28+(pose>=0?8:0);
     int dx=static_cast<int8_t>(motion[2]*game.rate),dy=static_cast<int8_t>(motion[3]*game.rate);
@@ -144,15 +147,17 @@ inline int airSeverityWork(const AirGame& g){
     if(severity==1)return (g.pressed&A)?268+airSpawnRelativeWork(g,false):232;
     if(g.ticks&(severity==2?31:15))return 236;
     int cost=192+32+(severity==3?12:0)+12+24+airApproachByteWork(g.speed);
-    return cost+(!g.speed?20:8+144+172+airSpawnRelativeWork(g,false));
+    return cost+(g.speed>=-1&&g.speed<=1?20:8+144+172+airSpawnRelativeWork(g,false));
 }
 inline int airFinishGateWork(const AirGame& g){
     if(g.speed>=0)return 36;
     int flags=(g.probes[0]|g.probes[1]|g.probes[2])&0x18;
     if(!flags)return 92;
     const auto& p=g.entities[0];int quota=g.assets.levels[g.difficulty].quota;
-    int end=p.params[1]==quota?52:p.params[1]>quota/2?76:72;
-    return 80+((flags&8)?304:28)+268+132+28+airImpactWork(g)+108+148
+    int end=p.params[1]==quota?72:p.params[1]>quota/2?96:92;
+    // 60c2..60d0: effect/handler writes plus their called bodies. 60d0..60e7:
+    // frame selection, BCD score, two RST 18 bodies and the frame helper.
+    return 80+((flags&8)?304:28)+172+airImpactWork(g)+140+108+88+148
         +(((p.params[5]+16)&128)?4:0)+end;
 }
 inline int airCollisionCallbackWork(const AirGame& game,int slot){
@@ -171,7 +176,7 @@ inline int airCollisionCallbackWork(const AirGame& game,int slot){
     case 11:return dispatch+256;
     case 12:return dispatch+180+44+airSpawnRelativeWork(game,true)+80+airDamageWork(p.params[5],16,game.finishTimer)+28;
     case 13:return dispatch+(p.params[2]?396:100);
-    case 14:return dispatch+(game.speed?500+(game.money<50?32:0):316);
+    case 14:return dispatch+(game.speed?488+(game.money<50?32:0):316);
     case 15:return dispatch+572+(p.params[5]<32?16:0);
     case 34:return dispatch+264;
     default:return -1;
@@ -191,7 +196,7 @@ inline int airCameraWork(const AirGame& game,bool horizontal){
     cost+=4+76+28+(((game.cameraY&255)+dy>255)?8:0);
     if((y&255)<128)return cost;
     cost+=36;
-    if((y>>8)==game.assets.levels[game.difficulty].rows-9)cost+=36;
+    if((y>>8)==(game.assets.levels[game.difficulty].cameraY>>8))cost+=36;
     return cost;
 }
 
@@ -212,6 +217,7 @@ inline int airSimpleHandlerWork(const AirGame& game,const AirEntity& before,
     case AirHandler::Idle:return 16;
     case AirHandler::BeginFinish:return 140+(game.finishTimer==0?48:0);
     case AirHandler::FinishDelay:return 44+(game.finishTimer==0?48:0);
+    case AirHandler::FinishMotion:return game.complexBodyWorkCycles;
     case AirHandler::Wait:return before.params[0]!=1?100:game.complexBodyWorkCycles<0?-1:184+game.complexBodyWorkCycles;
     case AirHandler::Animation:return starter?-1:animation; // Deferred native safeguard is not an original body.
     case AirHandler::Hide:return 292;
@@ -240,7 +246,10 @@ inline int airSimpleHandlerWork(const AirGame& game,const AirEntity& before,
 // layouts; it neither executes cartridge code nor simulates a CPU. All totals
 // are original oscillator T-cycles. See docs/AIR_TIMING.md for validation and
 // the missing costs that prevent these partial totals driving the game clock.
-inline AirSpriteWork airSpriteWork(const AirGame& game){
+inline AirSpriteWork airSpriteWork(const AirGame& game,std::array<int,16>* entityCosts=nullptr,
+    std::array<AirSpriteEntityWork,16>* publication=nullptr){
+    if(entityCosts)entityCosts->fill(0);
+    if(publication)*publication={};
     const bool reverse=!game.reverseSprites;
     auto relative=[](int p,int camera){return static_cast<int16_t>((p&65520)-(camera&65520))/16;};
     auto addCost=[](int value,int offset){return 28+(((value&255)+offset>255)?8:0);};
@@ -250,6 +259,7 @@ inline AirSpriteWork airSpriteWork(const AirGame& game){
     };
     int cycles=24+88,cursor=reverse?156:0;
     for(int i=0;i<16;++i){
+        struct Record {int& total;int start;int* out;~Record(){if(out)*out=total-start;}} record{cycles,cycles,entityCosts?&(*entityCosts)[i]:nullptr};
         const auto& entity=game.entities[i];bool last=i==15;
         cycles+=76; // 1c0c..1c19, with the empty-slot branch not taken.
         if(!entity.alive){cycles+=4+40+(last?12:0);continue;}
@@ -277,17 +287,22 @@ inline AirSpriteWork airSpriteWork(const AirGame& game){
             continue;
         }
         cycles+=72+addCost(y,m[7]+16);x+=m[6]+8;y+=m[7]+16;
+        auto* plan=publication?&(*publication)[i]:nullptr;
+        if(plan)plan->geometry=cycles-record.start-76;
         for(const auto& piece:frame.pieces){
             int sx=(x+((flags&32)?-piece.x-8:piece.x))&255;
             int sy=(y+((flags&64)?-piece.y-16:piece.y))&255;
-            cycles+=20+((flags&64)?64:56)+((flags&32)?64:56);
-            if(sx>=168)cycles+=20+28;
-            else if(sy>=152)cycles+=48+28;
-            else{cycles+=44+156;cursor=(cursor+(reverse?-4:4))&255;}
+            int before=20+((flags&64)?64:56)+((flags&32)?64:56);
+            bool writes=sx<168&&sy<152;
+            before+=sx>=168?20+28:sy>=152?48+28:44;
+            cycles+=before;
+            if(writes){cycles+=156;cursor=(cursor+(reverse?-4:4))&255;}
+            if(plan)plan->pieces.push_back({before,writes});
         }
         cycles+=32; // End-of-layout return at 1cff.
-        if(cursor>=160){cycles+=36+28;break;}
+        if(cursor>=160){cycles+=36+28;if(plan)plan->tail=96;break;}
         cycles+=32+40+(last?12:0);
+        if(plan)plan->tail=104+(last?12:0);
     }
     int clear;
     // 1bd5 clears the unused portion of the prepared OAM list, then 03ea

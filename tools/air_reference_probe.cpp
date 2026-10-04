@@ -7,21 +7,23 @@
 
 using namespace ticd;
 int main(int argc,char**argv){
-    if(argc<2){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock] [--work-csv path] [--entities-csv path] [--handlers-csv path] [--display-csv path]\n");return 2;}
-    bool aligned=false;std::string workPath,entityPath,handlerPath,displayPath;
+    if(argc<2){fprintf(stderr,"Usage: air-reference-probe inputs.txt [--recorded-clock] [--difficulty 0..3] [--work-csv path] [--entities-csv path] [--handlers-csv path] [--display-csv path]\n");return 2;}
+    bool aligned=false;int difficulty=1;std::string workPath,entityPath,handlerPath,displayPath;
+    try{
     for(int i=2;i<argc;++i){
         std::string option=argv[i];
         if(option=="--recorded-clock")aligned=true;
+        else if(option=="--difficulty"&&i+1<argc)difficulty=std::stoi(argv[++i]);
         else if(option=="--work-csv"&&i+1<argc)workPath=argv[++i];
         else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
         else if(option=="--handlers-csv"&&i+1<argc)handlerPath=argv[++i];
         else if(option=="--display-csv"&&i+1<argc)displayPath=argv[++i];
         else{fprintf(stderr,"Unknown or incomplete option\n");return 2;}
     }
-    try{
+        if(difficulty<0||difficulty>3)throw std::runtime_error("Invalid Air difficulty");
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
-        auto game=std::make_unique<AirGame>(*assets,*shared);game->start(1);
+        auto game=std::make_unique<AirGame>(*assets,*shared);game->start(difficulty);
         game->measureWork=!workPath.empty()||!handlerPath.empty()||!displayPath.empty();
         std::ifstream inputs(argv[1]);
         if(!(inputs>>game->ticks>>game->secondTicks>>game->randomState))return 2;
@@ -69,7 +71,7 @@ int main(int argc,char**argv){
                    game->ticks,int(p.handler),p.frame,p.flags,p.x,p.y,game->cameraX,game->cameraY,
                    game->speed,game->rate,game->tilt,p.params[0],p.params[2],p.anim,p.animDone,p.frameWaiting,
                    p.delay,p.period,game->transferState,game->transferRemaining,game->mapTransfer,
-                   game->resultFlags,game->seconds,game->secondTicks,game->randomState,game->crashRecoveryPending);
+                   game->result,game->seconds,game->secondTicks,game->randomState,game->crashRecoveryPending);
         }
         if(!inputs.eof())return 2;
         return 0;

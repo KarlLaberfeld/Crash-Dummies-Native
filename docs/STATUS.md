@@ -1,4 +1,4 @@
-# Project status - October 4, 2026
+# Project status - October 5, 2026
 
 ## Objective
 
@@ -9,12 +9,14 @@ Private repository: https://github.com/KarlLaberfeld/TICD-Recompilation
 **The overall task is not complete.** The Windows executable is a development
 build of Roof Jump, Air Bumper, Ski Slope, Bomb Factory and Cruise Missile, not a complete game.
 
-Latest evidence: the original ROM also stalls in the Air crash/recovery case
-in a separate reference emulator, confirmed without hooks. The native safeguard
-is retained. Recorded-clock comparison matches 23 gameplay fields through
-2,458 updates; ordinary native clock progression exposes a separate cadence
-difference. See [ORIGINAL_COMPARISON.md](ORIGINAL_COMPARISON.md) and the latest
-entry below. Hardware, image and audio equivalence remain unverified.
+Latest evidence: an experimental native clock matches nine control-verified Air
+cases without supplied per-update counters: 28,103 completed updates and 28,153
+display services. Two cases also match 158,840 published sprite slots. The
+Windows loop still performs one game update per display interval; integration,
+remaining handler/interruption paths, input/pause/exit timing, matched pixels and
+PCM, and independent Windows/hardware testing remain open. The documented
+native Air recovery safeguard remains intentional. See AIR_TIMING.md and the
+latest checkpoint below. This is bounded reference evidence, not final acceptance.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -1281,3 +1283,65 @@ Require ordinary-clock comparison without supplied per-update counters before
 accepting timing. Expand remaining Air branches, inputs and difficulties, then
 other stunts and image/audio comparisons under ACCEPTANCE.md. Keep GitHub text
 English, the repository private and the continuation automation active.
+
+## Music, wait and experimental native clock checkpoint - 2026-10-05
+
+Source models now cover all 3,063 captured music services (18,378 voice calls),
+including 6,981 commands and 3,238 notes. Independent native replay of the same
+song/effect requests matches active voice-state fields and service costs. Three
+source corrections preserve voice-one ADC carry, portamento byte wrapping and
+square-envelope fallthrough. Optional accounting preserves native PCM; original
+PCM equality remains unverified. STAT and outer wait/resume/tail boundaries
+match the control-verified baseline, including the pending startup interrupts.
+
+Air displayTick and updateGame are separated. The experimental air_clock_probe
+charges semantic source work to an independent clock; it supplies initial
+clock/timer/random phase and update-aligned buttons only. It does not inject
+per-update counters, measured work, outcomes or original entity state. Unknown
+work or unsupported interrupted phases stop the probe. Production Windows
+scheduling is unchanged pending broader ownership/input/pause/exit validation.
+
+Nine cases cover the original recovery prefix, all four coast difficulties,
+boost, acceleration, steering and a successful finish. Native post-update
+fields, callback gates, HUD/effect requests and service costs match 28,103
+updates and 28,153 services. The recovery capture stops before the intentional
+difference at update 2458; other cases complete their original
+timeout/damage/success outcomes. Steering includes 12 additional displays and
+partial sprite preparation/clearing. Two cases match 158,840 published sprite
+slots for presence, position and flags in separate, control-verified captures.
+Tiles, pixels, PCM and hardware are not certified. Combined outer-loop/DMA hooks
+changed control memory and were discarded; a single DMA-boundary capture passed
+the unchanged control check.
+
+Two measured gameplay corrections fix boost-expiration pose and severity drag
+when speed reaches zero. A successful original finish now validates the
+finish-sound countdown and final-result branch: native particles were
+incorrectly spawned on the last step. All 2,351 recorded-clock states now match,
+as do the independent clock, phase work and 95,120 published slots. Source work
+for 35 WallSlide and 128 FinishMotion calls matches. Camera scroll-limit,
+camera-lead, wall entry, quota and enemy-penalty accounting were corrected from
+source. A busy/ready gate interrupt immediately before its store caused an early
+upload; the candidate now commits that semantic store before servicing pending
+work. Sprite publication follows Y/X/tile/flag write ordering, and accepts the
+no-row map path only when its pending state is already false. No replay indices
+drive it. The second music capture matches 2,378 services and 14,268 native
+voice rows; combined music evidence covers 5,441 services. Original PCM is still
+unchecked.
+
+Validation: 72 Python tests; 89 synthetic C++ source-work checks; full native
+suites (819,624 Air and 150 audio assertions), all 64 recovery phases, four
+input-only difficulty successes and three full campaigns; rebuilt Windows EXE.
+Single-player finishes 20 wins with one retry and 8,478 savings; both-player
+completion finishes 8,620/8,455 with three/two failures; elimination finishes
+0/8,493 with five/zero failures. These are native tests, not original proof. The
+normal Windows UI and actual audio-open-failure variants passed 13/14 checks on
+this host during this checkpoint. Physical removal and another host are open.
+
+Evidence remains ignored/local in original-air-*, air-*-timing,
+air-music-timing, air-loop-timing and air-steer44-sprite-reference. Build/test
+logs include local/air-finish-build-tests.log and
+local/air-finish-final-build.log. Latest source-work regressions also pass 89
+checks in local/air-work-tests.exe. No final ZIP or release is produced. Next:
+remaining Exploding/handler branches, interrupted entity/resource/row-building
+subphases, then input/pause/exit and Windows integration, other stunts and final
+ACCEPTANCE.md checks. Keep the private repository and continuation automation.

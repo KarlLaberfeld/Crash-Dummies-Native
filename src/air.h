@@ -68,6 +68,8 @@ struct AirGame {
     // Source-derived work accounting, in original T-cycles. These are partial
     // costs, not a complete frame budget; they do not yet drive scheduling.
     int mapWorkCycles=0,placementWorkCycles=0,spriteWorkCycles=0,clearWorkCycles=0;
+    std::array<int,16> spriteEntityWorkCycles{};
+    std::array<AirEntity,16> spriteInputEntities{};
     int resourceWorkCycles=0,animationWorkCycles=0,entityWorkCycles=-1;
     // -2 = unoccupied; -1 = handler body not yet reconstructed.
     std::array<int,16> handlerWorkCycles{},handlerWorkKinds{};
@@ -86,6 +88,10 @@ struct AirGame {
     void start(int level,int player=0);
     bool videoTickPrepared=false; // Display callback already ran before a blocking pause.
     void step(int buttons);
+    // Separate owners for the source-derived service/update scheduler. step()
+    // retains the legacy one-service wrapper until ordinary-clock acceptance.
+    void displayTick(bool resourceReady=true);
+    void updateGame(int buttons,bool deferSpriteClear=false);
     void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);
     void update(int i);
@@ -97,7 +103,7 @@ struct AirGame {
     void input();
     void lookupRate();
     void publishVideo();
-    void beginVideoTick();
+    void beginVideoTick(bool resourceReady=true);
     void finishVideoTick(int oldFrame,int oldFlags);
     int tileAt(int x,int y) const;
     int terrainAt(int x,int y) const;
@@ -110,7 +116,7 @@ struct AirGame {
     void beginFinish(int flags);
     void collide();
     void collideWith(int other);
-    void updateVisibility();
+    void updateVisibility(bool deferSpriteClear=false);
     void tickTimer();
     int randomByte();
     void refreshHud();

@@ -80,8 +80,8 @@ def capture(args):
     try:
         original.tick(600, False)
         password(1)  # Air Bumper through the original UI.
-        password(6)  # Normal difficulty through the original UI.
-        if original.memory[0xc006] != 1 or original.memory[0xc007] != 1:
+        password(5+args.difficulty)  # Difficulty through the original UI.
+        if original.memory[0xc006] != 1 or original.memory[0xc007] != args.difficulty:
             raise RuntimeError('Original UI did not select the requested stunt/difficulty')
         # Save before hooks are registered: the control run has no instrumentation.
         with (out / 'setup.state').open('wb') as stream:
@@ -109,10 +109,11 @@ def capture(args):
             raise RuntimeError('Original Air gameplay did not start')
         last = None
         stall = None
-        for _ in range(6000):
-            direction = 'left' if ((len(post) + 24) // 24) % 2 else 'right'
-            button('press', 'a')
-            if direction != last:
+        for _ in range(args.max_frames):
+            direction = 'left' if ((len(post) + args.steer_offset) // args.steer_period) % 2 else 'right'
+            if args.pattern in ('alternating','accelerate'):button('press', 'a')
+            elif args.pattern=='boost':button('press','b')
+            if args.pattern=='alternating' and direction != last:
                 if last:
                     button('release', last)
                 button('press', direction)
@@ -169,9 +170,12 @@ def capture(args):
                    controlComparedBytes=len(actual), controlDifferences=differences,
                    controlMemorySha256=hashlib.sha256(actual).hexdigest(),
                    hardwareVerified=False)
+    summary.update(difficulty=args.difficulty,inputPattern=args.pattern,maxFrames=args.max_frames,
+        steerPeriod=args.steer_period,steerOffset=args.steer_offset,
+        stopReason='stall' if stall is not None else 'result' if post[-1]['result'] else 'frameLimit')
     write_json(out / 'capture-summary.json', summary)
     print(json.dumps(summary, indent=2))
-    if differences or not frozen:
+    if differences or (stall is not None and not frozen):
         raise RuntimeError('Reference scenario or uninstrumented control did not match; inspect local evidence')
 
 
@@ -216,8 +220,14 @@ if __name__ == '__main__':
     record.add_argument('rom', type=Path)
     record.add_argument('--reference-lib', type=Path)
     record.add_argument('--out', type=Path, default=Path('local/original-air'))
+    record.add_argument('--difficulty',type=int,choices=range(4),default=1)
+    record.add_argument('--pattern',choices=('alternating','coast','boost','accelerate'),default='alternating')
+    record.add_argument('--max-frames',type=int,default=6000)
+    record.add_argument('--steer-period',type=int,default=24)
+    record.add_argument('--steer-offset',type=int,default=24)
     diff = sub.add_parser('compare')
     diff.add_argument('native_csv', type=Path)
     diff.add_argument('--out', type=Path, default=Path('local/original-air'))
     options = parser.parse_args()
+    if options.mode=='capture' and (options.max_frames<=0 or options.steer_period<=0):parser.error('Frame limit and steering period must be positive')
     (capture if options.mode == 'capture' else compare)(options)

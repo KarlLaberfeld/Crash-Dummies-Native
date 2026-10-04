@@ -54,8 +54,10 @@ struct NativeAudio {
     bool waveTrigger=true;
     bool waveDac=true;
     bool paused=false;
-    bool measureWork=false; // Optional source-work diagnostics; music remains unmodeled.
+    bool measureWork=false; // Optional source-work diagnostics; never a fitted allowance.
     int effectWorkCycles=-1;
+    int musicWorkCycles=-1;
+    std::array<int,6> voiceWorkCycles{{-1,-1,-1,-1,-1,-1}};
     uint64_t ticks=0,sampleRemainder=0;
     std::array<double,2> capacitor{};
     explicit NativeAudio(const AudioAssets& a):assets(a){}
@@ -70,7 +72,7 @@ private:
     void startEffect(int index);
     void updateVoice(int index);
     void noteOn(int index,int note,int duration);
-    void envelope(MusicVoice& voice);
+    void envelope(int index);
     void modulation(int index);
     int noteFrequency(const MusicVoice& voice) const;
     void installWave(const std::vector<uint8_t>& bytes);

@@ -1,0 +1,160 @@
+// Experimental ordinary-clock native replay. No original service costs, per-
+// update counters, world outcomes or voice states drive this probe. Source
+// work is charged at semantic phase boundaries; subinstruction IRQ latency is
+// deliberately not certified, and this is not yet the Windows-loop scheduler.
+#include "air.h"
+#include "air_clock.h"
+#include "air_work.h"
+#include "audio.h"
+#include <cstdio>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+
+using namespace ticd;
+int main(int argc,char** argv){
+    if(argc<3||argc>5){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]]\n");return 2;}
+    try{
+        auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
+        auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
+        auto audio=std::make_unique<AudioAssets>(AudioAssets::load(L"build/audio.dat"));
+        int difficulty=argc>=4?std::stoi(argv[3]):1;
+        if(difficulty<0||difficulty>3)throw std::runtime_error("Invalid Air difficulty");
+        auto game=std::make_unique<AirGame>(*assets,*shared);game->start(difficulty);game->measureWork=true;
+        NativeAudio sound(*audio);sound.playMusic(9);sound.measureWork=true;
+        AirClock clock;std::ifstream input(argv[1]);std::ofstream services(argv[2]);
+        std::ofstream phases(std::string(argv[2])+".phases.csv");
+        if(!phases)throw std::runtime_error("Cannot open source-phase output");
+        phases<<"update,phase,tick,start,end,work\n";
+        int initialTick;
+        if(!services||!(input>>initialTick>>game->secondTicks>>game->randomState))return 2;
+        // Capture header describes the initial clock/timer/random phase after
+        // the source pending startup service; it supplies no per-update clocks.
+        game->ticks=(initialTick-1)&65535;
+        services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5\n";
+        std::ofstream spriteLog;
+        if(argc==5){spriteLog.open(argv[4]);if(!spriteLog)throw std::runtime_error("Cannot open sprite-service output");spriteLog<<"service,slot,present,x,y,flags\n";}
+        int activeGamePhase=-1;
+        bool spriteBoundarySafe=false;
+        bool mapBoundarySafe=false;
+        bool loopBoundarySafe=false;
+        auto display=[&](bool ready){
+            if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted an unsupported gameplay phase; finer ownership is required");
+            if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
+            int tick=game->ticks,pending=game->pendingSound;
+            game->displayTick(ready);
+            if(pending>=0)sound.queueEffect(pending);
+            game->pendingSound=-1;sound.tick();
+            services<<clock.displays<<','<<clock.now<<','<<ready<<','<<tick<<','<<game->displayWorkCycles<<','<<sound.effectWorkCycles<<','<<sound.musicWorkCycles<<','<<game->hudCursor<<','<<pending;
+            for(int i=7;i<13;++i)services<<','<<int(game->hudValues[i]);services<<'\n';
+            if(game->displayWorkCycles<0||sound.effectWorkCycles<0||sound.musicWorkCycles<0)return -1;
+            return 1592+game->displayWorkCycles+sound.effectWorkCycles+sound.musicWorkCycles;
+        };
+        clock.startup(display);
+        puts("tick,handler,frame,flags,x,y,cameraX,cameraY,speed,rate,tilt,count,crash,anim,done,waiting,delay,period,transfer,remaining,map,result,seconds,secondTicks,random,pending");
+        int ignoredTick,held,updates=0;
+        while(input>>ignoredTick>>held){
+            // 03c7's LD A completes before 03c9 commits the ready flag. A
+            // pending display between them still sees the busy resource gate.
+            loopBoundarySafe=true;clock.work(8,display,false);
+            clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
+            clock.wait(display);clock.work(48,display,false);
+            int buttons=((held&1)?A:0)|((held&2)?B:0)|((held&16)?Right:0)|((held&32)?Left:0)|((held&64)?Up:0)|((held&128)?Down:0);
+            bool priorMap=game->mapTransfer;
+            auto priorSprites=game->sprites.slots;
+            game->updateGame(buttons,true);
+            game->sprites.slots=priorSprites;
+            bool preparedMap=game->mapTransfer;
+            game->mapTransfer=priorMap;
+            mapBoundarySafe=!priorMap&&!preparedMap;
+            // Entity updates are not interrupted in these accepted reference
+            // cases. STAT affects only LCD object visibility. A
+            // placement's spawn does not change callback-owned player/HUD,
+            // prepared sprites, camera, transfer gate or pending effect.
+            activeGamePhase=0;
+            for(int work:{game->entityWorkCycles,game->resourceWorkCycles,game->spriteWorkCycles,
+                          game->clearWorkCycles,game->mapWorkCycles,game->placementWorkCycles}){
+                auto phaseStart=clock.now;
+                int phaseTick=game->ticks;
+                if(work<0){fprintf(stderr,"Unknown source work at update %d; replay stops before certification.\n",updates);return 3;}
+                if(activeGamePhase==2){
+                    int sum=112;
+                    for(int n:game->spriteEntityWorkCycles)sum+=n;
+                    if(sum!=work)throw std::runtime_error("Incomplete per-entity sprite work");
+                    game->sprites=SpriteLayer(game->reverseSprites);game->sprites.slots=priorSprites;
+                    spriteBoundarySafe=true;clock.work(112,display,false);
+                    auto preparation=std::make_unique<AirGame>(*game);
+                    preparation->entities=game->spriteInputEntities;
+                    // airSpriteWork chooses the next allocation direction.
+                    preparation->reverseSprites=!game->reverseSprites;
+                    std::array<AirSpriteEntityWork,16> publication{};
+                    auto planned=airSpriteWork(*preparation,nullptr,&publication);
+                    if(planned.prepare!=work)throw std::runtime_error("Sprite publication work disagrees with preparation");
+                    for(int i=0;i<16;++i){
+                        int cost=game->spriteEntityWorkCycles[i];if(!cost)break;
+                        clock.work(76,display,false);
+                        const auto& plan=publication[i];
+                        if(!plan.geometry){clock.work(cost-76,display,false);continue;}
+                        int accounted=76+plan.geometry+plan.tail;
+                        for(const auto& piece:plan.pieces)accounted+=piece.before+(piece.writes?156:0);
+                        if(accounted!=cost)throw std::runtime_error("Incomplete piece-publication work");
+                        clock.work(plan.geometry,display,false);
+                        const auto& e=game->spriteInputEntities[i];const auto& frame=assets->frames[e.frame];
+                        auto relative=[](int p,int c){return static_cast<int16_t>((p&65520)-(c&65520))/16;};
+                        int x=relative(e.x,game->cameraX)+static_cast<int8_t>(frame.meta[0])+frame.meta[6]+8;
+                        int y=relative(e.y,game->cameraY)+static_cast<int8_t>(frame.meta[1])+frame.meta[7]+16;
+                        for(size_t n=0;n<plan.pieces.size();++n){
+                            const auto& piece=frame.pieces[n];const auto& charge=plan.pieces[n];
+                            clock.work(charge.before,display,false);
+                            if(!charge.writes)continue;
+                            int slot=game->sprites.preparedSlot();
+                            auto* entry=slot>=0&&slot<40?&game->sprites.slots[slot]:nullptr;
+                            // 1d24..1d3b writes Y, X, tile and flags in order.
+                            // Decode/rendered colors stand in for tile data;
+                            // this probe makes no tile/pixel parity claim.
+                            clock.work(12,display,false);
+                            clock.atomicWork(8,[&]{if(entry){entry->y=(y+((e.flags&64)?-piece.y-16:piece.y))&255;entry->present=entry->y!=0;}},display,false);
+                            clock.work(16,display,false);
+                            clock.atomicWork(8,[&]{if(entry)entry->x=(x+((e.flags&32)?-piece.x-8:piece.x))&255;},display,false);
+                            clock.work(24,display,false);
+                            clock.atomicWork(8,[&]{if(entry)entry->colors=e.frame<12&&piece.chunk>=0?game->spriteResources.colors(piece.chunk):piece.colors;},display,false);
+                            clock.work(32,display,false);
+                            clock.atomicWork(8,[&]{if(entry)entry->flags=(e.flags&0xe0)^piece.flags;},display,false);
+                            clock.work(40,display,false);game->sprites.advancePreparedPiece();
+                        }
+                        game->sprites.finishPreparedEntity();
+                        clock.work(plan.tail,display,false);
+                    }
+                    // The replay accounts for geometry/culling in updateGame;
+                    // publication uses this independently rebuilt partial list.
+                }else if(activeGamePhase==3){
+                    int first=game->sprites.unusedFirst(),bytes=4*game->sprites.unusedCount();
+                    if(!bytes)clock.work(work,display,false);
+                    else{
+                        int prefix=game->sprites.descending()?196:184;
+                        if(work!=prefix+8*bytes+88)throw std::runtime_error("Incomplete sprite-clear source decomposition");
+                        clock.work(prefix,display,false);
+                        for(int byte=0;byte<bytes;++byte)clock.atomicWork(8,[&]{if(!(byte&3))game->sprites.slots[first+byte/4].present=false;},display,false);
+                        clock.work(88,display,false);
+                    }
+                }else clock.work(work,display,false);
+                if(activeGamePhase==4)game->mapTransfer=preparedMap;
+                phases<<updates<<','<<activeGamePhase<<','<<phaseTick<<','<<phaseStart<<','<<clock.now<<','<<work<<'\n';
+                ++activeGamePhase;
+            }
+            const auto& p=game->entities[0];
+            printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+                game->ticks,int(p.handler),p.frame,p.flags,p.x,p.y,game->cameraX,game->cameraY,
+                game->speed,game->rate,game->tilt,p.params[0],p.params[2],p.anim,p.animDone,p.frameWaiting,
+                p.delay,p.period,game->transferState,game->transferRemaining,game->mapTransfer,
+                game->result,game->seconds,game->secondTicks,game->randomState,game->crashRecoveryPending);
+            ++updates;
+            if(!game->result)clock.work(32,display,false); // Result test + taken back-edge.
+            else clock.work(28,display,false); // Exit result test; final display/outro wait is not modeled yet.
+        }
+        if(!input.eof())return 2;
+        fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services.\n",updates,clock.displays,clock.statServices);
+        return 0;
+    }catch(const std::exception& e){fprintf(stderr,"%s\n",e.what());return 1;}
+}

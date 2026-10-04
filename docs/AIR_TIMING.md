@@ -1,11 +1,13 @@
 # Air Bumper source timing: partial reconstruction
 
-The original-time scheduler is **not finished**. The Windows runtime still
-performs one gameplay update per display interval. All six main-update work phases, including the entity dispatcher and every
-handler exercised before the intentional recovery difference, now agree with
-the reference replay. Variable display/audio service and wait phase remain
-incomplete; the main-update sum alone is not a complete frame budget.
-Do not use their partial sum to skip updates or claim real-time parity.
+The production Windows scheduler is **not finished**: it still performs one
+game update per display interval. An experimental native semantic clock now
+matches nine control-verified Air cases without supplied per-update counters
+(28,103 updates, 28,153 display services). Music, STAT/wait and partial sprite
+publication have checked models for these paths. Remaining handlers, interrupted
+subphases, real-time input, pause and exit still need reconstruction before
+Windows integration. See the latest checkpoint below. Source costs are derived
+from identified routines, never fitted interrupt allowances or replay indices.
 
 ## Measured cause
 
@@ -250,38 +252,65 @@ one game update per display interval. Display/effect formulas establish source
 work, not native phase alignment. Music-driver work, STAT/wait phase and the
 independent service/update scheduler remain outstanding.
 
+## Experimental native clock checkpoint - 2026-10-05
+
+The source music model reproduces all 3,063 baseline services and 18,378 voice
+calls. Native voice fields also match an isolated replay driven solely by song
+and effect requests. Carry, byte-wrap and square-envelope corrections have
+regressions. Outer-loop captures validate STAT body costs, wait/resume/tail
+paths and startup order against unchanged control memory. Inner HALT hooks were
+not used. Idle time is measured evidence, not a work allowance.
+
+The experimental C++ probe advances display/audio/HUD independently of completed
+game updates using source work. Initial timer/random/clock phase and
+update-aligned buttons are supplied once/per update respectively; counters,
+measured costs and original world states are never supplied per update.
+Unsupported work/interrupted ownership stops the probe. The normal Windows
+application retains its existing scheduler until broader validation completes.
+
+Nine comparisons cover the recovery prefix, four coast difficulties, boost,
+acceleration, steering and a successful finish. They match 24 post-update fields
+and all checked service fields across 28,103 updates and 28,153 VBlanks. The
+intentional recovery boundary is not modeled as original work. The steering case
+includes twelve extra VBlanks: placement, progressive unused-slot clearing and a
+preparation entry between entities. Separate single-DMA-hook captures verify
+158,840 published sprite slots across steering and the successful finish.
+Presence, coordinates and flags are checked; tile contents, pixels, PCM and
+subinstruction IRQ latency are not. A combined DMA/outer-loop capture changed
+control memory and was discarded.
+
+New reference comparisons exposed boost-expiration pose and severity-drag RNG
+errors; both are corrected. A successful original landing validates finish-sound
+ownership and fixes the final result branch, where the port wrongly generated
+particles. WallSlide and FinishMotion source costs now match all 35/128 calls in
+that capture. All six ordinary-clock work phases and their entry counters match
+across all nine cases; 28,103 updates imply 168,618 checked work phases. New
+regressions also cover camera-lead direction, padded-map scroll limits and enemy
+penalty work. The clock candidate commits the busy/ready store at its source
+boundary and publishes sprite Y/X/tile/flags progressively. Row-building
+interruptions remain unsupported; only the no-row callback with an already-clear
+pending flag is safe. Latest validation passes 72 Python, 89 synthetic
+source-work checks, the full native suites with 819,624 Air and 150 audio
+assertions, four input-only Air successes, all 64 recovery phases and three
+campaigns. Logs/data remain ignored/local; detailed limits and Windows checks
+are in STATUS.md and ACCEPTANCE.md.
+
 ## Required next work
 
-Checkpoint validation passes 39 Python tests, all native suites, all 64 Air
-recovery phases (822,497 Air assertions including replay invariants), three
-complete campaign scenarios and 13 Windows UI checks with no dropped audio
-buffers. Logs are local/air-work-verified-build.log and build/ui-window-test.txt.
-The allocator regression also fails against the prior implementation. Native
-state exports with graphics work accounting enabled and disabled are identical.
+1. Expand the existing winning FinishMotion/WallSlide evidence to other branches,
+   Exploding and additional collision cases. Reconstruct missing work and check state/effect/cost ownership; unknown
+   paths remain -1. Expand music branches without an existing reference witness.
+2. Account for interrupts within entity updates, resource/map callbacks and
+   sprite geometry and row construction. Piece writes and no-row callbacks
+   now have source ownership, checked in the winning case. Do not publish a fully prepared sprite list before its source
+   preparation completes.
+3. Reconstruct display-time button sampling, pause, final display/outro wait and
+   startup/exit phases across normal UI entry. Integrate the accepted scheduler
+   into Windows only after those paths can be handled faithfully.
+4. Expand original comparisons to all stunts/difficulties and matched pixels/PCM,
+   then complete human/independent Windows tests and release packaging under
+   ACCEPTANCE.md. Synthetic/native campaigns alone cannot establish fidelity.
 
-The animation correction changes the deterministic pilot's route: the solo
-campaign finishes all twenty stunts with one retry and 8,478 savings. Both-player
-completion finishes at 8,620/8,455 with three/two failed attempts; the elimination
-scenario finishes at 0/8,493 with five/zero failures. Campaign acceptance now
-explicitly verifies preserved progress/savings and life loss on each failure,
-and continues to require all twenty wins, the ending and return to title. The
-earlier zero-failure solo requirement tested pilot perfection rather than game
-correctness; it is not retained as a fidelity oracle. No game results are injected.
-
-1. Reconstruct the remaining variable music driver from source, using its measured
-   boundaries. Display and effect setup now have checked source models. Extend reference
-   inputs to timeout, finish, wall-slide, boosted motion and exploding branches;
-   source/synthetic coverage alone cannot establish original parity.
-2. Complete STAT and main-loop wait/interrupt phase accounting, including the
-   pending startup VBlank before the first wait. The observed
-   min/max is not a service-work model. Keep unknown paths explicitly unknown.
-3. Introduce separate display and completed-game-update progression. An extra
-   VBlank must advance global input/audio/HUD/display work without inventing an
-   extra entity update. Respect the dynamic-transfer gate and the map callback;
-   do not indiscriminately suppress all display work when `FFAE` is zero.
-4. Run ordinary-clock native replays with no supplied per-update counter and
-   require agreement before the intentional recovery difference. Then expand
-   inputs, difficulties and the other stunts; compare image/audio boundaries.
-
-Do not hardcode updates 895/1222, drive cartridge timing from Windows CPU speed,
-add a runtime emulator, or mark release timing accepted at this checkpoint.
+Do not hardcode overrun update numbers, drive cartridge timing from Windows CPU
+speed, add a runtime emulator or mark release timing accepted at this
+checkpoint.

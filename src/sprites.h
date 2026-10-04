@@ -61,6 +61,13 @@ public:
     std::array<Entry,40> slots{};
     explicit SpriteLayer(bool reverse):cursor(reverse?39:0),direction(reverse?-1:1){}
     bool exhausted() const {return full;}
+    int unusedFirst()const{return direction>0?std::clamp(cursor,0,40):0;}
+    int unusedCount()const{return direction>0?40-unusedFirst():std::clamp(cursor+1,0,40);}
+    bool descending()const{return direction<0;}
+    int preparedSlot()const{return cursor;}
+    void advancePreparedPiece(){cursor+=direction;}
+    void finishPreparedEntity(){full=cursor<0||cursor>=40;}
+    void clearUnused(){for(int i=unusedFirst();i<unusedFirst()+unusedCount();++i)slots[i].present=false;}
     void add(const Frame& frame,int x,int y,int flags,const SpriteResources* resources=nullptr){
         if(full)return;
         x+=static_cast<int8_t>(frame.meta[0]);y+=static_cast<int8_t>(frame.meta[1]);

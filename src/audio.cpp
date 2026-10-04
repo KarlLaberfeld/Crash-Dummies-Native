@@ -1,5 +1,6 @@
 #include "audio.h"
 #include "audio_work.h"
+#include "audio_music_work.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -87,7 +88,8 @@ void NativeAudio::noteOn(int index,int note,int duration){
     else if(noise){out.volume=15;out.noise=out.frequency;out.lfsr=0x7fff;out.timer=0;}
     else out.timer=4*(2048-(out.frequency&2047));
 }
-void NativeAudio::envelope(MusicVoice& v){
+void NativeAudio::envelope(int index){
+    auto& v=voices[index];
     if(v.stage&128){
         if(v.releaseCounter&&--v.releaseCounter==0){v.envelopeCounter=1;v.tableIndex=byte(v.tableIndex+1);}
         v.envelopeCounter=byte(v.envelopeCounter-1);if(v.envelopeCounter)return;
@@ -98,13 +100,21 @@ void NativeAudio::envelope(MusicVoice& v){
     }
     if(v.stage>1)return;
     v.envelopeCounter=byte(v.envelopeCounter-1);if(!(v.envelopeCounter&128))return;
-    if(v.stage==0){v.envelopeCounter=v.attack;v.volume=byte(v.volume+1);if(v.volume==15){v.stage=1;v.envelopeCounter=v.decay;}}
-    else{v.envelopeCounter=v.decay;if(v.volume==v.sustain){v.stage=2;return;}v.volume=byte(v.volume-1);if(v.volume&128)v.stage=2;}
+    if(v.stage==0){
+        v.envelopeCounter=v.attack;v.volume=byte(v.volume+1);
+        if(v.volume!=15)return;
+        v.stage=1;v.envelopeCounter=v.decay;
+        // Square 419c / 4480 / 4b34 tests the zero decay and falls through.
+        // Noise 4903 / 4de5 preserves INC stage's flags and returns instead.
+        if(index==3||index==5||v.decay)return;
+    }
+    v.envelopeCounter=v.decay;if(v.volume==v.sustain){v.stage=2;return;}
+    v.volume=byte(v.volume-1);if(v.volume&128)v.stage=2;
 }
 void NativeAudio::modulation(int index){
     auto& v=voices[index];auto& out=outputs[hardware(index)];bool noise=index==3||index==5;
     if(v.pitchDelay&&v.pitchWait){if(--v.pitchWait)return;out.frequency=v.frequency;if(noise)out.noise=v.frequency;}
-    bool newNote=false;
+    bool newNote=false;int fineCarry=0;
     if(!noise&&v.vibratoDelay){
         if(!v.vibratoWait||--v.vibratoWait==0){v.frequency=(v.frequency+(v.direction?v.vibratoStep:-v.vibratoStep))&65535;out.frequency=v.frequency;
             v.vibratoCounter=byte(v.vibratoCounter-1);if(!v.vibratoCounter&&v.vibratoHalf){v.vibratoCounter=byte(v.vibratoHalf*2);v.direction^=255;}}
@@ -112,13 +122,33 @@ void NativeAudio::modulation(int index){
         v.direction^=255;v.arpCounter=v.direction?v.arpUp:v.arpDown;
         int delta=v.direction?v.arpAmount:-v.arpAmount;
         if(noise){v.frequency=byte(v.frequency+delta);out.noise=v.frequency;return;}
+        if(index==1)fineCarry=v.direction?v.note+v.arpAmount>255:v.note>=v.arpAmount;
         v.note=byte(v.note+delta);newNote=true;
     }
-    if(!noise&&!newNote&&v.portamento&&v.note!=v.targetNote){v.note=v.note<v.targetNote?std::min(v.targetNote,v.note+v.portamento):std::max(v.targetNote,v.note-v.portamento);newNote=true;}
-    if(newNote){v.frequency=noteFrequency(v);out.frequency=v.frequency;out.timer=4*(2048-(out.frequency&2047));}
+    if(!noise&&!newNote&&v.portamento&&v.note!=v.targetNote){
+        int value;
+        if(v.note>v.targetNote){
+            value=byte(v.note-v.portamento);
+            if(index==1){fineCarry=value<v.targetNote;if(fineCarry)value=v.targetNote;}
+            else if(value==v.targetNote){value=byte(value+v.portamento+1);if(value>=v.targetNote)value=v.targetNote;}
+            else if(value<v.targetNote)value=v.targetNote;
+        }else{
+            value=byte(v.note+v.portamento);
+            if(index==1){fineCarry=value>=v.targetNote;if(value<=v.targetNote)value=v.targetNote;}
+            else if(value>=v.targetNote)value=v.targetNote;
+        }
+        // 42da / 45be / 4c72 use byte-wrapped note arithmetic. Preserve the
+        // original branch results, including the channel-one ADC carry.
+        v.note=value;newNote=true;
+    }
+    if(newNote){v.frequency=(noteFrequency(v)+fineCarry)&65535;out.frequency=v.frequency;out.timer=4*(2048-(out.frequency&2047));}
 }
 void NativeAudio::updateVoice(int index){
-    auto& v=voices[index];if(!v.active)return;int channel=hardware(index);auto& out=outputs[channel];
+    auto& v=voices[index];
+    int& work=voiceWorkCycles[index];
+    if(measureWork)work=v.active?(v.remaining==1?108:72)+(index>=4?32:0):36;
+    if(!v.active)return;int channel=hardware(index);auto& out=outputs[channel];
+    bool noteDue=v.remaining==1;
     if(index>=4)routing|=index==4?0x11:0x88;
     v.remaining=byte(v.remaining-1);
     if(!v.remaining){
@@ -126,7 +156,10 @@ void NativeAudio::updateVoice(int index){
         for(int guard=0;guard<2048&&!played;++guard){
             auto found=assets.commands.find(AudioAssets::key(index,v.position,v.fixed!=0));
             if(found==assets.commands.end())throw std::runtime_error("Music command missing from identified graph.");
-            const auto& c=found->second;auto arg=[&](size_t n){return int(c.args.at(n));};v.position=c.next;
+            const auto& c=found->second;auto arg=[&](size_t n){return int(c.args.at(n));};int pointer=v.position;
+            if(measureWork&&work>=0){int cwork=audioCommandWork(c.op,v.loopCount,c.args.empty()?0:c.args[0],int(c.args.size()));work=cwork<0?-1:work+cwork;}
+            if(measureWork&&work>=0&&c.op==MusicOp::Note)work+=audioNoteWork(index,v,arg(0),v.fixed?v.fixed:arg(1),pointer);
+            v.position=c.next;
             switch(c.op){
             case MusicOp::Note:noteOn(index,arg(0),v.fixed?v.fixed:arg(1));played=true;break;
             case MusicOp::LoopBegin:v.loopCount=arg(0);v.loopStart=c.next;break;
@@ -154,7 +187,7 @@ void NativeAudio::updateVoice(int index){
             case MusicOp::WaveVolume:require(arg(0)<4);out.waveShift=arg(0)==0?4:3-arg(0);break;
             case MusicOp::NoiseShort:v.noiseWidth=8;break;
             case MusicOp::NoiseLong:v.noiseWidth=0;break;
-            case MusicOp::StopAll:enabled=false;for(auto& voice:voices)voice.active=false;for(auto& output:outputs)output.enabled=false;return;
+            case MusicOp::StopAll:work=-1;enabled=false;for(auto& voice:voices)voice.active=false;for(auto& output:outputs)output.enabled=false;return;
             // These commands do not occur in the documented cartridge streams.
             // Reject unsupported data instead of silently inventing behavior.
             case MusicOp::Registers:case MusicOp::StereoMotion:throw std::runtime_error("Unimplemented optional music command.");
@@ -163,20 +196,40 @@ void NativeAudio::updateVoice(int index){
         if(!played)throw std::runtime_error("Music stream failed to yield a note.");
     }
     // The wave modulation block is bypassed by the original jump at 02:46e3.
-    if(index==2)return;
-    envelope(v);
+    if(index==2){if(measureWork&&work>=0&&!noteDue)work+=16;return;}
+    if(measureWork&&work>=0){
+        int value=-1,next=-1;
+        if(v.stage&128){auto table=assets.instruments.find(v.instrument);
+            if(table!=assets.instruments.end()){
+                if(v.tableIndex>=0&&v.tableIndex<int(table->second.size()))value=table->second[v.tableIndex];
+                int after=(v.tableIndex+1)&255;if(after<int(table->second.size()))next=table->second[after];
+            }}
+        int cwork=audioEnvelopeWork(index,v,value,next);work=cwork<0?-1:work+cwork;
+    }
+    envelope(index);
+    if(measureWork&&work>=0)work+=audioOutputWork(index,v,out.volume);
     if(channel==3){if(out.volume!=(v.volume&15)){out.volume=v.volume&15;out.noise=v.frequency;out.lfsr=0x7fff;out.timer=0;}}
     else{out.volume=v.volume&15;out.duty=v.duty>>6;out.frequency=v.frequency;out.timer=4*(2048-(out.frequency&2047));}
+    if(measureWork&&work>=0)work+=audioModulationWork(index,v);
     modulation(index);
 }
 void NativeAudio::tick(){
     effectWorkCycles=-1;
+    musicWorkCycles=-1;voiceWorkCycles.fill(-1);
     if(paused)return;
     if(measureWork)effectWorkCycles=audioEffectSetupWork(pendingEffect,
         pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][0],
         pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][1]);
     if(pendingEffect>=0){startEffect(pendingEffect);pendingEffect=-1;}
+    bool driverEnabled=enabled;
     if(enabled)for(int i=0;i<6;++i)updateVoice(i);
+    if(measureWork){
+        if(!driverEnabled)musicWorkCycles=60;
+        else if(std::all_of(voiceWorkCycles.begin(),voiceWorkCycles.end(),[](int c){return c>=0;})){
+            musicWorkCycles=84+92+audioMusicTailWork(stereoPeriod,stereoCounter,stereoDirection);
+            for(int c:voiceWorkCycles)musicWorkCycles+=c;
+        }
+    }
     ++ticks;
 }
 void NativeAudio::render(std::vector<int16_t>& stereo,int sampleRate){

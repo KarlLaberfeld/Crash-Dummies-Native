@@ -81,6 +81,7 @@ void AirGame::start(int level,int player){
     transferState=transferRemaining=transferFrame=transferFlags=0;
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     mapWorkCycles=placementWorkCycles=spriteWorkCycles=clearWorkCycles=0;
+    spriteEntityWorkCycles.fill(0);spriteInputEntities={};
     resourceWorkCycles=animationWorkCycles=0;
     starterWorkCycles=cameraWorkCycles=0;animationWorkComplete=true;
     collisionScanWorkCycles=collisionCallbackWorkCycles=0;
@@ -193,9 +194,10 @@ void AirGame::movePlayer(){
     if(measureWork)playerMotionWorkCycles+=airPlayerMotionWork(*this);
     auto& p=entities[0];const auto& display=assets.tilts.at(tilt+2);
     if(!transferState)setFrame(0,display[0],display[1]);
-    // 00:3d59 returns flags for the old byte, even when its decrement reaches 0.
-    bool boosted=p.params[3]!=0;
+    // 3d61 / 3d63 updates Z while approaching zero. The optional stored-pose
+    // call at 65b7 is skipped on the expiration tick as well as an idle boost.
     p.params[3]=static_cast<uint8_t>(approach(s8(p.params[3]),0));
+    bool boosted=p.params[3]!=0;
     const auto& motion=assets.tilts.at((boosted?s8(p.params[4]):tilt)+2);
     p.move(s8(motion[2]*rate),s8(motion[3]*rate));
     if(rate>=0&&(p.y>>8)==assets.levels[difficulty].rows-2)speed=0;
@@ -216,14 +218,14 @@ void AirGame::lookupRate(){rate=assets.speeds.at(speed+20);}
 // 2430 publishes prepared objects; the display callback reads scroll before
 // 03db runs the next entity update. Keep visible and prepared state separate.
 void AirGame::publishVideo(){visibleSprites=sprites;visibleCameraX=cameraX;visibleCameraY=cameraY;}
-void AirGame::beginVideoTick(){
-    if(measureWork)displayWorkCycles=airDisplayWork(mapTransfer,true,transferRemaining,hudCursor,
+void AirGame::beginVideoTick(bool resourceReady){
+    if(measureWork)displayWorkCycles=airDisplayWork(mapTransfer,resourceReady,transferRemaining,hudCursor,
         ticks,displayFadeRemaining,entities[0].params[1],assets.levels[difficulty].quota).total();
     if(!(ticks&1)&&displayFadeRemaining)--displayFadeRemaining;
     publishVideo();
     // 00:0c3f / 00:1897: a map row has priority; otherwise copy at most four
     // 32-byte resource chunks. This models the original asset queue, not a CPU.
-    if(transferRemaining&&!mapTransfer){
+    if(resourceReady&&transferRemaining&&!mapTransfer){
         spriteResources.advance(assets.frames[transferFrame],transferRemaining);
         transferRemaining=std::max(0,transferRemaining-4);
         if(!transferRemaining){entities[0].frame=transferFrame;entities[0].flags=transferFlags;transferState=2;}
@@ -342,7 +344,7 @@ void AirGame::update(int i){
         int severity=e.params[5]>>6;
         if(severity==1&&(pressed&A))spawn(34,e.x,e.y+512);
         if((severity==2&&!(ticks&31))||(severity==3&&!(ticks&15))){
-            bool moving=speed!=0;speed=approach(speed,0);if(moving)spawn(34,e.x+(randomByte()&15)*16,e.y+384);
+            speed=approach(speed,0);if(speed)spawn(34,e.x+(randomByte()&15)*16,e.y+384);
         }
         if(measureWork)body+=airTimerWork(secondTicks,seconds);
         tickTimer();if(!seconds){
@@ -369,15 +371,50 @@ void AirGame::update(int i){
             crashRecoveryPending=false;startAnimation(i,1);
         }
         break;
-    case AirHandler::FinishMotion:
+    case AirHandler::FinishMotion:{
+        int body=192+96+28+(tilt>=0?8:0)+40+136+20+airMoveWork(e.y,s8(2*rate))
+            +((ticks&15)?44:60+airApproachByteWork(speed))+112+AirProbeWork;
         followCamera();e.move(0,s8(2*rate));if(!(ticks&15))speed=approach(speed,0);
-        lookupRate();sampleProbes(tilt);terrainBounce();if(--finishTimer==0)result=resultFlags;
-        if(!(finishTimer&7)){int dx=(randomByte()&15)*16,dy=((randomByte()&15)+16)*16;spawn(33,e.x+dx,e.y+dy);}if(!(ticks&15))pendingSound=14;break;
-    case AirHandler::WallSlide:
-        cameraLead=approach(cameraLead,cameraLeadTarget);followCamera();lookupRate();sampleProbes(0);terrainBounce();
-        if((probes[0]|probes[1]|probes[2])&0x7d){e.handler=AirHandler::Play;break;}
-        tickTimer();collide();if(rate>=0){e.handler=AirHandler::Play;break;}
-        e.move(0,s8(2*rate));if(--e.params[0]==0)e.handler=AirHandler::Play;break;
+        lookupRate();sampleProbes(tilt);
+        if(measureWork)body+=airTerrainBounceWork(*this);
+        terrainBounce();if(--finishTimer==0)result|=resultFlags;
+        body+=44+(finishTimer==0?48:0);
+        // 59be leaves HL on C095 when the countdown reaches zero. The
+        // following phase test therefore reads the completed result byte.
+        int phase=finishTimer?finishTimer:result;
+        if(!(phase&7)){
+            if(measureWork)body+=24+628+airSpawnRelativeWork(*this,false);
+            int dx=(randomByte()&15)*16,dy=((randomByte()&15)+16)*16;spawn(33,e.x+dx,e.y+dy);
+            // 611e returns on other countdown phases; 6158 then tests C097,
+            // the finish countdown, rather than the global display counter.
+            if(!(finishTimer&15))pendingSound=14;
+            body+=((finishTimer&15)?44:84);
+        }else body+=36;
+        if(measureWork)complexBodyWorkCycles=body+cameraWorkCycles;
+        break;}
+    case AirHandler::WallSlide:{
+        int body=148+airCameraLeadWork(cameraLead,cameraLeadTarget)+112+AirProbeWork-12;
+        cameraLead=approach(cameraLead,cameraLeadTarget);followCamera();lookupRate();sampleProbes(0);
+        if(measureWork)body+=airTerrainBounceWork(*this);
+        terrainBounce();
+        body+=48;
+        if((probes[0]|probes[1]|probes[2])&0x7d){
+            e.handler=AirHandler::Play;
+            if(measureWork)complexBodyWorkCycles=body+12+112+cameraWorkCycles;
+            break;
+        }
+        body+=8+64+airTimerWork(secondTicks,seconds);
+        tickTimer();collide();
+        if(rate>=0){
+            e.handler=AirHandler::Play;body+=12+112;
+        }else{
+            body+=8+60+44+airMoveWork(e.y,s8(2*rate));
+            e.move(0,s8(2*rate));
+            body+=e.params[0]==1?8+112:20;
+            if(--e.params[0]==0)e.handler=AirHandler::Play;
+        }
+        if(measureWork&&collisionCallbackWorkCycles>=0)complexBodyWorkCycles=body+cameraWorkCycles+collisionScanWorkCycles+collisionCallbackWorkCycles;
+        break;}
     case AirHandler::Crash:{
         int animationBefore=animationWorkCycles;
         int body=304+44+112+airTimerWork(secondTicks,seconds);
@@ -437,8 +474,10 @@ void AirGame::update(int i){
     case AirHandler::Idle:break;
     }
 }
-void AirGame::updateVisibility(){
-    reverseSprites=!reverseSprites;sprites=SpriteLayer(reverseSprites);
+void AirGame::updateVisibility(bool deferSpriteClear){
+    SpriteLayer next(!reverseSprites);
+    if(deferSpriteClear)next.slots=sprites.slots;
+    reverseSprites=!reverseSprites;sprites=std::move(next);
     for(auto& e:entities)if(e.alive){
         e.offscreen=false;if(e.flags&8)continue;
         const auto& m=assets.frames[e.frame].meta;
@@ -457,7 +496,16 @@ void AirGame::step(int buttons){
     if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
     if(paused)return;
     videoTickPrepared=false;
-    held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
+    ticks=(ticks+1)&65535;
+    updateGame(buttons);
+}
+void AirGame::displayTick(bool resourceReady){
+    if(!started)return;
+    beginVideoTick(resourceReady);tickHud();ticks=(ticks+1)&65535;
+}
+void AirGame::updateGame(int buttons,bool deferSpriteClear){
+    if(!started||result||paused)return;
+    held=buttons;pressed=buttons&~previous;previous=buttons;
     animationWorkCycles=0;animationWorkComplete=true;
     collisionScanWorkCycles=collisionCallbackWorkCycles=0;
     playerMotionWorkCycles=playerInputWorkCycles=0;
@@ -483,9 +531,10 @@ void AirGame::step(int buttons){
     }
     if(measureWork)resourceWorkCycles=airResourceWork(*this,oldFrame);
     finishVideoTick(oldFrame,oldFlags);
-    if(measureWork){const auto spriteWork=airSpriteWork(*this);
+    if(measureWork){const auto spriteWork=airSpriteWork(*this,deferSpriteClear?&spriteEntityWorkCycles:nullptr);
         spriteWorkCycles=spriteWork.prepare;clearWorkCycles=spriteWork.clear;}
-    updateVisibility();
+    if(deferSpriteClear)spriteInputEntities=entities;
+    updateVisibility(deferSpriteClear);
     mapTransfer=((lastMapCamera^cameraY)&128)!=0;
     // 03ed..19a2: indirect callback + 1ead's sixteen-cell row preparation.
     // The downward branch at 1ef2 costs four more T-cycles. No ROM execution

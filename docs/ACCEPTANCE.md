@@ -6,9 +6,9 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 | Area | Evidence already available | Required before final release |
 |---|---|---|
 | Five stunts / four difficulties | Native rules, deterministic replay and a 20-stunt input-only campaign | Original comparisons for normal play, collisions, success and failure |
-| Air crash recovery / timing | Native safeguard passes all 64 phase replays; original trace/control reproduce the failure; all six main-update phases and 10,770 handler calls match before the intentional recovery difference; display/effect and fixed/guard source costs match all 3,063 VBlanks; startup pending-interrupt phase is measured; reused-slot animation delay and progress-bar terminator are corrected | Retain the intentional recovery fix; complete music-driver and STAT/wait-phase work, resolve the native startup/display phase gap, expand unmeasured Air branches, then ordinary-clock scheduling comparison; verify on independent reference/hardware |
+| Air crash recovery / timing | Native safeguard passes all 64 phase replays; original trace/control reproduce the failure; checked source models now include music and STAT/wait parts; an experimental ordinary-clock probe matches nine Air cases (28,103 completed updates, 28,153 services), including partial sprite preparation/clearing; two cases match 158,840 published sprite slots; a successful finish validates WallSlide/FinishMotion and final particle/sound behavior; boost expiration and severity drag are corrected | Retain the intentional recovery fix; complete remaining handlers and interrupted subphases, hardware/input/pause/exit timing, then integrate and verify the Windows scheduler; expand winning/failure/collision cases and verify on independent reference/hardware |
 | Presentation | Source-derived menus, transitions, palette tests and double-buffered shared sprite resources | Reference captures at matched input/update boundaries, including gameplay entry, pause, landing/body parts and exit |
-| Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
+| Audio | All 14 songs and 26 effects decode; 5,441 isolated original services match native voice-state fields and work; pitch/byte-wrap corrections and source envelope regressions pass | Original recordings for timing, channel interaction, envelopes and pitch; verify actual gameplay requests and presentation timing across all stunts |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |
 | Windows | Native executable builds; UI tests pass with normal audio and an injected audio-open failure | Human input/focus/resize/pause tests, physical audio-device removal and a separate Windows installation |
 | Distribution | Local preview packaging script, no ROM upload | Final acceptance results, reproducible package verification and versioned final release |
@@ -82,3 +82,21 @@ uploads, bank-tail retention, prepared pixel snapshots and actual landing data.
 This narrows the partial-tile question; it does not replace matched original
 captures or establish exact scanline timing. The Air crash deadline is unchanged;
 the subsequent recovery-request safeguard is documented separately.
+
+## Air source-clock checkpoint, 2026-10-05
+
+Nine control-verified original Air cases match 28,103 completed native updates,
+28,153 display services and all 168,618 semantic work phases/entry counters. Two
+independent sprite captures match 158,840 published slots for presence,
+coordinates and flags. The winning case reaches result 3 with ten items and
+validates 35 WallSlide and 128 FinishMotion calls. A final-step particle error
+is corrected. Music-request replays match 5,441 services and 32,646 voice rows.
+No original per-update clock, cost, voice state or world outcome drives these
+ordinary-clock native replays. Initial phase and update-aligned buttons are
+supplied; this is an experimental probe, not accepted Windows scheduling.
+
+Full native suites and all three campaigns pass after the gameplay corrections;
+72 Python tests and 89 synthetic source-work checks pass. Remaining acceptance
+items in the table are unchanged: missing handlers/interrupt ownership, actual
+input/pause/exit and Windows integration, other stunts, matched pixels/PCM,
+human and independent-host testing, and final packaging. Do not mark this final.

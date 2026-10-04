@@ -1,5 +1,6 @@
 #include "audio.h"
 #include "audio_work.h"
+#include "audio_music_work.h"
 #include <algorithm>
 #include <cstdio>
 #include <stdexcept>
@@ -31,6 +32,36 @@ int runAudioTests(const AudioAssets& assets){
         work.setPaused(true);work.queueEffect(0);work.tick();
         check(work.effectWorkCycles==-1&&work.pendingEffect==0,"Paused native sequencing cannot certify an original setup interval");
         work.setPaused(false);work.tick();check(work.effectWorkCycles==620&&work.pendingEffect==-1,"Resume consumes the retained request and accounts for both roots");
+        check(work.musicWorkCycles==904&&work.voiceWorkCycles[4]==272&&work.voiceWorkCycles[5]==272,"Stopped music retains the entry-enabled voice scan and both fresh effect stops");
+        work.stop();work.tick();check(work.musicWorkCycles==60,"Disabled driver uses the original early return");
+        work.setPaused(true);work.tick();check(work.musicWorkCycles==-1,"Native pause does not certify an original driver call");
+        check(audioCommandWork(MusicOp::LoopEnd,1)==124&&audioCommandWork(MusicOp::LoopEnd,2)==172,"Counted-loop completion and repetition have different source work");
+        check(audioCommandWork(MusicOp::Registers,0,0,2)==-1&&audioCommandWork(MusicOp::Registers,0,0,5)==324,"Malformed register data cannot certify work");
+        check(audioCommandWork(static_cast<MusicOp>(255))==-1,"Unknown music operation cannot certify work");
+        check(audioCommandWork(MusicOp::NoiseShort)==136,"Noise-width command skips the other handler's XOR");
+        check(audioMusicTailWork(0,1,0)==40&&audioMusicTailWork(1,2,0)==72&&audioMusicTailWork(1,1,0)==256&&audioMusicTailWork(1,1,255)==248,"Stereo-tail source branches remain distinct (synthetic evidence)");
+        MusicVoice synthetic;synthetic.stage=128;synthetic.envelopeCounter=1;
+        check(audioEnvelopeWork(0,synthetic)==-1,"Missing instrument lookup retains unknown work");
+        check(audioEnvelopeWork(0,synthetic,255)==200,"Instrument hold returns before writing a new level");
+        synthetic.releaseCounter=1;
+        check(audioEnvelopeWork(0,synthetic,255,4)==364,"Release expiration uses the following instrument value");
+        synthetic=MusicVoice{};synthetic.envelopeCounter=0;synthetic.volume=14;synthetic.sustain=0;
+        check(audioEnvelopeWork(0,synthetic)==440&&audioEnvelopeWork(3,synthetic)==256,"Square attack can fall through into decay while noise retains INC flags");
+        synthetic=MusicVoice{};
+        check(audioNoteWork(0,synthetic,24,3,255)-audioNoteWork(0,synthetic,24,3,100)==8,"Note stream pointer carries independently of pitch");
+        check(audioEnvelopeWork(2,synthetic)==-1&&audioModulationWork(2,synthetic)==-1,"Wave voice bypass cannot masquerade as a measured phase");
+        auto modulationFixture=fixture();NativeAudio modulation(modulationFixture);modulation.playMusic(0);
+        auto& arp=modulation.voices[1];arp.remaining=2;arp.stage=2;arp.note=39;arp.arpAmount=19;arp.arpCounter=1;arp.direction=255;
+        auto& slide=modulation.voices[4];slide.active=true;slide.remaining=2;slide.stage=2;slide.note=2;slide.targetNote=1;slide.portamento=4;
+        modulation.measureWork=true;modulation.tick();
+        check(arp.note==20&&arp.frequency==1021,"Voice-one descending arpeggio includes the source low-byte ADC carry");
+        check(slide.note==254&&slide.frequency==1254,"Effect portamento preserves original byte wrap instead of clamping");
+        check(modulation.musicWorkCycles>=0&&modulation.voiceWorkCycles[1]>=0&&modulation.voiceWorkCycles[4]>=0,"Corrected modulation still exposes semantic source work");
+        NativeAudio attackFallthrough(modulationFixture);attackFallthrough.playMusic(0);
+        for(int i:{0,3}){auto& voice=attackFallthrough.voices[i];voice.remaining=2;voice.stage=0;voice.envelopeCounter=0;voice.volume=14;}
+        attackFallthrough.tick();
+        check(attackFallthrough.voices[0].volume==14&&attackFallthrough.voices[0].stage==1,"Square zero-decay attack falls through in the same call (source/synthetic)");
+        check(attackFallthrough.voices[3].volume==15&&attackFallthrough.voices[3].stage==1,"Noise zero-decay attack returns before decrementing (source/synthetic)");
         check(audioEffectSetupWork(26,true,true)==-1,"Invalid effect index never reports a completed cost");
         NativeAudio measured(assets),unmeasured(assets);measured.measureWork=true;
         measured.playMusic(1);unmeasured.playMusic(1);std::vector<int16_t> measuredPcm,unmeasuredPcm;

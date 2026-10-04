@@ -1,6 +1,7 @@
 // Synthetic workload boundaries. No ROM, extracted assets or emulator needed.
 #include "air_work.h"
 #include "air_video_work.h"
+#include "air_clock.h"
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -85,12 +86,17 @@ int main(){
         require(airCollisionCallbackWork(g,1)==continuing+44,"Stopped breakable animations require a new script address");
         o.collision=15;p.params[5]=31;int lowDamage=airCollisionCallbackWork(g,1);p.params[5]=32;
         require(lowDamage==692&&airCollisionCallbackWork(g,1)==676,"Damage threshold and dispatch-table carry contribute separate work");
+        o.collision=14;p.params[2]=0;g.speed=-5;g.money=50;
+        require(airCollisionCallbackWork(g,1)==584,"Moving enemy contact uses the forced script setter and score subtraction");
+        g.money=49;require(airCollisionCallbackWork(g,1)==616,"Enemy penalty underflow adds score clearing after the untaken return");
         require(airDamageWork(239,16,2)==108&&airDamageWork(240,16,2)==276&&airDamageWork(240,16,1)==324,"Damage overflow and final finish-delay expiration have distinct paths");
         g.entities[2].alive=false;
         require(airSpawnRelativeWork(g,true)==1216&&airSpawnRelativeWork(g,false)==1204,"Allocation scans occupied slots and distinguishes caller-relative coordinates");
         for(auto& e:g.entities)e.alive=true;
         require(airSpawnRelativeWork(g,true)==1164,"Full allocation pool returns without initialization");
         require(airTimerWork(58,1)==64&&airTimerWork(59,1)==136&&airTimerWork(59,0)==116,"Timer rollover keeps the already-zero terminal branch distinct");
+        require(airCameraLeadWork(176,96)==84&&airCameraLeadWork(96,176)==80,"Camera lead uses the source taken/not-taken carry branches");
+        require(airCameraLeadWork(96,96)==56,"Unchanged camera lead returns before increment/decrement work");
         g.ticks=4;g.cameraY=15*256;g.held=Left|Right|A|B|Up;g.transferState=0;g.lastForce=0;g.rate=1;g.tilt=-2;g.speed=-5;
         int inputCost=airInputWork(g);g.input();
         require(g.tilt==-1&&g.speed==-5&&inputCost==788,"Input cost follows ordered left/right and acceleration/braking decisions");
@@ -99,6 +105,11 @@ int main(){
         g.cameraY=15*256;g.speed=-7;g.tilt=0;g.probes={};g.probes[2]=2;
         require(airWallWork(g)==488,"Wall crash initialization includes both entity-address helper calls");
         g.speed=-6;require(airWallWork(g)==504,"Wall clamp checks the strict signed boundary");
+        g.speed=-20;g.probes={2,0,0,0,0,0};
+        require(airWallWork(g)==468,"Wall-slide entry includes frame preparation and the strict speed return");
+        g.speed=-6;require(airWallWork(g)==492,"Wall-slide entry at the limit stores its clamped speed");
+        g.probes={24,0,0,0,0,0};g.speed=-20;p.params[1]=10;p.params[5]=192;assets->levels[0].quota=14;
+        require(airFinishGateWork(g)==1404,"Successful bonus gate follows source score, frame and quota branches");
         g.probes={};p.params[3]=0;g.speed=1;
         require(airTerrainBounceWork(g)==152,"No terrain impact scans all three forward probes");
         p.params[3]=1;
@@ -136,6 +147,57 @@ int main(){
         require(std::all_of(g.hudValues.begin()+7,g.hudValues.end(),[](int v){return v==0xe9;}),"A full bar returns without writing a terminator beyond the six slots");
         assets->levels[g.difficulty].quota=3;p.params[1]=32;g.refreshHud();
         require(std::all_of(g.hudValues.begin()+7,g.hudValues.end(),[](int v){return v==0;}),"Progress rendering retains the original low-byte quotient wrap");
+
+        g.started=true;g.ticks=65535;g.mapTransfer=false;g.transferRemaining=8;g.transferState=1;
+        int playerY=p.y,cursor=g.hudCursor;
+        g.displayTick(false);
+        require(g.ticks==0&&g.hudCursor==(cursor+1)%13&&p.y==playerY,"Independent display advances the wrapping clock and HUD without a game update");
+        require(g.transferRemaining==8&&g.transferState==1,"Closed main-loop gate retains dynamic resources during an extra display");
+        g.mapTransfer=true;g.displayTick(true);
+        require(g.transferRemaining==8,"Pending map row still takes priority over a ready resource upload");
+        AirClock clock;int displayCalls=0;bool lastReady=false;
+        auto display=[&](bool ready){++displayCalls;lastReady=ready;return 5000;};
+        clock.startup(display);
+        require(clock.displays==1&&clock.statServices==1&&clock.nextVBlank==144*456,"Pending startup services do not consume the first LCD deadline");
+        clock.wait(display);
+        require(displayCalls==2&&clock.displays==2&&lastReady,"First wait requires a later display after the pending startup service");
+        auto beforeClock=clock.now;
+        bool unknownRejected=false;try{clock.work(-1,display,false);}catch(const std::runtime_error&){unknownRejected=true;}
+        require(unknownRejected,"Unknown game work must reject scheduling");
+        require(clock.now==beforeClock,"Unknown game work cannot become a guessed scheduling allowance");
+        clock.work(AirClock::Frame,display,false);
+        require(displayCalls==3&&clock.statServices==3&&!lastReady,"Long game work advances independent display and STAT services with resource gate closed");
+        AirClock atomic;atomic.now=atomic.nextVBlank-4;atomic.nextStat=AirClock::Frame+AirClock::StatLine;
+        bool changed=false,observed=false;
+        atomic.atomicWork(8,[&]{changed=true;},[&](bool){observed=changed;return 5000;},false);
+        require(observed&&atomic.displays==1,"Sprite clearing commits its semantic write before a pending publication");
+        Frame one;one.pieces.push_back({});
+        SpriteLayer partial(true);partial.slots[0].present=true;partial.slots[0].y=20;
+        partial.add(one,16,16,0);
+        require(partial.unusedFirst()==0&&partial.unusedCount()==39&&partial.slots[0].present&&partial.slots[39].present,"Partial reverse preparation retains prior unused entries until clearing");
+        partial.clearUnused();
+        require(!partial.slots[0].present&&partial.slots[39].present,"Clearing the unused range preserves newly prepared entries");
+        std::array<int,16> perEntity{};
+        auto workSplit=airSpriteWork(g,&perEntity);int prepareSum=112;for(int n:perEntity)prepareSum+=n;
+        require(prepareSum==workSplit.prepare,"Source sprite preparation decomposes into entry and per-entity work without an allowance");
+        auto publishing=std::make_unique<AirGame>(*assets,*shared);
+        publishing->entities[0].alive=true;publishing->entities[0].x=80*16;publishing->entities[0].y=80*16;
+        assets->frames[0].meta={};assets->frames[0].pieces={{},{127,0}};
+        std::array<AirSpriteEntityWork,16> publication{};
+        auto published=airSpriteWork(*publishing,&perEntity,&publication);
+        auto unsplit=airSpriteWork(*publishing);
+        require(published.prepare==unsplit.prepare&&published.clear==unsplit.clear,"Publication decomposition preserves the source totals");
+        require(publication[0].pieces.size()==2&&publication[0].pieces[0].writes&&!publication[0].pieces[1].writes,"Publication distinguishes a written piece from a clipped piece");
+        int pieceSum=76+publication[0].geometry+publication[0].tail;
+        for(const auto& piece:publication[0].pieces)pieceSum+=piece.before+(piece.writes?156:0);
+        require(pieceSum==perEntity[0],"Piece writes and actor tails cover the full source preparation interval");
+        SpriteLayer staged(false);staged.advancePreparedPiece();staged.finishPreparedEntity();
+        require(staged.preparedSlot()==1&&!staged.exhausted(),"Staged source publication advances capacity after piece writes");
+        int savedCamera=g.cameraY,savedY=p.y;g.cameraY=0xae80;p.y=g.cameraY+8*g.cameraLead;
+        assets->levels[0].cameraY=0xae80;assets->levels[0].rows=184;
+        int limited=airCameraWork(g,false);assets->levels[0].cameraY=0xaf80;
+        require(limited==airCameraWork(g,false)+36,"Camera source limit uses the original scroll bound rather than padded map rows");
+        g.cameraY=savedCamera;p.y=savedY;
 
         // A non-yielding loop is invalid game data; its partial count cannot be
         // accepted as a complete source interval.
