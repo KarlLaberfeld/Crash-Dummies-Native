@@ -83,6 +83,9 @@ def capture(args):
     p = PyBoy(str(args.rom), window='null', sound_volume=0)
     p.set_emulation_speed(0)
     rows, current, voice = [], None, None
+    air_started=False
+    pause_active=False
+    effect_request=None
     hook_count = 0
     phases = {a:(i,n) for n, addresses in [('fetch',FETCH),('note',NOTE),
               ('envelope',ENVELOPE),('output',OUTPUT),('modulation',MODULATION)]
@@ -102,17 +105,34 @@ def capture(args):
     def point(i,now):
         return dict(cycles=now,state=state(i))
     def hook(a):
-        nonlocal current, voice, hook_count
-        if p.memory[0xc098]!=4:return
+        nonlocal current, voice, hook_count, air_started, effect_request, pause_active
+        selector=p.memory[0xc098]
+        if a==0x1476:
+            pause_active=selector==4
+            return
+        if a==0x14f1:
+            pause_active=False
+            return
+        if selector==4:air_started=True
+        # Pause changes the display selector to 1 but retains Air's STAT
+        # callback. Exclude earlier menus and later screens from this scope.
+        if current is None and (not air_started or not (selector==4 or pause_active and selector==1) or p.memory[0xc099]!=4):return
         hook_count += 1
         now=p._cycles()
+        if a==0x2475:
+            effect_request=p.memory[0xffc6]
+            if effect_request==255:effect_request=-1
+            return
         if a==0x247b:
             if current is not None:raise ValueError('Nested music service')
             current=dict(start=now,enabled=p.memory[0xffcf],stereo=p.memory[0xdef7],
-                         stereoCounter=p.memory[0xdef6],stereoDirection=p.memory[0xdef5],voices=[])
+                         stereoCounter=p.memory[0xdef6],stereoDirection=p.memory[0xdef5],voices=[],
+                         effectRequest=effect_request,paused=pause_active)
+            effect_request=None
             return
         if current is None:raise ValueError('Music boundary outside service')
         if a==0x247e:
+            if not current['enabled']:current['postStates']=[state(i) for i in range(6)]
             current['end']=now;rows.append(current);current=voice=None
         elif a in VOICE_STARTS or a==0x4ec0:
             if voice is not None:
@@ -137,20 +157,23 @@ def capture(args):
                 voice[name]=item
     try:
         with (args.capture/'setup.state').open('rb') as stream:p.load_state(stream)
-        for a in (0x247b,0x247e):p.hook_register(0,a,hook,a)
+        for a in (0x1476,0x14f1,0x2475,0x247b,0x247e):p.hook_register(0,a,hook,a)
         for a in (*VOICE_STARTS,0x4ec0,0x400a,*phases):p.hook_register(2,a,hook,a)
         for event_index,e in enumerate(json.loads((args.capture/'events.json').read_text())):
             if args.progress and event_index%100==0:print(f'event {event_index}, music services {len(rows)}',flush=True)
             if e[0]=='tick':p.tick(e[1],e[2])
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
             else:raise ValueError('Unknown replay event')
-        memory=bytes(p.memory[0x8000:0x10000])
+        memory=bytes(p.memory[0x8000:0x10000]);capture_end=p._cycles()
     finally:p.stop(save=False)
-    if current is not None or hashlib.sha256(memory).hexdigest()!=manifest['controlMemorySha256']:
-        raise ValueError('Incomplete capture or changed reference control memory')
+    if hashlib.sha256(memory).hexdigest()!=manifest['controlMemorySha256']:
+        args.out.mkdir(parents=True,exist_ok=True)
+        (args.out/'rejected-end.bin').write_bytes(memory)
+        raise ValueError(f'Incomplete capture ({current is not None}) or changed reference control memory; services={len(rows)}, sha256={hashlib.sha256(memory).hexdigest()}')
     args.out.mkdir(parents=True,exist_ok=True)
     write_json(args.out/'music.json',dict(version=VERSION,romSha256=manifest['romSha256'],
-        controlMemorySha256=manifest['controlMemorySha256'],emulator='PyBoy 2.7.0',services=rows))
+        controlMemorySha256=manifest['controlMemorySha256'],emulator='PyBoy 2.7.0',services=rows,
+        captureComplete=current is None,partialFinalService=dict(start=current['start'],captureEnd=capture_end) if current else None))
     report(args)
 
 def validate_services(data):
@@ -163,6 +186,7 @@ def validate_services(data):
         previous=r['end']
         if not r['enabled']:
             if r['voices']:raise ValueError('Disabled service contains music voices')
+            if 'postStates' in r and len(r['postStates'])!=6:raise ValueError('Incomplete disabled music state')
             continue
         if [v['index'] for v in r['voices']]!=list(range(6)):
             raise ValueError('Incomplete or unordered music voice chain')
@@ -186,6 +210,10 @@ def validate_services(data):
                 if terminal=='note' and i!=2 and 'envelope' not in v:raise ValueError('Missing fresh note phases')
             points=[v['start']['cycles']]+[f['cycles'] for f in v['fetch']]+[v[name]['cycles'] for name in names]+[v['end']]
             if any(a>=b for a,b in zip(points,points[1:])):raise ValueError('Unordered music voice phases')
+    partial=data.get('partialFinalService')
+    if data.get('captureComplete',True) and partial is not None:raise ValueError('Partial music service marked complete')
+    if not data.get('captureComplete',True):
+        if partial is None or not previous<=partial['start']<partial['captureEnd']:raise ValueError('Invalid excluded final service boundary')
 
 def report(args):
     data=json.loads((args.out/'music.json').read_text())
@@ -212,7 +240,7 @@ def report(args):
                     end=v[following]['cycles'] if following else v['end']
                     compare(ri,i,name,end-v[name]['cycles'],model(i,v[name]['state']))
         compare(ri,None,'service',r['end']-r['start'],service_cycles(r))
-    summary=dict(services=len(data['services']),counts=counts,sourceModelMismatches=mismatches,
+    summary=dict(services=len(data['services']),captureComplete=data.get('captureComplete',True),counts=counts,sourceModelMismatches=mismatches,
                  runtimeSchedulingFixed=False,evidenceLimit='Original semantic workloads only; source work agreement does not establish native audio state, PCM or real-time scheduling parity.')
     write_json(args.out/'summary.json',summary)
     print(json.dumps(summary,indent=2))
@@ -221,7 +249,7 @@ def report(args):
 def compare_native(args):
     data=json.loads((args.out/'music.json').read_text())
     validate_services(data)
-    if any(not r['enabled'] for r in data['services']):
+    if any(not r['enabled'] and len(r.get('postStates',[]))!=6 for r in data['services']):
         raise ValueError('Disabled original services need additional post-state capture for native comparison')
     with args.native_csv.open(encoding='utf-8-sig',newline='') as stream:
         rows=[{k:int(v) for k,v in r.items()} for r in csv.DictReader(stream)]
@@ -231,11 +259,12 @@ def compare_native(args):
             'tableIndex','arpCounter','direction','vibratoWait','vibratoCounter','pitchWait')
     differences=[];first={}
     for ri,r in enumerate(data['services']):
-        for vi,v in enumerate(r['voices']):
+        for vi in range(6):
+            v=r['voices'][vi] if r['enabled'] else None
             row=rows[6*ri+vi]
             if row['service']!=ri or row['voice']!=vi:raise ValueError('Unordered native voice row')
-            post=v['post'];active=int(bool(post['active']&128))
-            expected=dict(active=active,voiceCost=v['end']-v['start']['cycles'],musicCost=r['end']-r['start'])
+            post=v['post'] if v else r['postStates'][vi];active=int(bool(post['active']&128))
+            expected=dict(active=active,voiceCost=v['end']-v['start']['cycles'] if v else 0,musicCost=r['end']-r['start'])
             if active:
                 for name in fields:
                     if vi==2 and name in ('stage','envelopeCounter','volume','releaseCounter','tableIndex'):continue
@@ -246,7 +275,8 @@ def compare_native(args):
             if delta:
                 differences.append(dict(service=ri,voice=vi,fields=delta))
                 for name,values in delta.items():first.setdefault(name,dict(service=ri,voice=vi,original=values[0],native=values[1]))
-    summary=dict(services=len(data['services']),differingVoiceRows=len(differences),firstDifferences=first,
+    summary=dict(services=len(data['services']),captureComplete=data.get('captureComplete',True),
+        pausedServices=sum(bool(r.get('paused')) for r in data['services']),differingVoiceRows=len(differences),firstDifferences=first,
         runtimeSchedulingFixed=False,evidenceLimit='Isolated native song/effect-request replay only. No original voice state drives it. This does not compare native gameplay effect requests, PCM waveform or Windows scheduling.')
     write_json(args.out/'native-comparison.json',summary)
     write_json(args.out/'native-differences.json',differences)

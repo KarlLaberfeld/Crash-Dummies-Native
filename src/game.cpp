@@ -383,7 +383,8 @@ void Game::step(int buttons) {
     // 03cb completes the display callback before 03d5 enters the pause loop.
     // 14f1 resumes the interrupted update without another display callback.
     if(!videoTickPrepared){beginVideoTick();tickHud();videoTickPrepared=true;}
-    if(paused)return;
+    // The pause callback retains gameplay but advances the shared counter/input.
+    if(paused){held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;return;}
     videoTickPrepared=false;
     held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;

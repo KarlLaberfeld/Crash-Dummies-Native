@@ -2,6 +2,8 @@
 // update counters, world outcomes or voice states drive this probe. Source
 // work is charged at semantic phase boundaries; subinstruction IRQ latency is
 // deliberately not certified, and this is not yet the Windows-loop scheduler.
+// Optional display input replaces update-aligned buttons with a button sample
+// at every service; neither mode reads original per-update counters or costs.
 #include "air.h"
 #include "air_clock.h"
 #include "air_work.h"
@@ -14,16 +16,26 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3||argc>5){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt]\n");return 2;}
     try{
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath;
+        for(int i=3;i<argc;++i){std::string option=argv[i];
+            if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
+            else if(positional++==0)difficulty=std::stoi(option);
+            else if(positional==2)spritePath=option;
+            else throw std::runtime_error("Too many clock probe arguments");
+        }
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto audio=std::make_unique<AudioAssets>(AudioAssets::load(L"build/audio.dat"));
-        int difficulty=argc>=4?std::stoi(argv[3]):1;
         if(difficulty<0||difficulty>3)throw std::runtime_error("Invalid Air difficulty");
         auto game=std::make_unique<AirGame>(*assets,*shared);game->start(difficulty);game->measureWork=true;
         NativeAudio sound(*audio);sound.playMusic(9);sound.measureWork=true;
         AirClock clock;std::ifstream input(argv[1]);std::ofstream services(argv[2]);
+        std::ifstream displayInputs;DisplayInput sampled;
+        if(!displayInputPath.empty()){displayInputs.open(displayInputPath);if(!displayInputs)throw std::runtime_error("Cannot open display button samples");}
+        auto decode=[](int held){return ((held&1)?A:0)|((held&2)?B:0)|((held&16)?Right:0)|((held&32)?Left:0)|((held&64)?Up:0)|((held&128)?Down:0);};
         std::ofstream phases(std::string(argv[2])+".phases.csv");
         if(!phases)throw std::runtime_error("Cannot open source-phase output");
         phases<<"update,phase,tick,start,end,work\n";
@@ -32,9 +44,9 @@ int main(int argc,char** argv){
         // Capture header describes the initial clock/timer/random phase after
         // the source pending startup service; it supplies no per-update clocks.
         game->ticks=(initialTick-1)&65535;
-        services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5\n";
+        services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5,inputHeld,inputPressed\n";
         std::ofstream spriteLog;
-        if(argc==5){spriteLog.open(argv[4]);if(!spriteLog)throw std::runtime_error("Cannot open sprite-service output");spriteLog<<"service,slot,present,x,y,flags\n";}
+        if(!spritePath.empty()){spriteLog.open(spritePath);if(!spriteLog)throw std::runtime_error("Cannot open sprite-service output");spriteLog<<"service,slot,present,x,y,flags\n";}
         int activeGamePhase=-1;
         bool spriteBoundarySafe=false;
         bool mapBoundarySafe=false;
@@ -42,12 +54,18 @@ int main(int argc,char** argv){
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted an unsupported gameplay phase; finer ownership is required");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
+            if(displayInputs.is_open()){
+                int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
+                if(held&8)throw std::runtime_error("Display input requests pause; native pause-clock ownership is not yet accepted");
+                sampled.sample(held);
+            }
             int tick=game->ticks,pending=game->pendingSound;
             game->displayTick(ready);
             if(pending>=0)sound.queueEffect(pending);
             game->pendingSound=-1;sound.tick();
             services<<clock.displays<<','<<clock.now<<','<<ready<<','<<tick<<','<<game->displayWorkCycles<<','<<sound.effectWorkCycles<<','<<sound.musicWorkCycles<<','<<game->hudCursor<<','<<pending;
-            for(int i=7;i<13;++i)services<<','<<int(game->hudValues[i]);services<<'\n';
+            for(int i=7;i<13;++i)services<<','<<int(game->hudValues[i]);
+            services<<','<<(displayInputs.is_open()?sampled.held:-1)<<','<<(displayInputs.is_open()?sampled.pressed:-1)<<'\n';
             if(game->displayWorkCycles<0||sound.effectWorkCycles<0||sound.musicWorkCycles<0)return -1;
             return 1592+game->displayWorkCycles+sound.effectWorkCycles+sound.musicWorkCycles;
         };
@@ -60,7 +78,8 @@ int main(int argc,char** argv){
             loopBoundarySafe=true;clock.work(8,display,false);
             clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
             clock.wait(display);clock.work(48,display,false);
-            int buttons=((held&1)?A:0)|((held&2)?B:0)|((held&16)?Right:0)|((held&32)?Left:0)|((held&64)?Up:0)|((held&128)?Down:0);
+            int buttons=decode(displayInputs.is_open()?sampled.held:held);
+            if(displayInputs.is_open())game->previous=decode(sampled.previous);
             bool priorMap=game->mapTransfer;
             auto priorSprites=game->sprites.slots;
             game->updateGame(buttons,true);
@@ -154,7 +173,7 @@ int main(int argc,char** argv){
             else clock.work(28,display,false); // Exit result test; final display/outro wait is not modeled yet.
         }
         if(!input.eof())return 2;
-        fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services.\n",updates,clock.displays,clock.statServices);
+        fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");
         return 0;
     }catch(const std::exception& e){fprintf(stderr,"%s\n",e.what());return 1;}
 }

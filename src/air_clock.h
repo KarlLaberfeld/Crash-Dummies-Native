@@ -3,6 +3,12 @@
 #include <stdexcept>
 
 namespace ticd {
+// Input belongs to display sampling, including displays without a game update.
+// Extra samples can clear a fresh edge before gameplay next reads the buttons.
+struct DisplayInput {
+    int held=0,previous=0,pressed=0;
+    void sample(int buttons){previous=held;held=buttons;pressed=held&~previous;}
+};
 // Semantic Air display clock, measured in original oscillator cycles. It runs
 // no opcodes or CPU state. The callback owns display/audio services and returns
 // source-derived work. Unknown work is a hard boundary, never an allowance.

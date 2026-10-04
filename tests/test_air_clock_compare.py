@@ -3,7 +3,7 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work
+from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work,compare_input_samples
 from air_timing import STAGES
 
 
@@ -46,6 +46,26 @@ class AirClockCompareTests(unittest.TestCase):
         self.assertEqual(compare_sprites([original],native)[0]['slot'],1)
         with self.assertRaises(ValueError):compare_sprites([original],native[:-1])
         with self.assertRaises(ValueError):compare_sprites([dict()],native)
+
+    def test_display_inputs_require_each_sample_and_detect_wrong_buttons(self):
+        source=dict(tick=10,held=33,transfer=0,phases=dict(display=0,bookkeeping=100,effects=200,audioBank=264,music=332,restore=800),
+            displayWorkload=dict(cursor=12),effectWorkload=dict(pending=255),hudBar=[0]*6)
+        row=dict(service=0,tick=10,ready=0,display=100,effects=64,music=468,cursor=0,pending=-1,inputHeld=33,**{'bar'+str(i):0 for i in range(6)})
+        self.assertEqual(compare_services([source],[row],True),[])
+        row['inputHeld']=17
+        self.assertEqual(compare_services([source],[row],True)[0]['fields']['inputHeld'],[33,17])
+        row.pop('inputHeld')
+        with self.assertRaises(ValueError):compare_services([source],[row],True)
+
+    def test_extra_display_must_clear_fresh_edge_before_next_game_update(self):
+        source=[dict(service=0,tick=65535,held=1,pressed=1),dict(service=1,tick=0,held=1,pressed=0)]
+        native=[dict(service=0,tick=65535,inputHeld=1,inputPressed=1),dict(service=1,tick=0,inputHeld=1,inputPressed=0)]
+        self.assertEqual(compare_input_samples(source,native),[])
+        native[1]['inputPressed']=1
+        self.assertEqual(compare_input_samples(source,native)[0]['fields']['inputPressed'],[0,1])
+        with self.assertRaises(ValueError):compare_input_samples(source[:1],native)
+        native[0].pop('inputPressed')
+        with self.assertRaises(ValueError):compare_input_samples(source,native)
 
     def test_short_sprite_log_cannot_certify_all_display_services(self):
         original=[dict(oam=[0]*160)]*2

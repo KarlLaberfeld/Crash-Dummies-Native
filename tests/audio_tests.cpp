@@ -30,11 +30,11 @@ int runAudioTests(const AudioAssets& assets){
         for(int effect=0;effect<4;++effect){work.queueEffect(effect);work.tick();
             check(work.effectWorkCycles==(effect==0?620:effect==1?472:effect==2?368:220),"Only selected square/noise effect roots require voice initialization");}
         work.setPaused(true);work.queueEffect(0);work.tick();
-        check(work.effectWorkCycles==-1&&work.pendingEffect==0,"Paused native sequencing cannot certify an original setup interval");
-        work.setPaused(false);work.tick();check(work.effectWorkCycles==620&&work.pendingEffect==-1,"Resume consumes the retained request and accounts for both roots");
+        check(work.effectWorkCycles==620&&work.pendingEffect==-1&&work.voices[4].active&&work.voices[4].remaining==1,"Pause runs source effect initialization before the disabled music entry (source/synthetic)");
+        work.setPaused(false);work.tick();check(work.effectWorkCycles==64&&work.pendingEffect==-1,"Resume sequences the roots initialized during pause without repeating setup");
         check(work.musicWorkCycles==904&&work.voiceWorkCycles[4]==272&&work.voiceWorkCycles[5]==272,"Stopped music retains the entry-enabled voice scan and both fresh effect stops");
         work.stop();work.tick();check(work.musicWorkCycles==60,"Disabled driver uses the original early return");
-        work.setPaused(true);work.tick();check(work.musicWorkCycles==-1,"Native pause does not certify an original driver call");
+        work.setPaused(true);work.tick();check(work.musicWorkCycles==60&&work.voiceWorkCycles[0]==0,"Paused display service pays the disabled driver return without voice execution");
         check(audioCommandWork(MusicOp::LoopEnd,1)==124&&audioCommandWork(MusicOp::LoopEnd,2)==172,"Counted-loop completion and repetition have different source work");
         check(audioCommandWork(MusicOp::Registers,0,0,2)==-1&&audioCommandWork(MusicOp::Registers,0,0,5)==324,"Malformed register data cannot certify work");
         check(audioCommandWork(static_cast<MusicOp>(255))==-1,"Unknown music operation cannot certify work");
@@ -91,8 +91,8 @@ int runAudioTests(const AudioAssets& assets){
         suspended.tick();suspended.tick();check(suspended.voices[0].notes==2&&suspended.outputs[0].enabled,"Next note retriggers output after pause power-off");
         NativeAudio effectPause(assets);effectPause.playMusic(1);effectPause.queueEffect(1);effectPause.tick();
         auto savedEffect=effectPause.voices[4];effectPause.setPaused(true);effectPause.queueEffect(2);effectPause.tick();
-        check(effectPause.voices[4].position==savedEffect.position&&effectPause.voices[4].remaining==savedEffect.remaining&&effectPause.pendingEffect==2,"Pause retains active effects and does not consume pending requests");
-        effectPause.setPaused(false);effectPause.tick();check(effectPause.pendingEffect==-1,"Resume processes the retained effect request");
+        check(effectPause.pendingEffect==-1&&effectPause.voices[4].position==(assets.effects[2][0]?assets.effects[2][0]:savedEffect.position)&&effectPause.voices[4].remaining==(assets.effects[2][0]?1:savedEffect.remaining),"Paused effect initialization changes selected roots without executing their streams (source/synthetic)");
+        effectPause.setPaused(false);effectPause.tick();check(effectPause.pendingEffect==-1,"Resume continues effects initialized before the disabled music return");
 
         auto waveFixture=fixture();waveFixture.waves[100]=std::vector<uint8_t>(16,0x1f);
         command(waveFixture,2,1,MusicOp::Wave,2,{100,0});command(waveFixture,2,2,MusicOp::WaveVolume,3,{1});

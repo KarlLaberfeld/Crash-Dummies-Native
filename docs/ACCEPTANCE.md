@@ -100,3 +100,27 @@ Full native suites and all three campaigns pass after the gameplay corrections;
 items in the table are unchanged: missing handlers/interrupt ownership, actual
 input/pause/exit and Windows integration, other stunts, matched pixels/PCM,
 human and independent-host testing, and final packaging. Do not mark this final.
+
+## Pause and display-input checkpoint, 2026-10-05
+
+Three control-verified original pause cases validate 418 paused display services,
+12 source copy bodies and 418 outer waits. Game state/timer/RNG stay frozen while
+the shared counter continues. Native pause counter/input continuity and effect
+setup ordering are corrected; all five stunts pass standalone counter-wrap and
+campaign pause regressions. Three isolated music replays match 6,922 complete
+services/41,532 selected voice rows, including the disabled-driver calls.
+Partial final services are excluded and explicitly labeled.
+
+All nine experimental clock cases now use per-display held-button samples,
+without original per-update counters/buttons or recorded fresh edges. Previous
+state/service/phase/sprite comparisons still pass; separate captures additionally
+verify 3,971 held/fresh samples. This narrows the input requirement but does not
+establish physical input microtiming or Windows scheduler integration. Native
+pause entry/copy/return ownership, unknown/interrupted Air work and exit/startup
+remain open. See AIR_PAUSE.md for methods and limits.
+
+Full native suites and all three campaigns pass after these gameplay/audio
+changes. Latest standalone checks pass 82 Python and 92 synthetic source-work
+tests. The rebuilt EXE passes 13 normal and 14 real audio-open-failure automated
+Windows checks. Human play/device removal/independent-host tests and the other
+original-reference, pixel/audio and distribution requirements remain open.

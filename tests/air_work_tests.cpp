@@ -156,6 +156,12 @@ int main(){
         g.mapTransfer=true;g.displayTick(true);
         require(g.transferRemaining==8,"Pending map row still takes priority over a ready resource upload");
         AirClock clock;int displayCalls=0;bool lastReady=false;
+        DisplayInput inputSample;inputSample.sample(A);
+        require(inputSample.pressed==A&&inputSample.previous==0,"First display samples a fresh button without a game update");
+        inputSample.sample(A);
+        require(!inputSample.pressed&&inputSample.previous==A,"Extra display clears the edge before the next gameplay read");
+        inputSample.sample(0);inputSample.sample(A|B);
+        require(inputSample.pressed==(A|B)&&inputSample.previous==0,"Release/repress between game updates is captured by the display sampler");
         auto display=[&](bool ready){++displayCalls;lastReady=ready;return 5000;};
         clock.startup(display);
         require(clock.displays==1&&clock.statServices==1&&clock.nextVBlank==144*456,"Pending startup services do not consume the first LCD deadline");

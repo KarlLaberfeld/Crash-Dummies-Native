@@ -30,10 +30,14 @@ animation is still running when recovery is requested, the request is retained
 until that animation finishes. This prevents a reproducible permanent stall.
 The original ROM reproduces the failure in a separate reference emulator.
 An experimental native clock now matches nine Air reference cases without
-supplied per-update counters, including partial sprite publication. Windows
+supplied per-update counters, including partial sprite publication and buttons
+sampled at each display service. Three additional original pause captures check
+counter continuity, retained gameplay and suspended/resumed music; the native
+pause now continues the display counter and samples held buttons. Windows
 scheduler integration, remaining timing branches, image/audio parity and
 physical-hardware behavior remain open; see [timing evidence and limits](docs/AIR_TIMING.md)
 and [the original comparison](docs/ORIGINAL_COMPARISON.md).
+See [pause and input evidence](docs/AIR_PAUSE.md) for the remaining boundaries.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline

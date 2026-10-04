@@ -84,7 +84,8 @@ int runSelfTests(const Assets& assets) {
         p.x=0x1880;p.vx=10;g.moveFalling(p);require(p.x==0x1880,"Right clamp");
         p.vy=-41;p.pose=24;for(int i=0;i<65;++i)g.gravity(p);require(p.vy==24,"Bounce gravity converges");
         g.render(false);auto beforePause=g.screen;
-        int unchanged=g.ticks;g.paused=true;g.step(A);require(g.ticks==unchanged,"Pause freezes simulation");
+        int unchanged=g.ticks,pausedY=g.entities[0].y,pausedSeconds=g.seconds,pausedPhase=g.secondTicks;
+        g.paused=true;g.step(A);require(g.ticks==((unchanged+1)&65535)&&g.entities[0].y==pausedY&&g.seconds==pausedSeconds&&g.secondTicks==pausedPhase,"Pause freezes gameplay and timer while the global display counter continues");
         g.render(false);require(g.screen==beforePause,"Campaign renderer preserves the paused scene without the development overlay");
         g.render();require(g.screen!=beforePause,"Development mode retains its own pause help overlay");g.paused=false;
         g.entities[0].pose=28;g.entities[0].vy=28;

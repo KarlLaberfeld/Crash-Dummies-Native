@@ -31,6 +31,22 @@ class MusicWorkTests(unittest.TestCase):
         for invalid in variants:
             with self.assertRaises(ValueError):validate_services(invalid)
 
+    def test_disabled_service_snapshot_cannot_omit_voice_slots(self):
+        data=dict(version=VERSION,services=[dict(enabled=0,start=0,end=60,voices=[],postStates=[{}]*6)])
+        validate_services(data)
+        data['services'][0]['postStates'].pop()
+        with self.assertRaises(ValueError):validate_services(data)
+
+    def test_partial_final_service_is_explicit_and_outside_compared_rows(self):
+        data=self.service();data.update(captureComplete=False,partialFinalService=dict(start=104,captureEnd=120))
+        validate_services(data)
+        data['partialFinalService']['start']=96
+        with self.assertRaises(ValueError):validate_services(data)
+        data=self.service();data['captureComplete']=False
+        with self.assertRaises(ValueError):validate_services(data)
+        data=self.service();data['partialFinalService']=dict(start=104,captureEnd=120)
+        with self.assertRaises(ValueError):validate_services(data)
+
     def test_active_voice_cannot_hide_missing_fetch_or_continuing_phases(self):
         for remaining in (1,2):
             data=self.service();data['services'][0]['voices'][0]['start']['state']=dict(active=255,remaining=remaining)

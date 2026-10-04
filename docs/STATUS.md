@@ -11,12 +11,15 @@ build of Roof Jump, Air Bumper, Ski Slope, Bomb Factory and Cruise Missile, not 
 
 Latest evidence: an experimental native clock matches nine control-verified Air
 cases without supplied per-update counters: 28,103 completed updates and 28,153
-display services. Two cases also match 158,840 published sprite slots. The
+display services, now using per-display input samples. Two cases also match
+158,840 published sprite slots and 3,971 independently recorded held/fresh
+button samples. Three separate pause cases validate 418 paused display services
+and 6,922 complete native music-service comparisons. The
 Windows loop still performs one game update per display interval; integration,
 remaining handler/interruption paths, input/pause/exit timing, matched pixels and
 PCM, and independent Windows/hardware testing remain open. The documented
 native Air recovery safeguard remains intentional. See AIR_TIMING.md and the
-latest checkpoint below. This is bounded reference evidence, not final acceptance.
+latest checkpoint and AIR_PAUSE.md below. This is bounded reference evidence, not final acceptance.
 
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
@@ -1345,3 +1348,55 @@ checks in local/air-work-tests.exe. No final ZIP or release is produced. Next:
 remaining Exploding/handler branches, interrupted entity/resource/row-building
 subphases, then input/pause/exit and Windows integration, other stunts and final
 ACCEPTANCE.md checks. Keep the private repository and continuation automation.
+
+## Pause and display input checkpoint - 2026-10-05
+
+Three control-verified Air captures cover requested pauses of 31, 120 and 255
+frames on normal, easy and hardest difficulty. They produce 35, 124 and 259
+paused VBlanks, including button press/release frames. Gameplay, timer and RNG
+remain unchanged across 415 adjacent paused services; the global 16-bit display
+counter continues. Source entry/restore work, four copies per pause, window text,
+STAT, all paused display/music subphases and 418 outer waits agree. Failed LCD
+polls are counted from the source branch flags, not a later STAT register read.
+Their variable work and measured HALT idle are reference evidence only; neither
+is supplied as a fitted native allowance.
+
+The native pause now advances the shared counter and samples controls in all
+five stunts while retaining entities, gameplay timer, HUD and resources after
+the entry callback. This corrects standalone/development-mode counter freezing;
+campaign counters also agree during pause. Synthetic regressions cover counter
+wrap, held/fresh input and deferred crash recovery. Music still powers off the
+outputs and freezes its software streams. Source 3714 prepares a pending effect
+before the disabled driver call even during pause; native ordering is corrected.
+That pending-request corner is source/synthetic evidence, not a captured original
+pending-during-pause witness.
+
+Isolated native song/effect/pause request replays match 6,922 completed music
+services (41,532 compared voice rows), including 418 disabled services, in the
+three captures. Original voice states and work are comparison targets only.
+Two captures end inside another music call; that final partial interval is
+explicitly recorded and excluded rather than certified. PCM is not compared.
+
+The experimental clock can now read buttons once per display service rather
+than once per completed update. It derives fresh edges itself, including the
+loss of an edge after an extra service. All nine existing cases still match
+28,103 updates, 28,153 services, 168,618 phase/entry-counter checks and the two
+sprite comparisons. Separate single-hook captures verify 3,971 held/fresh input
+samples in steering and the successful finish. Recorded edges, per-update
+buttons/counters, work and world outcomes do not drive this mode. Initial
+clock/timer/RNG phase and per-display held-button requests are supplied; replay
+length bounds the measured comparison scope. Physical input microtiming remains
+unverified. Start/pause input is rejected by this clock probe until native pause
+entry/copy/return ownership is reconstructed.
+
+Validation after gameplay/audio changes: full native suites and all three
+campaigns pass; Air retains 819,624 assertions, all 64 recovery phases and four
+input-only difficulty successes; audio passes 150 assertions. Latest standalone
+checks pass 82 Python tests and 92 synthetic source-work checks. The rebuilt
+Windows executable passes 13 normal and 14 actual audio-open-failure UI checks.
+These are automated messages on one host, not human/device-removal acceptance.
+Local evidence: air-pause-*-timing, air-pause-*-music, air-display-input-clock,
+air-*-input-reference, local/air-pause-build-tests.log and Windows logs in build/.
+No final package or release is produced. Next: remaining interrupted/unknown Air
+work, native pause/exit/startup ownership and scheduler integration, then other
+stunts, matched pixels/PCM and the remaining ACCEPTANCE.md gates.

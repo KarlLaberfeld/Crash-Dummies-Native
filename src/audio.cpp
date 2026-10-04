@@ -216,15 +216,17 @@ void NativeAudio::updateVoice(int index){
 void NativeAudio::tick(){
     effectWorkCycles=-1;
     musicWorkCycles=-1;voiceWorkCycles.fill(-1);
-    if(paused)return;
     if(measureWork)effectWorkCycles=audioEffectSetupWork(pendingEffect,
         pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][0],
         pendingEffect>=0&&pendingEffect<26&&assets.effects[pendingEffect][1]);
     if(pendingEffect>=0){startEffect(pendingEffect);pendingEffect=-1;}
+    // VBlank calls 3714 before the disabled music entry, even during pause.
+    // Requests initialize their effect roots; sequencing and PCM stay silent.
+    if(paused){if(measureWork){musicWorkCycles=60;voiceWorkCycles.fill(0);}return;}
     bool driverEnabled=enabled;
     if(enabled)for(int i=0;i<6;++i)updateVoice(i);
     if(measureWork){
-        if(!driverEnabled)musicWorkCycles=60;
+        if(!driverEnabled){musicWorkCycles=60;voiceWorkCycles.fill(0);}
         else if(std::all_of(voiceWorkCycles.begin(),voiceWorkCycles.end(),[](int c){return c>=0;})){
             musicWorkCycles=84+92+audioMusicTailWork(stereoPeriod,stereoCounter,stereoDirection);
             for(int c:voiceWorkCycles)musicWorkCycles+=c;

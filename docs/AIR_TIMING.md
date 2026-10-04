@@ -297,6 +297,15 @@ are in STATUS.md and ACCEPTANCE.md.
 
 ## Required next work
 
+The subsequent [pause/input checkpoint](AIR_PAUSE.md) validates three original
+pause source paths, corrects native counter/input and paused effect ordering,
+and repeats all nine clock cases with per-display held buttons. Separate
+captures also compare native fresh-edge calculations. Pause's variable LCD
+copy polling and native entry/return scheduling remain open; reference poll
+counts are not native work inputs. Latest tests pass 82 Python and 92 synthetic
+source-work checks, the full native suites/three campaigns and Windows UI
+tests with normal and failed audio output.
+
 1. Expand the existing winning FinishMotion/WallSlide evidence to other branches,
    Exploding and additional collision cases. Reconstruct missing work and check state/effect/cost ownership; unknown
    paths remain -1. Expand music branches without an existing reference witness.

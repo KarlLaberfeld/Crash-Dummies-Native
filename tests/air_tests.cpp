@@ -106,7 +106,7 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
                     if(!checkedPending){
                         checkedPending=true;auto probe=std::make_unique<AirGame>(run);
                         probe->paused=true;for(int n=0;n<30;++n)probe->step(0);
-                        require(probe->crashRecoveryPending&&probe->entities[0].anim==p.anim&&probe->entities[0].delay==p.delay&&probe->ticks==run.ticks,"Pause preserves the pending recovery without advancing its script");
+                        require(probe->crashRecoveryPending&&probe->entities[0].anim==p.anim&&probe->entities[0].delay==p.delay&&probe->ticks==((run.ticks+30)&65535),"Pause preserves pending recovery and its script while the global display counter continues");
                         probe->paused=false;
                         int wait=0;while(probe->crashRecoveryPending&&++wait<128)probe->step(0);
                         require(!probe->crashRecoveryPending&&probe->entities[0].anim==assets.animationStarts[1]&&!probe->entities[0].animDone,"The crash stop starts the deferred recovery exactly once");
@@ -144,7 +144,8 @@ int runAirTests(const AirAssets& assets,const Assets& shared){
         for(int j=0;j<222;++j)g.step(A);
         require(g.entities[0].handler==AirHandler::Wait&&g.seconds==40,"Intro does not consume stunt time");
         g.step(A);require(g.entities[0].handler==AirHandler::Play&&g.secondTicks==1,"Countdown falls into gameplay on final tick");
-        int ticks=g.ticks;g.paused=true;g.step(B);require(g.ticks==ticks,"Air pause freezes all gameplay");g.paused=false;
+        int ticks=g.ticks,xPaused=g.entities[0].x,yPaused=g.entities[0].y,secondsPaused=g.seconds,phasePaused=g.secondTicks;
+        g.paused=true;g.step(B);require(g.ticks==((ticks+1)&65535)&&g.entities[0].x==xPaused&&g.entities[0].y==yPaused&&g.seconds==secondsPaused&&g.secondTicks==phasePaused,"Air pause retains gameplay and timer while the display counter continues");g.paused=false;
 
         g.start(0);g.cameraY=0x8000;g.cameraX=0x4f00;g.entities[0].x=0x5310;g.entities[0].y=0x8580;
         g.followCamera();require(g.cameraX==0x4f01&&g.cameraY==0x8000,"Camera uses signed subpixel X error and doubled Y lead");

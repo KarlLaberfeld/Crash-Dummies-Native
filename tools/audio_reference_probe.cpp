@@ -7,13 +7,17 @@ using namespace ticd;
 // voice state, register values, ROM code or precomputed timing allowances.
 int main(int argc,char** argv){
     try{
-        if(argc!=3)throw std::runtime_error("Usage: audio-reference-probe song effects.txt");
+        if(argc!=3&&argc!=4)throw std::runtime_error("Usage: audio-reference-probe song effects.txt [--with-pause]");
+        bool withPause=argc==4;
+        if(withPause&&std::string(argv[3])!="--with-pause")throw std::runtime_error("Unknown audio replay option");
         int song=std::stoi(argv[1]);auto assets=AudioAssets::load(L"build/audio.dat");
         NativeAudio audio(assets);audio.measureWork=true;audio.playMusic(song);
         std::ifstream requests(argv[2]);if(!requests)throw std::runtime_error("Cannot open effect requests");
         puts("service,voice,musicCost,voiceCost,active,position,remaining,fixed,loopCount,transpose,noTranspose,fineTune,note,targetNote,frequency,stage,envelopeCounter,volume,releaseCounter,tableIndex,arpCounter,direction,vibratoWait,vibratoCounter,pitchWait");
         int effect,service=0;
-        while(requests>>effect){if(effect>=0)audio.queueEffect(effect);audio.tick();
+        while(requests>>effect){
+            if(withPause){int paused;if(!(requests>>paused)||(paused!=0&&paused!=1))throw std::runtime_error("Malformed pause request");audio.setPaused(paused!=0);}
+            if(effect>=0)audio.queueEffect(effect);audio.tick();
             for(int i=0;i<6;++i){const auto& v=audio.voices[i];
                 printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
                     service,i,audio.musicWorkCycles,audio.voiceWorkCycles[i],int(v.active),v.position,v.remaining,v.fixed,v.loopCount,

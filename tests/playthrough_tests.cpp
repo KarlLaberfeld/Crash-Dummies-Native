@@ -50,7 +50,7 @@ template<class Stunt> bool verifyPausePublication(Stunt& game,const UiAssets& ui
  game.paused=true;flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);game.render(false);
  if(game.screen==before||!game.videoTickPrepared||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
  for(int n=0;n<3;++n){flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);}
- if(game.entities[0].x!=x||game.entities[0].y!=y||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
+ if(game.entities[0].x!=x||game.entities[0].y!=y||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7||game.ticks!=flow.ticks)return false;
  game.paused=false;flow.gameplayPaused=game.videoTickPrepared;flow.step(0);flow.stepStunt(game);
  if(game.videoTickPrepared||game.transferRemaining!=chunks-4||game.hudCursor!=1||flow.gameplayFade!=7)return false;
  if constexpr(!std::is_same_v<Stunt,BombGame>)game.mapTransfer=false;
@@ -66,6 +66,16 @@ template<class Stunt> bool verifyVideoPublication(Stunt& game){
  if(game.screen!=visible)return false;
  game.beginVideoTick();game.render(false);if(game.screen==visible)return false;
  game.start(0);return true;
+}
+template<class Stunt> bool verifyStandalonePauseClock(Stunt& game){
+ game.start(0);game.ticks=65534;game.paused=true;
+ int x=game.entities[0].x,y=game.entities[0].y;game.step(B);
+ int cursor=game.hudCursor,chunks=game.transferRemaining;
+ game.step(B);game.step(B);
+ if(game.ticks!=1||game.entities[0].x!=x||game.entities[0].y!=y||game.previous!=B||game.hudCursor!=cursor||game.transferRemaining!=chunks)return false;
+ game.paused=false;game.step(B);
+ if(game.ticks!=2||game.pressed||game.hudCursor!=cursor)return false;
+ game.step(0);game.step(B);return game.pressed==B;
 }
 template<class Stunt> bool verifyAnimationResume(Stunt& game){
  game.start(0);auto& p=game.entities[0];p.anim=1;p.animDone=false;p.delay=0;p.period=2;p.frame=0;
@@ -106,6 +116,9 @@ int runPlaythroughTests(const Assets& shared,const AirAssets& aa,const SkiAssets
  if(!verifyPausePublication(roofGame,ua)||!verifyPausePublication(airGame,ua)||!verifyPausePublication(skiGame,ua)||!verifyPausePublication(bombGame,ua)||!verifyPausePublication(cruiseGame,ua)){
   fprintf(log,"FAIL: pause entry/resume display boundary\n");fclose(log);return 1;}
  fprintf(log,"PASS: pause publishes one display update, preserves pending transfers, freezes gameplay and resumes without a duplicate display update in all five stunts\n");
+ if(!verifyStandalonePauseClock(roofGame)||!verifyStandalonePauseClock(airGame)||!verifyStandalonePauseClock(skiGame)||!verifyStandalonePauseClock(bombGame)||!verifyStandalonePauseClock(cruiseGame)){
+  fprintf(log,"FAIL: standalone pause counter/input continuity\n");fclose(log);return 1;}
+ fprintf(log,"PASS: standalone pause retains world/HUD/resources while the 16-bit display counter wraps and held buttons remain sampled in all five stunts\n");
  if(!verifyStuntOutroHud(roofGame,ua)||!verifyStuntOutroHud(airGame,ua)||!verifyStuntOutroHud(skiGame,ua)||!verifyStuntOutroHud(bombGame,ua)||!verifyStuntOutroHud(cruiseGame,ua)){
   fprintf(log,"FAIL: outgoing HUD refresh without gameplay/transfer updates\n");fclose(log);return 1;}
  fprintf(log,"PASS: final score reaches the HUD during the outgoing fade without entity, timer or resource updates in all five stunts\n");

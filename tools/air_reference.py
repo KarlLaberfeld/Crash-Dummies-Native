@@ -109,7 +109,16 @@ def capture(args):
             raise RuntimeError('Original Air gameplay did not start')
         last = None
         stall = None
+        pause_samples=[]
         for _ in range(args.max_frames):
+            if getattr(args,'pause_after',0) and not pause_samples and len(post)>=args.pause_after:
+                button('press','start');tick(2)
+                button('release','start');tick(2)
+                pause_samples.append(dict(state=sample(),selector=original.memory[0xc098],audioEnabled=original.memory[0xffcf]))
+                tick(args.pause_frames)
+                pause_samples.append(dict(state=sample(),selector=original.memory[0xc098],audioEnabled=original.memory[0xffcf]))
+                button('press','start');tick(2)
+                button('release','start');tick(2)
             direction = 'left' if ((len(post) + args.steer_offset) // args.steer_period) % 2 else 'right'
             if args.pattern in ('alternating','accelerate'):button('press', 'a')
             elif args.pattern=='boost':button('press','b')
@@ -172,11 +181,15 @@ def capture(args):
                    hardwareVerified=False)
     summary.update(difficulty=args.difficulty,inputPattern=args.pattern,maxFrames=args.max_frames,
         steerPeriod=args.steer_period,steerOffset=args.steer_offset,
+        pauseAfter=getattr(args,'pause_after',0),pauseFrames=getattr(args,'pause_frames',120),pauseSamples=pause_samples,
+        pauseReached=bool(pause_samples),
         stopReason='stall' if stall is not None else 'result' if post[-1]['result'] else 'frameLimit')
     write_json(out / 'capture-summary.json', summary)
     print(json.dumps(summary, indent=2))
     if differences or (stall is not None and not frozen):
         raise RuntimeError('Reference scenario or uninstrumented control did not match; inspect local evidence')
+    if getattr(args,'pause_after',0) and not pause_samples:
+        raise RuntimeError('Requested pause update was not reached; this is not pause evidence')
 
 
 def compare(args):
@@ -225,9 +238,11 @@ if __name__ == '__main__':
     record.add_argument('--max-frames',type=int,default=6000)
     record.add_argument('--steer-period',type=int,default=24)
     record.add_argument('--steer-offset',type=int,default=24)
+    record.add_argument('--pause-after',type=int,default=0)
+    record.add_argument('--pause-frames',type=int,default=120)
     diff = sub.add_parser('compare')
     diff.add_argument('native_csv', type=Path)
     diff.add_argument('--out', type=Path, default=Path('local/original-air'))
     options = parser.parse_args()
-    if options.mode=='capture' and (options.max_frames<=0 or options.steer_period<=0):parser.error('Frame limit and steering period must be positive')
+    if options.mode=='capture' and (options.max_frames<=0 or options.steer_period<=0 or options.pause_after<0 or options.pause_frames<=0):parser.error('Frame limit, steering period and pause duration must be positive; pause update cannot be negative')
     (capture if options.mode == 'capture' else compare)(options)
