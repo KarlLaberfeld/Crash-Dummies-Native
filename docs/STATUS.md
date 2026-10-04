@@ -1,4 +1,4 @@
-# Project status - October 3, 2026
+# Project status - October 4, 2026
 
 ## Objective
 
@@ -1163,3 +1163,39 @@ complete budget should display and completed-game-update progression be split.
 Require ordinary-clock comparison without supplied per-update ticks, then expand
 inputs/difficulties. Do not repeat the unchanged placement/sprite audits without
 a new hypothesis. Keep the private repository and continuation automation active.
+
+## Animation/resource timing checkpoint - 2026-10-04
+
+**Runtime cadence is still unfinished.** This checkpoint extends source-work
+accounting, not the Windows scheduling policy. Gameplay and the intentional
+Air recovery safeguard remain unchanged.
+
+The resource queue is now the fifth fully reconstructed work phase; its pure
+source formula matches all 3,059 reference updates. The reference capture now
+measures 12,009 handler bodies and 6,870 nested animation calls. Dispatcher
+bookkeeping (1612 + 60 per live call) plus measured bodies agrees exactly with
+the whole entity phase. This is a decomposition, not a complete source budget.
+
+Native resource/animation totals match through update 2458. Before that deliberate
+recovery difference, 8,988 modeled native handler calls at 15 source addresses
+also match the original. Play (1,461 calls), Crash (320) and the Wait-to-Play
+transition (one) remain unmodeled in this prefix; unknown costs use -1, never zero.
+Other helper paths not exercised by the replay are explicitly not reference-
+verified. Detailed scope, reproduction commands and limitations: AIR_TIMING.md.
+
+Validation: 41 Python tests; 23 new synthetic C++ source-work checks, requiring
+no ROM; rebuilt build/CrashDummies.exe; 13 automated Windows UI checks. Native
+state exports with accounting enabled/disabled and the previous checkpoint are
+byte-identical across all 3,059 updates. The expanded original instrumentation
+still matches the existing uninstrumented control memory exactly. Unchanged
+campaign suites were not rerun for this diagnostic-only change. No new preview
+ZIP or final release was produced. Evidence stays in local/air-animation-timing/
+and local/air-animation-build.log; no ROM, extracted data or original capture is
+included in Git.
+
+Next concrete work: reconstruct Play/Crash collision and motion work using the
+new handler boundaries, then variable interrupt/audio/HUD work and wait phase.
+Do not enable a scheduler from partial costs or replace unknown costs with a
+fitted constant. Ordinary-clock comparison without per-update supplied counters
+must pass before original-time cadence is accepted. Retain the private repository
+and continuation automation.

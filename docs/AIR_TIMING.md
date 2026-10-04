@@ -1,8 +1,9 @@
 # Air Bumper source timing: partial reconstruction
 
 The original-time scheduler is **not finished**. The Windows runtime still
-performs one gameplay update per display interval. Four source-derived work
-costs are implemented and checked; they are not yet a complete frame budget.
+performs one gameplay update per display interval. Five complete work phases,
+animation and simpler handler bodies are reconstructed and checked; they are
+not yet a complete frame budget.
 Do not use their partial sum to skip updates or claim real-time parity.
 
 ## Measured cause
@@ -80,6 +81,50 @@ follows the intentional recovery safeguard; no claim about all internal entity
 fields or rendered pixels is made. Player comparison still matches its 23
 fields through update 2457, then reaches that intentional safeguard.
 
+## Animation and handler checkpoint, 2026-10-04
+
+Resource-queue preparation (`03de..03e4`) is now the fifth complete phase with
+a source-derived model. Its reference-side formula agrees with all 3,059
+measured updates, including acknowledgement, unchanged-frame, replacement and
+empty-descriptor branches. The native resource calculation agrees through update
+2458; its first difference at 2459 follows the intentional recovery safeguard.
+
+The capture now measures individual entity bodies and nested animation calls.
+It records 12,009 handler calls and 6,870 animation calls in the same verified
+replay. The dispatcher decomposition, `1612 + 60 * liveCalls + bodyCosts`, agrees
+with every measured entity phase. Here `bodyCosts` are **measured** values; this
+decomposition does not establish a complete native budget.
+
+Native animation accounting follows the existing semantic animation commands:
+delays, dynamic-frame waits, loops, movement, allocation and termination. It
+does not execute machine instructions. Per-update animation totals match through
+update 2458. Unknown commands or non-yielding-loop guard failures mark the cost
+incomplete instead of certifying a partial interval.
+
+Before the intentional safeguard at update 2458, 8,988 native handler-body costs
+match their independently measured original calls. Those calls cover 15 handler
+addresses: intro/rise, return, idle, waiting without transition, animation,
+hide, breakables, pickups, countdown, booster, enemy, both debris directions
+and fast explosions. There are still **1,782 unmodeled calls** in that prefix:
+1,461 Play calls, 320 Crash calls and the Wait-to-Play transition. The helper also
+contains source-derived paths for bouncers, emitters, particles, falling pickups
+and slow explosions, but this replay does not independently exercise those
+bodies. Do not count them as reference-verified. Native-only deferred recovery
+is explicitly unmodeled as an original handler body.
+
+`handlerWorkCycles` uses -2 for an unoccupied slot and -1 for an unknown body.
+These partial measurements remain opt-in diagnostics. The Windows runtime still
+performs one game update per display interval; its ordinary-clock cadence
+difference is **not fixed** by this checkpoint.
+
+Validation: 41 Python tests and 23 standalone synthetic C++ work checks pass.
+The Windows executable builds and passes its 13 automated UI checks. All 3,059
+exported native state rows are byte-identical with accounting enabled/disabled
+and to the prior checkpoint. Accordingly, unchanged campaign suites were not
+rerun for this diagnostic-only change. The original instrumented final memory
+still matches the uninstrumented control. Evidence is local/air-animation-timing/;
+no original data is published and no replacement preview ZIP was made.
+
 ## Reproduce locally
 
 First produce the control-verified capture described in
@@ -92,13 +137,19 @@ python tools/air_timing.py report
 $env:ZIG_GLOBAL_CACHE_DIR = Join-Path $PWD '.tools/zig-cache'
 $env:ZIG_LOCAL_CACHE_DIR = Join-Path $PWD '.tools/zig-local-cache'
 & .tools/zig-x86_64-windows-0.16.0/zig.exe c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tools/air_reference_probe.cpp src/air.cpp src/game.cpp -o local/air-reference-probe.exe
-& ./local/air-reference-probe.exe local/original-air-verified/inputs.txt --recorded-clock --work-csv local/air-timing/native-work.csv --entities-csv local/air-timing/native-entities.csv > local/air-timing/native-state.csv
+& ./local/air-reference-probe.exe local/original-air-verified/inputs.txt --recorded-clock --work-csv local/air-timing/native-work.csv --entities-csv local/air-timing/native-entities.csv --handlers-csv local/air-timing/native-handlers.csv > local/air-timing/native-state.csv
 python tools/air_timing.py compare local/air-timing/native-work.csv
+python tools/air_timing.py compare-handlers local/air-timing/native-handlers.csv
 python tools/air_timing.py compare-entities local/air-timing/native-entities.csv
 python tools/air_reference.py compare local/air-timing/native-state.csv --out local/original-air-verified
 ```
 
 The pure analysis and synthetic Python tests do not import or require PyBoy.
+Capture schema 2 requires the new handler/animation hooks; older timing captures
+are rejected with a recapture instruction rather than silently skipping evidence.
+The standalone C++ checks use synthetic data only and run as part of
+`build.ps1 -Test`; they can also be compiled from `tests/air_work_tests.cpp`, `src/air.cpp`
+and `src/game.cpp` without the extracted assets.
 Capturing is the only emulator-dependent operation. The timing probe deliberately
 does not use original positions, allocation results or layouts to drive native
 gameplay. Native entity logging occurs before `step`; exclude the player from
@@ -123,9 +174,10 @@ and continues to require all twenty wins, the ending and return to title. The
 earlier zero-failure solo requirement tested pilot perfection rather than game
 correctness; it is not retained as a fidelity oracle. No game results are injected.
 
-1. Account for the entity-handler, animation, collision and resource-queue paths
-   (`03d8..03e4`) from their semantic native operations. Compare each interval
-   against the new reference measurements instead of fitting a total constant.
+1. Complete Play, Crash and collision work, including the Wait-to-Play transition,
+   then cover the other unmeasured handler branches. Animation/resource models
+   and the matched simpler bodies are now available; do not repeat their unchanged
+   audit. Compare missing intervals instead of fitting a total constant.
 2. Reconstruct variable interrupt service work, including audio and HUD paths,
    and the main-loop wait/interrupt phase. The observed min/max is not a model.
 3. Introduce separate display and completed-game-update progression. An extra

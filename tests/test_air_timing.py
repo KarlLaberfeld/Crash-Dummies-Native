@@ -4,10 +4,24 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from air_timing import elapsed_work, placement_cycles, map_cycles, sprite_cycles, clear_cycles, entity_difference
+from air_timing import elapsed_work, placement_cycles, map_cycles, sprite_cycles, clear_cycles, entity_difference, resource_cycles, analyze
 
 
 class AirTimingTests(unittest.TestCase):
+    def test_old_capture_cannot_silently_certify_missing_handler_measurements(self):
+        with self.assertRaisesRegex(ValueError, 'schema changed'):
+            analyze(dict(updates=[]))
+
+    def test_resource_upload_acknowledgement_and_replacement_paths(self):
+        self.assertEqual(resource_cycles(1, 0, 0, 0, 4), 688)
+        self.assertEqual(resource_cycles(1, 1, 0, 0, 4), 252)
+        self.assertEqual(resource_cycles(1, 1, 2, 0, 4), 268)
+        self.assertEqual(resource_cycles(1, 0, 1, 1, 4), 384)
+        self.assertEqual(resource_cycles(1, 0, 1, 2, 4), 716)
+        self.assertEqual(resource_cycles(1, 0, 1, 2, 0), 412)
+        self.assertEqual(resource_cycles(1, 0, 0, 0, 0), 384)
+        self.assertEqual(resource_cycles(12, 0, 0, 0, 4), 212)
+
     def test_irq_cost_includes_entry_and_return_not_just_hook_span(self):
         irq = dict(start=1100, end=1300)
         self.assertEqual(elapsed_work(1000, 1500, [irq]), 264)

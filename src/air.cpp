@@ -80,6 +80,9 @@ void AirGame::start(int level,int player){
     transferState=transferRemaining=transferFrame=transferFlags=0;
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     mapWorkCycles=placementWorkCycles=spriteWorkCycles=clearWorkCycles=0;
+    resourceWorkCycles=animationWorkCycles=0;
+    starterWorkCycles=cameraWorkCycles=0;animationWorkComplete=true;
+    handlerWorkCycles.fill(-2);handlerWorkKinds.fill(-1);
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
     spriteResources.reset(assets.frames[entities[0].frame]);
@@ -107,12 +110,16 @@ void AirGame::setFrame(int i,int frame,int flags){
     auto& e=entities[i];e.frame=frame;e.flags=(e.flags&31)|flags;e.animDone=true;e.frameWaiting=false;
 }
 void AirGame::startAnimation(int i,int sequence,bool force){
+    if(measureWork)starterWorkCycles+=force?80:airStartAnimationWork(entities[i].animDone);
     auto& e=entities[i];if(!force&&!e.animDone)return;
     e.anim=assets.animationStarts.at(sequence);e.animDone=false;
 }
 void AirGame::animate(int i){
-    auto& e=entities[i];if(e.animDone||!e.alive)return;
-    if(e.delay){--e.delay;return;}
+    auto& e=entities[i];if(!e.alive)return;
+    auto work=[&](int cost){if(measureWork)animationWorkCycles+=cost;};
+    if(e.animDone){work(64);return;}
+    if(e.delay){work(104);--e.delay;return;}
+    work(124); // 3bb3 eligibility/delay check and saved script cursor load.
     // 3bc4 loads the saved script position into a temporary cursor. Only
     // delay/loop-yield (3c41) saves it back. A pending dynamic frame (3c92)
     // exits without saving, so preceding commands run again on the next tick.
@@ -120,41 +127,45 @@ void AirGame::animate(int i){
     for(int guard=0;guard<256;++guard){
         if(cursor<=0||cursor>=static_cast<int>(assets.commands.size()))break;
         auto c=assets.commands[cursor];cursor=c.next;
+        work(124); // 3bcc command fetch and semantic command dispatch.
         switch(c.op){
-        case 0:e.animDone=true;return;
-        case 1:e.anim=cursor;e.delay=e.period;return;
-        case 2:e.move(c.a,0);break;
-        case 3:e.move(0,c.a);break;
+        case 0:work(76);e.animDone=true;return;
+        case 1:work(100);e.anim=cursor;e.delay=e.period;return;
+        case 2:work(airAnimationMoveWork(e.x,c.a));e.move(c.a,0);break;
+        case 3:work(airAnimationMoveWork(e.y,c.a));e.move(0,c.a);break;
         case 4:
             if(c.a<12){
                 // 3c74's waiting flag belongs to the saved script block,
                 // rather than a new resume position at the frame operand.
                 if(e.frameWaiting){
-                    if(transferState!=2)return;
+                    if(transferState!=2){work(148);return;}
+                    work(196);
                     e.frameWaiting=false;break;
                 }
-                if(e.frame!=c.a){e.frame=c.a;e.frameWaiting=true;return;}
-            }
+                if(e.frame!=c.a){work(268);e.frame=c.a;e.frameWaiting=true;return;}
+                work(236);
+            }else work(148);
             e.frame=c.a;break;
-        case 5:e.period=c.a;break;
-        case 6:e.flags^=32;break;
-        case 7:e.flags&=~32;break;
-        case 8:e.loop=c.a;e.loopStart=cursor;break;
-        case 9:e.loop=(e.loop-1)&255;if(e.loop)cursor=e.loopStart;e.anim=cursor;e.delay=e.period;return;
-        case 10:cursor=c.a;break;
-        case 11:e.handler=static_cast<AirHandler>(c.a);e.animDone=true;return;
-        case 12:e.move(c.a*16,0);break;
-        case 13:e.move(0,c.a*16);break;
-        case 14:e.alive=false;e.animDone=true;return;
-        case 15:e.flags^=8;break;
-        case 16:spawn(c.c,e.x+c.a,e.y+c.b);break;
-        case 17:e.flags|=32;break;
-        case 18:break; // Original stage activation event; unused by Air graphs.
-        case 19:pendingSound=c.a;break;
-        default:++animationFaults;e.animDone=true;return;
+        case 5:work(72);e.period=c.a;break;
+        case 6:work(108);e.flags^=32;break;
+        case 7:work(100);e.flags&=~32;break;
+        case 8:work(92);e.loop=c.a;e.loopStart=cursor;break;
+        case 9:e.loop=(e.loop-1)&255;work(e.loop?176:156);if(e.loop)cursor=e.loopStart;e.anim=cursor;e.delay=e.period;return;
+        case 10:work(48);cursor=c.a;break;
+        case 11:work(192);e.handler=static_cast<AirHandler>(c.a);e.animDone=true;return;
+        case 12:work(c.a<0?92+20+124+44:92+132+44);e.move(c.a*16,0);break;
+        case 13:work(c.a<0?92+20+124+44:92+132+44);e.move(0,c.a*16);break;
+        case 14:work(204);e.alive=false;e.animDone=true;return;
+        case 15:work(108);e.flags^=8;break;
+        case 16:{int slot=spawn(c.c,e.x+c.a,e.y+c.b);work(456+(slot<0?868:816+52*slot));break;}
+        case 17:work(100);e.flags|=32;break;
+        case 18:work(36);break; // Original stage activation event; unused by Air graphs.
+        case 19:work(44);pendingSound=c.a;break;
+        default:++animationFaults;animationWorkComplete=false;e.animDone=true;return;
         }
+        work(12); // 3bd4 returns to the next animation command.
     }
-    ++animationFaults;e.animDone=true;
+    ++animationFaults;animationWorkComplete=false;e.animDone=true;
 }
 int AirGame::tileAt(int x,int y) const {
     x&=65535;y&=65535;
@@ -168,6 +179,7 @@ void AirGame::sampleProbes(int pose){
     for(int n=0;n<6;++n)probes[n]=terrainAt(p.x+offsets[n][0],p.y+offsets[n][1]);
 }
 void AirGame::followCamera(bool horizontal){
+    if(measureWork)cameraWorkCycles+=airCameraWork(*this,horizontal);
     const auto& p=entities[0];
     if(horizontal)cameraX=(cameraX+s8(((p.x-cameraX)&4095)/16-64))&65535;
     int delta=s8((s16(p.y-cameraY)>>3)-cameraLead);
@@ -398,8 +410,19 @@ void AirGame::step(int buttons){
     if(paused)return;
     videoTickPrepared=false;
     held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
+    animationWorkCycles=0;animationWorkComplete=true;
+    if(measureWork){handlerWorkCycles.fill(-2);handlerWorkKinds.fill(-1);}
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
-    for(int j=0;j<16;++j)if(entities[j].alive)update(j);
+    for(int j=0;j<16;++j)if(entities[j].alive){
+        if(measureWork){
+            const auto before=entities[j];int animationBefore=animationWorkCycles,faultsBefore=animationFaults;
+            starterWorkCycles=cameraWorkCycles=0;update(j);
+            handlerWorkKinds[j]=static_cast<int>(before.handler);
+            handlerWorkCycles[j]=animationFaults==faultsBefore?
+                airSimpleHandlerWork(*this,before,entities[j],animationWorkCycles-animationBefore,starterWorkCycles,cameraWorkCycles):-1;
+        }else update(j);
+    }
+    if(measureWork)resourceWorkCycles=airResourceWork(*this,oldFrame);
     finishVideoTick(oldFrame,oldFlags);
     if(measureWork){const auto spriteWork=airSpriteWork(*this);
         spriteWorkCycles=spriteWork.prepare;clearWorkCycles=spriteWork.clear;}

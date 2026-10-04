@@ -6,7 +6,7 @@ evidence. Passing the native suites alone does not authorize a final-release lab
 | Area | Evidence already available | Required before final release |
 |---|---|---|
 | Five stunts / four difficulties | Native rules, deterministic replay and a 20-stunt input-only campaign | Original comparisons for normal play, collisions, success and failure |
-| Air crash recovery / timing | Native safeguard passes all 64 phase replays; original trace/control reproduce the failure; four source-work costs are reference-checked and reused-slot animation delay is corrected | Retain the intentional recovery fix; complete handler/interrupt cost accounting and ordinary-clock scheduling comparison; verify on independent reference/hardware |
+| Air crash recovery / timing | Native safeguard passes all 64 phase replays; original trace/control reproduce the failure; five complete source-work phases plus animation and simpler handler bodies are reference-checked; reused-slot animation delay is corrected | Retain the intentional recovery fix; complete Play/Crash/collision and interrupt cost accounting, then ordinary-clock scheduling comparison; verify on independent reference/hardware |
 | Presentation | Source-derived menus, transitions, palette tests and double-buffered shared sprite resources | Reference captures at matched input/update boundaries, including gameplay entry, pause, landing/body parts and exit |
 | Audio | All 14 songs and 26 effects decode; native sequencing and Windows output tests | Original recordings for timing, channel interaction, envelopes and pitch |
 | Two players | Complete automated campaigns: both players finish, and player one is eliminated while player two finishes | Human playthrough and comparison with original player handoff/ending behavior |
