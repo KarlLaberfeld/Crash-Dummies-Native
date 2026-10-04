@@ -1199,3 +1199,42 @@ Do not enable a scheduler from partial costs or replace unknown costs with a
 fitted constant. Ordinary-clock comparison without per-update supplied counters
 must pass before original-time cadence is accepted. Retain the private repository
 and continuation automation.
+
+
+## Play/collision and VBlank timing checkpoint - 2026-10-04
+
+**Original-time scheduling is still unfinished.** Windows gameplay still advances
+once per display interval. No fitted interrupt allowance or frame-index exception
+was introduced, and the deferred Air recovery safeguard is unchanged.
+
+The missing Play, Crash and Wait-to-Play costs are reconstructed. All 10,770
+handler calls before the intentional difference at update 2458 match independently
+measured original bodies, with no unknown costs in that prefix. All six native
+main-update phases now agree through update 2457, including overruns 895/1222.
+Collision scan, callbacks, motion and input have separate validated boundaries.
+All 31 callback calls exercised here (types 7/8/9/10/11) match. Other callback
+branches and timeout/finish-delay costs have source and synthetic checks only;
+FinishMotion, WallSlide, Exploding and further inputs still require comparison.
+Unknown work propagates as -1, including native-only recovery at update 2458.
+
+Capture schema 6 also decomposes 3,063 VBlank services. Fixed prefix/DMA/joypad/
+bank/restore costs and the conditional reset guard match every service. Variable
+display work is 884..7464, effect setup 64..620, music 1612..13008 T-cycles.
+Those ranges are measurements, not source models or scheduling allowances.
+The guard is 240 here because reset is enabled, rather than the 160 disabled path.
+Control memory remains identical to the earlier uninstrumented original replay.
+
+Validation: 47 Python tests; 51 synthetic C++ source-work checks; rebuilt
+build/CrashDummies.exe; 13 automated Windows UI checks. Accounting-enabled,
+-disabled and previous native exports are byte-identical over all 3,059 updates.
+Diagnostic-only changes did not justify repeating unchanged campaign suites.
+Logs/evidence: local/air-play-irq-timing/, local/air-play-build.log and
+build/ui-window-test.txt. No new ZIP or final release; original data stays local.
+
+Next concrete work: source-model the variable display callback (map/resource,
+HUD/scroll), effect setup and music-driver intervals, then STAT/main-loop wait
+phase. Cover remaining Air handler and input branches with new reference cases.
+Only then split display/game-update progression and require ordinary-clock
+agreement without supplied per-update counters. Do not repeat unchanged phase
+checks without a new hypothesis. Keep the repository private, reports in English,
+and the continuation automation active until all ACCEPTANCE.md requirements pass.

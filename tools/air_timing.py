@@ -20,11 +20,22 @@ STAGES = {0x03d8: 'update', 0x03de: 'entitiesDone', 0x03e4: 'sprites',
           0x03fa: 'done'}
 IRQ_START = {0x0040: 'vblank', 0x0048: 'stat'}
 IRQ_END = {0x2484: 'vblank', 0x2555: 'stat'}
+IRQ_PHASES = {0x2430: 'dma', 0x2433: 'joypad', 0x2436: 'display',
+              0x2455: 'bookkeeping', 0x2475: 'effects', 0x2478: 'audioBank',
+              0x247b: 'music', 0x247e: 'restore'}
+# Routine bodies plus their source callers; no measured allowance or emulator
+# state feeds these constants. Variable display/effect/music work is separate.
+VBLANK_FIXED = dict(prefix=180, dma=704, joypad=280, audioBank=68, restore=120)
 ENTITY_HOOKS = (0x1b25, 0x1b26)
 ANIMATION_ENTRY = 0x3bb3
 ANIMATION_RETURNS = (0x6249, 0x6625, 0x667e, 0x675c, 0x67c4,
                      0x682f, 0x6857, 0x6894, 0x693e, 0x695f)
-CAPTURE_VERSION = 2
+COLLISION_ENTRY = 0x1747
+COLLISION_RETURNS = (0x61e8, 0x626c)
+COLLISION_CALLBACK_HOOKS = (0x17b8, 0x184f, 0x1852)
+MOTION_ENTRY, MOTION_RETURN = 0x659c, 0x5fe2
+INPUT_ENTRY, INPUT_RETURN = 0x5fef, 0x6026
+CAPTURE_VERSION = 6
 
 
 def placement_cycles(camera_row, scan, placements, occupied):
@@ -206,6 +217,47 @@ def elapsed_work(start, end, interrupts):
     return cost
 
 
+def scoped_work(calls, start, end, interrupts):
+    """Reject missing, overlapping or escaped component boundaries."""
+    previous_end, total = start, 0
+    for call in calls:
+        a, b = call.get('start'), call.get('end')
+        if a is None or b is None or not previous_end <= a < b <= end:
+            raise ValueError('Invalid component scope')
+        total += elapsed_work(a, b, interrupts)
+        previous_end = b
+    return total
+
+
+def collision_work(calls, start, end, interrupts):
+    total = scoped_work(calls, start, end, interrupts)
+    callbacks = 0
+    for call in calls:
+        callbacks += scoped_work(call['callbacks'], call['start'], call['end'], interrupts)
+        scoped_work(call['slots'], call['start'], call['end'], interrupts)
+    return total-callbacks, callbacks
+
+
+def vblank_work(irq):
+    if set(irq.get('phases', {})) != set(IRQ_PHASES.values()):
+        raise ValueError('Incomplete VBlank phases')
+    names = ['prefix', *IRQ_PHASES.values()]
+    times = [irq['start'], *(irq['phases'][name] for name in IRQ_PHASES.values()), irq['end']]
+    if any(a >= b for a, b in zip(times, times[1:])):
+        raise ValueError('Invalid VBlank phase order')
+    return {name: b-a for name, a, b in zip(names, times, times[1:])}
+
+
+def vblank_bookkeeping_work(reset_enabled, held, reset_latched):
+    # 2455..2475 and conditional 24b4. Reset initialization never returns to
+    # this interval, so do not certify that path as a normal completed service.
+    if not reset_enabled:
+        return 160
+    if held & 15 != 15:
+        return 240
+    return 248 if reset_latched else -1
+
+
 def analyze(data):
     if data.get('version') != CAPTURE_VERSION:
         raise ValueError('Timing capture schema changed; repeat capture with the current tool')
@@ -239,8 +291,13 @@ def analyze(data):
         predicted_clear = clear_cycles(cursor, row['sprites']['workload']['reverse'])
         if predicted_clear != stage_costs['spritesDone']:
             clear_mismatches.append(dict(update=i, measured=stage_costs['spritesDone'], predicted=predicted_clear))
-        animation_work = sum(elapsed_work(a['start'], a['end'], interrupts) for a in row['animations'])
-        costs.append(dict(update=i, stages=stage_costs, components=dict(animation=animation_work)))
+        start, end = row['update']['cycles'], row['entitiesDone']['cycles']
+        animation_work = scoped_work(row['animations'], start, end, interrupts)
+        scan_work, callback_work = collision_work(row['collisions'], start, end, interrupts)
+        costs.append(dict(update=i, stages=stage_costs, components=dict(animation=animation_work,
+                         collisionScan=scan_work, collisionCallbacks=callback_work,
+                         playerMotion=scoped_work(row['motion'], start, end, interrupts),
+                         playerInput=scoped_work(row['input'], start, end, interrupts))))
         predicted_resource = resource_cycles(**row['entitiesDone']['workload'])
         if predicted_resource != stage_costs['entitiesDone']:
             resource_mismatches.append(dict(update=i, measured=stage_costs['entitiesDone'], predicted=predicted_resource))
@@ -266,6 +323,14 @@ def analyze(data):
                                  stages=stage_costs, placementCycles=predicted))
     durations = [irq['end'] + 16 - (irq['start'] - 20)
                  for irq in interrupts if irq['kind'] == 'vblank']
+    vblank_parts = [vblank_work(irq) for irq in interrupts if irq['kind'] == 'vblank']
+    fixed_irq_mismatches = [dict(interrupt=i, phase=name, original=parts[name], source=cost)
+                           for i, parts in enumerate(vblank_parts) for name, cost in VBLANK_FIXED.items()
+                           if parts[name] != cost]
+    for i, (irq, parts) in enumerate(zip((irq for irq in interrupts if irq['kind'] == 'vblank'), vblank_parts)):
+        predicted = vblank_bookkeeping_work(irq['resetEnabled'], irq['held'], irq['resetLatched'])
+        if predicted != parts['bookkeeping']:
+            fixed_irq_mismatches.append(dict(interrupt=i, phase='bookkeeping', original=parts['bookkeeping'], source=predicted))
     summary = dict(completedUpdates=len(rows), overruns=overruns,
                    placementModelMismatches=mismatches,
                    mapModelMismatches=map_mismatches,
@@ -275,8 +340,11 @@ def analyze(data):
                    dispatchModelMismatches=dispatch_mismatches, handlerProfile=handlers,
                    vblankCyclesMin=min(durations) if durations else None,
                    vblankCyclesMax=max(durations) if durations else None,
+                   fixedVBlankModelMismatches=fixed_irq_mismatches,
+                   vblankPhaseRanges={name: dict(min=min(p[name] for p in vblank_parts), max=max(p[name] for p in vblank_parts))
+                                      for name in ['prefix', *IRQ_PHASES.values()]} if vblank_parts else {},
                    runtimeSchedulingFixed=False,
-                   evidenceLimit='Source costs of five complete phases, plus measured handler/animation components. '
+                   evidenceLimit='Source costs of five complete phases, plus measured handler, animation, collision, motion and input components. '
                                  'The dispatcher decomposition includes measured body costs; it is not a complete '
                                  'source model. No native scheduling parity is established.')
     return summary, costs
@@ -295,17 +363,88 @@ def capture(args):
     player = PyBoy(str(args.rom), window='null', sound_volume=0)
     player.set_emulation_speed(0)
     rows, interrupts, frames = [], [], {}
-    current, irq_open, handler_open, animation_open = None, None, None, None
+    current, irq_open, handler_open, animation_open, collision_open, callback_open = None, None, None, None, None, None
+    motion_open = input_open = None
 
     def word(a):
         return player.memory[a] | player.memory[a + 1] << 8
 
     def hook(address):
-        nonlocal current, irq_open, handler_open, animation_open
+        nonlocal current, irq_open, handler_open, animation_open, collision_open, callback_open
+        nonlocal motion_open, input_open
         if player.memory[0xc098] != 4:
             return
         now = player._cycles()  # Measurement API, pinned above; not wall time.
         state = dict(cycles=now, tick=word(0xc00a), transfer=player.memory[0xffae])
+        if address in IRQ_PHASES:
+            if irq_open is None or irq_open['kind'] != 'vblank':
+                raise ValueError('VBlank phase outside its interrupt')
+            name = IRQ_PHASES[address]
+            if name in irq_open['phases']:
+                raise ValueError('Repeated VBlank phase')
+            irq_open['phases'][name] = now
+            if name == 'display':
+                irq_open['held'] = player.memory[0xff8a]
+            return
+        if address == INPUT_ENTRY:
+            if current is None or input_open is not None:
+                raise ValueError('Unexpected player input entry')
+            input_open = dict(start=now)
+            return
+        if address == INPUT_RETURN:
+            if input_open is None:
+                raise ValueError('Player input returned without an entry')
+            input_open['end'] = now
+            current['input'].append(input_open)
+            input_open = None
+            return
+        if address == MOTION_ENTRY:
+            if current is None or motion_open is not None:
+                raise ValueError('Unexpected player motion entry')
+            motion_open = dict(start=now)
+            return
+        if address == MOTION_RETURN:
+            if motion_open is None:
+                raise ValueError('Player motion returned without an entry')
+            motion_open['end'] = now
+            current['motion'].append(motion_open)
+            motion_open = None
+            return
+        if collision_open is not None and address == collision_open['returnAddress']:
+            if callback_open is not None:
+                raise ValueError('Collision returned inside an unfinished callback')
+            collision_open['end'] = now
+            current['collisions'].append(collision_open)
+            collision_open = None
+        if address == COLLISION_ENTRY:
+            if current is None:
+                return
+            if collision_open is not None:
+                raise ValueError('Nested collision scan')
+            collision_open = dict(start=now, returnAddress=word(player.register_file.SP), callbacks=[], slots=[])
+            return
+        if address in COLLISION_CALLBACK_HOOKS:
+            if collision_open is None:
+                raise ValueError('Callback hook outside a collision scan')
+            if address == 0x17b8:
+                slot = player.register_file.A//16
+                at = 0xc200 + slot*16
+                collision_open['slots'].append(dict(slot=slot, start=now,
+                    entity=list(player.memory[at:at+16]), cameraX=word(0xff92), cameraY=word(0xff94)))
+            elif address == 0x184f and player.memory[0xffa3] != 255:
+                if callback_open is not None:
+                    raise ValueError('Nested collision callback')
+                callback_open = dict(start=now, slot=player.memory[0xff8d]//16,
+                                     kind=player.memory[0xffa3])
+            elif address == 0x1852 and callback_open is not None:
+                callback_open['end'] = now
+                collision_open['callbacks'].append(callback_open)
+                callback_open = None
+            if address == 0x1852:
+                collision_open['slots'][-1]['end'] = now
+            return
+        if address in COLLISION_RETURNS:
+            return
         if animation_open is not None and address == animation_open['returnAddress']:
             animation_open['end'] = now
             current['animations'].append(animation_open)
@@ -345,7 +484,8 @@ def capture(args):
                 raise ValueError('Unexpected nested IRQ')
             sp = player.register_file.SP
             irq_open = dict(kind=IRQ_START[address], start=now, tick=word(0xc00a),
-                            transfer=player.memory[0xffae], returnAddress=word(sp))
+                            transfer=player.memory[0xffae], returnAddress=word(sp), phases={},
+                            resetEnabled=player.memory[0xc005], resetLatched=player.memory[0xc004])
         elif address in IRQ_END:
             if irq_open is None or irq_open['kind'] != IRQ_END[address]:
                 raise ValueError('Unmatched interrupt return')
@@ -357,7 +497,7 @@ def capture(args):
             if name == 'update':
                 if current is not None:
                     raise ValueError('Previous update has no completion')
-                current = dict(handlers=[], animations=[])
+                current = dict(handlers=[], animations=[], collisions=[], motion=[], input=[])
             if current is None:
                 return
             if name in current:
@@ -406,7 +546,7 @@ def capture(args):
                     occupied=sum(1 << i for i in range(16) if player.memory[0xc200 + i * 16] != 255))
             current[name] = state
             if name == 'done':
-                if animation_open is not None or handler_open is not None:
+                if any(c is not None for c in (animation_open, handler_open, collision_open, callback_open, motion_open, input_open)):
                     raise ValueError('Unfinished animation or entity at update end')
                 rows.append(current)
                 current = None
@@ -414,9 +554,10 @@ def capture(args):
     try:
         with (args.capture / 'setup.state').open('rb') as stream:
             player.load_state(stream)
-        for address in (*STAGES, *IRQ_START, *IRQ_END, *ENTITY_HOOKS, ANIMATION_ENTRY):
+        for address in (*STAGES, *IRQ_START, *IRQ_END, *IRQ_PHASES, *ENTITY_HOOKS, ANIMATION_ENTRY,
+                        COLLISION_ENTRY, *COLLISION_CALLBACK_HOOKS):
             player.hook_register(0, address, hook, address)
-        for address in ANIMATION_RETURNS:
+        for address in (*ANIMATION_RETURNS, *COLLISION_RETURNS, MOTION_ENTRY, MOTION_RETURN, INPUT_ENTRY, INPUT_RETURN):
             player.hook_register(1, address, hook, address)
         events = json.loads((args.capture / 'events.json').read_text(encoding='utf-8'))
         for event in events:
@@ -451,7 +592,7 @@ def report(args):
     write_json(args.out / 'summary.json', summary)
     write_json(args.out / 'costs.json', costs)
     print(json.dumps(summary, indent=2))
-    if any(summary[k] for k in ('placementModelMismatches', 'mapModelMismatches', 'spriteModelMismatches', 'clearModelMismatches', 'resourceModelMismatches', 'dispatchModelMismatches')):
+    if any(summary[k] for k in ('placementModelMismatches', 'mapModelMismatches', 'spriteModelMismatches', 'clearModelMismatches', 'resourceModelMismatches', 'dispatchModelMismatches', 'fixedVBlankModelMismatches')):
         raise ValueError('Source-derived workload does not match reference routine cost')
 
 

@@ -1,9 +1,10 @@
 # Air Bumper source timing: partial reconstruction
 
 The original-time scheduler is **not finished**. The Windows runtime still
-performs one gameplay update per display interval. Five complete work phases,
-animation and simpler handler bodies are reconstructed and checked; they are
-not yet a complete frame budget.
+performs one gameplay update per display interval. All six main-update work phases, including the entity dispatcher and every
+handler exercised before the intentional recovery difference, now agree with
+the reference replay. Variable display/audio service and wait phase remain
+incomplete; the main-update sum alone is not a complete frame budget.
 Do not use their partial sum to skip updates or claim real-time parity.
 
 ## Measured cause
@@ -101,29 +102,67 @@ does not execute machine instructions. Per-update animation totals match through
 update 2458. Unknown commands or non-yielding-loop guard failures mark the cost
 incomplete instead of certifying a partial interval.
 
-Before the intentional safeguard at update 2458, 8,988 native handler-body costs
-match their independently measured original calls. Those calls cover 15 handler
-addresses: intro/rise, return, idle, waiting without transition, animation,
-hide, breakables, pickups, countdown, booster, enemy, both debris directions
-and fast explosions. There are still **1,782 unmodeled calls** in that prefix:
-1,461 Play calls, 320 Crash calls and the Wait-to-Play transition. The helper also
-contains source-derived paths for bouncers, emitters, particles, falling pickups
-and slow explosions, but this replay does not independently exercise those
-bodies. Do not count them as reference-verified. Native-only deferred recovery
-is explicitly unmodeled as an original handler body.
+## Play, Crash and collision checkpoint — 2026-10-04
 
-`handlerWorkCycles` uses -2 for an unoccupied slot and -1 for an unknown body.
-These partial measurements remain opt-in diagnostics. The Windows runtime still
-performs one game update per display interval; its ordinary-clock cadence
-difference is **not fixed** by this checkpoint.
+All **10,770 handler calls before update 2458** now have source-derived native
+costs and agree exactly with the original. These cover 17 source addresses,
+including all 1,461 Play calls, 320 Crash calls and the Wait-to-Play transition
+that were previously unknown. The native entity phase uses `1612 + 60 *
+liveCalls + sourceBodyCosts` and matches the whole `03d8..03de` interval through
+update 2457, including the two overrun updates. This is now a comparison of
+native source costs, rather than measured bodies substituted into a formula.
 
-Validation: 41 Python tests and 23 standalone synthetic C++ work checks pass.
-The Windows executable builds and passes its 13 automated UI checks. All 3,059
-exported native state rows are byte-identical with accounting enabled/disabled
-and to the prior checkpoint. Accordingly, unchanged campaign suites were not
-rerun for this diagnostic-only change. The original instrumented final memory
-still matches the uninstrumented control. Evidence is local/air-animation-timing/;
-no original data is published and no replacement preview ZIP was made.
+The new accounting follows camera movement, input order, motion-table factors,
+timer rollover, damage severity, terrain bounce, side push, slow surfaces,
+wall-triggered crashes, collision scans and callbacks. Search includes empty,
+self and offscreen slots, byte-edge rejection order and the 12-cycle untaken
+conditional callback. Callback spans include dispatch and body work, preventing
+double counting. All 31 callback invocations in this replay match: types 7, 8,
+9, 10 and 11. Motion, input and collision-scan components match through 2596;
+the original is stalled by then while the native safeguard resumes Play at 2597.
+
+This remains one input sequence and one difficulty. Source-derived timeout,
+finish-delay, other callback types and helper branches not exercised here have
+synthetic checks only. FinishMotion, WallSlide and Exploding still lack complete
+body models; the Crash-to-Exploding branch propagates unknown work. Additional
+reference cases are required before generalizing coverage to every Air path.
+`handlerWorkCycles` uses -2 for unoccupied and -1 for unknown work. The native
+entity total becomes -1 at update 2458 because deferred recovery is deliberately
+not certified as original behavior; its safeguard remains unchanged.
+
+## VBlank decomposition
+
+The expanded, control-verified capture separates 3,063 VBlank services. All
+fixed source parts and the conditional software-reset guard agree exactly.
+The guard costs 240 cycles in this replay because reset is enabled; 160 is the
+disabled path, not a universal allowance. An actual reset request without the
+latch is not certified as a normally returning service.
+
+| VBlank component | Observed T-cycles | Evidence |
+|---|---:|---|
+| Entry body before DMA | 180 | Source cost checked |
+| DMA call and transfer delay | 704 | Source cost checked |
+| Joypad sampling | 280 | Source cost checked |
+| Display callback dispatch/body | 884–7,464 | Measured; source model incomplete |
+| Counter/bookkeeping/reset guard | 240 | Conditional source cost checked |
+| Pending effect setup | 64–620 | Measured; source model incomplete |
+| Audio bank switch | 68 | Source cost checked |
+| Music driver | 1,612–13,008 | Measured; source model incomplete |
+| Bank/register restoration | 120 | Source cost checked |
+
+Interrupt entry and return add 36 cycles. The component ranges cannot be summed
+to predict a particular service: their extrema need not occur together. The
+analysis rejects missing, unordered or escaped boundaries and removes nested
+callback/interrupt work once. These measurements do not feed native gameplay.
+
+Validation: **47 Python tests, 51 synthetic C++ source-work checks**, a rebuilt
+Windows executable and 13 automated UI checks. All 3,059 state exports with
+accounting enabled/disabled match the previous checkpoint byte for byte,
+SHA-256 `8b41e9d4d7a8c2b21d37c54abf16a77b4699de691727e0a765f680f66622a382`.
+The instrumented original final memory still matches the uninstrumented control.
+Unchanged campaign tests were not repeated for this diagnostic-only change.
+Evidence: ignored `local/air-play-irq-timing/`, `local/air-play-build.log` and
+`build/ui-window-test.txt`. No original data or replacement preview ZIP is published.
 
 ## Reproduce locally
 
@@ -145,7 +184,8 @@ python tools/air_reference.py compare local/air-timing/native-state.csv --out lo
 ```
 
 The pure analysis and synthetic Python tests do not import or require PyBoy.
-Capture schema 2 requires the new handler/animation hooks; older timing captures
+Capture schema 6 requires handler, animation, collision, motion, input and
+VBlank component hooks; older timing captures
 are rejected with a recapture instruction rather than silently skipping evidence.
 The standalone C++ checks use synthetic data only and run as part of
 `build.ps1 -Test`; they can also be compiled from `tests/air_work_tests.cpp`, `src/air.cpp`
@@ -174,12 +214,12 @@ and continues to require all twenty wins, the ending and return to title. The
 earlier zero-failure solo requirement tested pilot perfection rather than game
 correctness; it is not retained as a fidelity oracle. No game results are injected.
 
-1. Complete Play, Crash and collision work, including the Wait-to-Play transition,
-   then cover the other unmeasured handler branches. Animation/resource models
-   and the matched simpler bodies are now available; do not repeat their unchanged
-   audit. Compare missing intervals instead of fitting a total constant.
-2. Reconstruct variable interrupt service work, including audio and HUD paths,
-   and the main-loop wait/interrupt phase. The observed min/max is not a model.
+1. Reconstruct the remaining variable VBlank display callback, effect setup and
+   music driver from source, using their new measured boundaries. Extend reference
+   inputs to timeout, finish, wall-slide, boosted motion and exploding branches;
+   source/synthetic coverage alone cannot establish original parity.
+2. Complete STAT and main-loop wait/interrupt phase accounting. The observed
+   min/max is not a service-work model. Keep unknown paths explicitly unknown.
 3. Introduce separate display and completed-game-update progression. An extra
    VBlank must advance global input/audio/HUD/display work without inventing an
    extra entity update. Respect the dynamic-transfer gate and the map callback;

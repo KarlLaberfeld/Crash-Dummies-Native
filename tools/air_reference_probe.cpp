@@ -37,7 +37,7 @@ int main(int argc,char**argv){
         }
         if(!workPath.empty()){
             work.open(workPath);if(!work)throw std::runtime_error("Could not open workload output");
-            work<<"entitiesDone,sprites,spritesDone,mapCallback,placements,animation\n";
+            work<<"update,entitiesDone,sprites,spritesDone,mapCallback,placements,animation,collisionScan,collisionCallbacks,playerMotion,playerInput\n";
         }
         puts("tick,handler,frame,flags,x,y,cameraX,cameraY,speed,rate,tilt,count,crash,anim,done,waiting,delay,period,transfer,remaining,map,result,seconds,secondTicks,random,pending");
         int tick,held,index=0;
@@ -53,7 +53,7 @@ int main(int argc,char**argv){
             game->step(buttons);const auto& p=game->entities[0];
             if(handlerLog.is_open())for(int slot=0;slot<16;++slot)if(game->handlerWorkCycles[slot]!=-2)
                 handlerLog<<index-1<<','<<slot<<','<<game->handlerWorkKinds[slot]<<','<<game->handlerWorkCycles[slot]<<'\n';
-            if(work.is_open())work<<game->resourceWorkCycles<<','<<game->spriteWorkCycles<<','<<game->clearWorkCycles<<','<<game->mapWorkCycles<<','<<game->placementWorkCycles<<','<<(game->animationWorkComplete?game->animationWorkCycles:-1)<<'\n';
+            if(work.is_open())work<<game->entityWorkCycles<<','<<game->resourceWorkCycles<<','<<game->spriteWorkCycles<<','<<game->clearWorkCycles<<','<<game->mapWorkCycles<<','<<game->placementWorkCycles<<','<<(game->animationWorkComplete?game->animationWorkCycles:-1)<<','<<game->collisionScanWorkCycles<<','<<game->collisionCallbackWorkCycles<<','<<game->playerMotionWorkCycles<<','<<game->playerInputWorkCycles<<'\n';
             printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
                    game->ticks,int(p.handler),p.frame,p.flags,p.x,p.y,game->cameraX,game->cameraY,
                    game->speed,game->rate,game->tilt,p.params[0],p.params[2],p.anim,p.animDone,p.frameWaiting,

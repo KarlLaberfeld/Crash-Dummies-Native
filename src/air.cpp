@@ -82,6 +82,8 @@ void AirGame::start(int level,int player){
     mapWorkCycles=placementWorkCycles=spriteWorkCycles=clearWorkCycles=0;
     resourceWorkCycles=animationWorkCycles=0;
     starterWorkCycles=cameraWorkCycles=0;animationWorkComplete=true;
+    collisionScanWorkCycles=collisionCallbackWorkCycles=0;
+    playerMotionWorkCycles=playerInputWorkCycles=0;complexBodyWorkCycles=entityWorkCycles=-1;
     handlerWorkCycles.fill(-2);handlerWorkKinds.fill(-1);
     spawn(17,cameraX+0x400,(cameraY&0xff00)+0x800);
     spawn(22,cameraX+0x100,(cameraY&0xff00)+0x100);
@@ -186,6 +188,7 @@ void AirGame::followCamera(bool horizontal){
     cameraY=std::clamp(cameraY+delta,0,assets.levels[difficulty].cameraY);
 }
 void AirGame::movePlayer(){
+    if(measureWork)playerMotionWorkCycles+=airPlayerMotionWork(*this);
     auto& p=entities[0];const auto& display=assets.tilts.at(tilt+2);
     if(!transferState)setFrame(0,display[0],display[1]);
     // 00:3d59 returns flags for the old byte, even when its decrement reaches 0.
@@ -196,6 +199,7 @@ void AirGame::movePlayer(){
     if(rate>=0&&(p.y>>8)==assets.levels[difficulty].rows-2)speed=0;
 }
 void AirGame::input(){
+    if(measureWork)playerInputWorkCycles+=airInputWork(*this);
     if(!transferState&&!lastForce&&rate){if((held&Left)&&tilt>-2)--tilt;if((held&Right)&&tilt<2)++tilt;}
     auto up=[&]{if(!(ticks&3)){cameraLeadTarget=176;if(speed>-20)--speed;}};
     if((cameraY>>8)>=15){
@@ -300,9 +304,19 @@ void AirGame::collideWith(int other){
     }
 }
 void AirGame::collide(){
+    if(measureWork)collisionScanWorkCycles+=644+airCollisionBoundsWork(*this,entities[0])
+        +airCollisionSlotWork(*this,0).scan+36;
     auto box=[&](const AirEntity& e){return spriteBounds(assets.frames[e.frame],e.x,e.y,cameraX,cameraY);};
     auto a=box(entities[0]);
-    for(int j=1;j<16;++j){const auto& e=entities[j];if(!e.alive||e.offscreen||e.collision==255)continue;
+    for(int j=1;j<16;++j){const auto& e=entities[j];
+        if(measureWork){auto work=airCollisionSlotWork(*this,j);
+            collisionScanWorkCycles+=work.scan+(j==15?48:36);
+            if(work.callback&&collisionCallbackWorkCycles>=0){
+                int callback=airCollisionCallbackWork(*this,j);
+                collisionCallbackWorkCycles=callback<0?-1:collisionCallbackWorkCycles+callback;
+            }
+        }
+        if(!e.alive||e.offscreen||e.collision==255)continue;
         auto b=box(e);if(spriteOverlap(a,b))collideWith(j);
     }
 }
@@ -317,18 +331,33 @@ void AirGame::update(int i){
     case AirHandler::Wait:
         if(--e.params[0])break;e.handler=AirHandler::Play;[[fallthrough]];
     case AirHandler::Play:{
+        int body=376+(measureWork?airCameraLeadWork(cameraLead,cameraLeadTarget):0);
         cameraLead=approach(cameraLead,cameraLeadTarget);followCamera();movePlayer();
+        if(measureWork)body+=airSeverityWork(*this);
         int severity=e.params[5]>>6;
         if(severity==1&&(pressed&A))spawn(34,e.x,e.y+512);
         if((severity==2&&!(ticks&31))||(severity==3&&!(ticks&15))){
             bool moving=speed!=0;speed=approach(speed,0);if(moving)spawn(34,e.x+(randomByte()&15)*16,e.y+384);
         }
-        tickTimer();if(!seconds){beginFinish(0x11);break;}
-        input();lookupRate();sampleProbes(tilt);lastForce=0;terrainBounce();
+        if(measureWork)body+=airTimerWork(secondTicks,seconds);
+        tickTimer();if(!seconds){
+            if(measureWork)complexBodyWorkCycles=body-16+(finishTimer==1?48:0)+cameraWorkCycles+playerMotionWorkCycles;
+            beginFinish(0x11);break;
+        }
+        input();lookupRate();sampleProbes(tilt);lastForce=0;
+        if(measureWork)body+=112+AirProbeWork+airTerrainBounceWork(*this);
+        terrainBounce();
+        if(measureWork)body+=airSidePushWork(*this);
         int base=speed<0?0:3;
         if(probes[base]&32){lastForce=4;e.move(4,0);}else if(probes[base+1]&32){lastForce=-4;e.move(-4,0);}
+        if(measureWork)body+=airSlowSurfaceWork(*this);
         if(!(ticks&3)&&((probes[0]|probes[1]|probes[2])&4))speed=speed<0?-2:4;
-        walls();finishGate();collide();break;}
+        if(measureWork)body+=airWallWork(*this);
+        walls();if(measureWork)body+=airFinishGateWork(*this);
+        finishGate();collide();
+        if(measureWork&&collisionCallbackWorkCycles>=0)complexBodyWorkCycles=body+cameraWorkCycles
+            +playerMotionWorkCycles+playerInputWorkCycles+collisionScanWorkCycles+collisionCallbackWorkCycles;
+        break;}
     case AirHandler::Animation:
         animate(i);
         if(i==0&&crashRecoveryPending&&e.animDone){
@@ -344,10 +373,18 @@ void AirGame::update(int i){
         if((probes[0]|probes[1]|probes[2])&0x7d){e.handler=AirHandler::Play;break;}
         tickTimer();collide();if(rate>=0){e.handler=AirHandler::Play;break;}
         e.move(0,s8(2*rate));if(--e.params[0]==0)e.handler=AirHandler::Play;break;
-    case AirHandler::Crash:
+    case AirHandler::Crash:{
+        int animationBefore=animationWorkCycles;
+        int body=304+44+112+airTimerWork(secondTicks,seconds);
         animate(i);followCamera();lookupRate();tickTimer();
-        if(held&Left)e.move(-16,0);if(held&Right)e.move(16,0);e.move(0,s8(2*rate));collide();
+        if(held&Left){if(measureWork)body+=12+24+airMoveWork(e.x,-16);e.move(-16,0);}
+        if(held&Right){if(measureWork)body+=12+24+airMoveWork(e.x,16);e.move(16,0);}
+        if(measureWork)body+=airMoveWork(e.y,s8(2*rate));
+        e.move(0,s8(2*rate));collide();
+        if(measureWork&&collisionCallbackWorkCycles>=0)complexBodyWorkCycles=body+cameraWorkCycles
+            +animationWorkCycles-animationBefore+collisionScanWorkCycles+collisionCallbackWorkCycles;
         if(--e.params[0])break;
+        if(measureWork&&complexBodyWorkCycles>=0)complexBodyWorkCycles+=-12+104+AirProbeWork;
         e.params[2]=0;sampleProbes(tilt);
         if((probes[0]|probes[1]|probes[2])&64){
             e.handler=AirHandler::Animation;
@@ -356,10 +393,16 @@ void AirGame::update(int i){
             // Deliberate native fix: remember that request, finish the crash
             // normally, then start the unchanged recovery script exactly once.
             // This is not evidence of the original cartridge's timing.
+            if(measureWork&&complexBodyWorkCycles>=0)complexBodyWorkCycles+=4+124+airStartAnimationWork(e.animDone);
             crashRecoveryPending=!e.animDone;startAnimation(i,1);break;
         }
-        if(!((probes[0]|probes[1]|probes[2]|probes[3]|probes[4]|probes[5])&1)){e.handler=AirHandler::Play;break;}
+        if(!((probes[0]|probes[1]|probes[2]|probes[3]|probes[4]|probes[5])&1)){
+            if(measureWork&&complexBodyWorkCycles>=0)complexBodyWorkCycles+=52+68+44;
+            e.handler=AirHandler::Play;break;
+        }
+        complexBodyWorkCycles=-1; // Exploding fallthrough still needs a complete source model.
         e.handler=AirHandler::Exploding;e.params[0]=64;setFrame(i,6);[[fallthrough]];
+    }
     case AirHandler::Exploding:
         if(--e.params[0]){if(!(e.params[0]&7)){int dx=(randomByte()&15)*16,dy=(randomByte()&31)*16;spawn(33,e.x+dx,e.y+dy);}if(!(e.params[0]&15))pendingSound=14;break;}
         [[fallthrough]];
@@ -411,16 +454,27 @@ void AirGame::step(int buttons){
     videoTickPrepared=false;
     held=buttons;pressed=buttons&~previous;previous=buttons;ticks=(ticks+1)&65535;
     animationWorkCycles=0;animationWorkComplete=true;
+    collisionScanWorkCycles=collisionCallbackWorkCycles=0;
+    playerMotionWorkCycles=playerInputWorkCycles=0;
     if(measureWork){handlerWorkCycles.fill(-2);handlerWorkKinds.fill(-1);}
+    entityWorkCycles=-1;
     int oldFrame=entities[0].frame,oldFlags=entities[0].flags;
     for(int j=0;j<16;++j)if(entities[j].alive){
         if(measureWork){
             const auto before=entities[j];int animationBefore=animationWorkCycles,faultsBefore=animationFaults;
-            starterWorkCycles=cameraWorkCycles=0;update(j);
+            starterWorkCycles=cameraWorkCycles=0;complexBodyWorkCycles=-1;update(j);
             handlerWorkKinds[j]=static_cast<int>(before.handler);
             handlerWorkCycles[j]=animationFaults==faultsBefore?
                 airSimpleHandlerWork(*this,before,entities[j],animationWorkCycles-animationBefore,starterWorkCycles,cameraWorkCycles):-1;
+            if(handlerWorkCycles[j]==-1&&animationFaults==faultsBefore)handlerWorkCycles[j]=complexBodyWorkCycles;
         }else update(j);
+    }
+    if(measureWork){
+        entityWorkCycles=1612;
+        for(int work:handlerWorkCycles){
+            if(work==-1){entityWorkCycles=-1;break;}
+            if(work>=0)entityWorkCycles+=60+work;
+        }
     }
     if(measureWork)resourceWorkCycles=airResourceWork(*this,oldFrame);
     finishVideoTick(oldFrame,oldFlags);

@@ -4,10 +4,52 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from air_timing import elapsed_work, placement_cycles, map_cycles, sprite_cycles, clear_cycles, entity_difference, resource_cycles, analyze
+from air_timing import elapsed_work, placement_cycles, map_cycles, sprite_cycles, clear_cycles, entity_difference, resource_cycles, analyze, scoped_work, collision_work, vblank_work, vblank_bookkeeping_work, IRQ_PHASES
 
 
 class AirTimingTests(unittest.TestCase):
+    def test_software_reset_guard_is_variable_work_not_a_fixed_irq_allowance(self):
+        self.assertEqual(vblank_bookkeeping_work(0, 15, 0), 160)
+        self.assertEqual(vblank_bookkeeping_work(1, 1, 0), 240)
+        self.assertEqual(vblank_bookkeeping_work(1, 15, 1), 248)
+        self.assertEqual(vblank_bookkeeping_work(1, 15, 0), -1)
+
+    def test_vblank_decomposition_retains_variable_music_display_and_effect_work(self):
+        names = ['prefix', *IRQ_PHASES.values()]
+        values = [180, 704, 280, 2000, 160, 900, 68, 5000, 120]
+        phases, cursor = {}, 1000+values[0]
+        for name, cost in zip(list(IRQ_PHASES.values()), values[1:]):
+            phases[name] = cursor
+            cursor += cost
+        parts = vblank_work(dict(start=1000, end=cursor, phases=phases))
+        self.assertEqual(parts, dict(zip(names, values)))
+        self.assertEqual(sum(parts.values())+36, cursor-1000+36)
+
+    def test_missing_or_unordered_vblank_phases_cannot_certify_fixed_work(self):
+        with self.assertRaisesRegex(ValueError, 'Incomplete VBlank'):
+            vblank_work(dict(start=0, end=1000, phases={}))
+        with self.assertRaisesRegex(ValueError, 'phase order'):
+            vblank_work(dict(start=0, end=1000, phases=dict.fromkeys(IRQ_PHASES.values(), 100)))
+
+    def test_collision_callbacks_are_removed_once_and_keep_interrupt_cost_separate(self):
+        calls = [dict(start=1000, end=1800, slots=[dict(start=1050, end=1600)],
+                      callbacks=[dict(start=1200, end=1500)])]
+        self.assertEqual(collision_work(calls, 900, 1900, [dict(start=1300, end=1400)]), (500, 164))
+
+    def test_component_scopes_reject_missing_reversed_overlapping_or_escaped_boundaries(self):
+        for calls in ([dict(start=100)], [dict(start=200, end=100)],
+                      [dict(start=100, end=250), dict(start=200, end=300)],
+                      [dict(start=0, end=100)], [dict(start=100, end=400)]):
+            with self.assertRaisesRegex(ValueError, 'component scope'):
+                scoped_work(calls, 50, 350, [])
+
+    def test_callback_or_slot_cannot_escape_its_collision_call(self):
+        for key in ('callbacks', 'slots'):
+            call = dict(start=100, end=300, callbacks=[], slots=[])
+            call[key] = [dict(start=90, end=200)]
+            with self.assertRaisesRegex(ValueError, 'component scope'):
+                collision_work([call], 0, 400, [])
+
     def test_old_capture_cannot_silently_certify_missing_handler_measurements(self):
         with self.assertRaisesRegex(ValueError, 'schema changed'):
             analyze(dict(updates=[]))
