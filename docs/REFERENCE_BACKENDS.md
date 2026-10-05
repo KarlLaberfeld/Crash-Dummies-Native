@@ -1,5 +1,17 @@
 # Independent original-reference backends
 
+Latest observer addition: `direct-vram-pause-v1` copies only the identified
+twenty-byte status row and 128-byte font through the official read-only direct
+storage API. It makes no CPU bus access, advances no cycles and writes nothing.
+The actual export, build manifest and DLL hash are verified. This distinguishes
+accepted storage from attempted write notifications, including boundaries where
+CPU reads would be blocked. Three new captures retain their uninstrumented
+controls and match native restoration/storage; see AIR_PAUSE_CANDIDATE.md.
+The current local DLL SHA-256 is
+`d062221a134f9760811db593ebde0112088065f1937e4e53f30f6c14a397929b`.
+Core/source/model/execution-observer identities remain unchanged. None of these
+storage snapshots enters the native clock or graphics copy inputs.
+
 The Windows port contains no Game Boy CPU emulator, interpreter or JIT. Its
 build and portable package use none of the reference components described here.
 They are optional tools for the user's explicitly authorized original-ROM

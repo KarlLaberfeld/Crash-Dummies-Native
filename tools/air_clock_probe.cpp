@@ -19,12 +19,13 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--display-inputs buttons.txt] [--final-wait | --outro-fade]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath;bool finalWait=false,outroFade=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath;bool finalWait=false,outroFade=false,pauseEntryReached=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
+            else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--final-wait")finalWait=true;
             else if(option=="--outro-fade"){finalWait=true;outroFade=true;}
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
@@ -32,6 +33,7 @@ int main(int argc,char** argv){
             else if(positional==2)spritePath=option;
             else throw std::runtime_error("Too many clock probe arguments");
         }
+        if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto audio=std::make_unique<AudioAssets>(AudioAssets::load(L"build/audio.dat"));
@@ -65,7 +67,7 @@ int main(int argc,char** argv){
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
             if(displayInputs.is_open()){
                 int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
-                if(held&8)throw std::runtime_error("Display input requests pause; native pause-clock ownership is not yet accepted");
+                if((held&8)&&pauseEntryPath.empty())throw std::runtime_error("Display input requests pause; native pause-clock ownership is not yet accepted");
                 sampled.sample(held);
             }
             int tick=game->ticks,pending=game->pendingSound;
@@ -91,7 +93,28 @@ int main(int argc,char** argv){
             // pending display between them still sees the busy resource gate.
             loopBoundarySafe=true;clock.work(8,display,false);
             clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
-            clock.wait(display);clock.work(48,display,false);
+            clock.wait(display);
+            if(!pauseEntryPath.empty()){
+                // The original reads fresh Start before its conditional pause
+                // call. Preserve that read across a later pending service.
+                int fresh=0;loopBoundarySafe=true;
+                clock.work(4,display,false);clock.atomicWork(12,[]{},display,false);
+                clock.accessWork(12,8,[&]{fresh=sampled.pressed;},display,false);
+                clock.work(8+(fresh&8?24:12),display,false);loopBoundarySafe=false;
+                if(fresh&8){
+                    std::ofstream out(pauseEntryPath);if(!out)throw std::runtime_error("Cannot open native pause-entry graphics output");
+                    out<<"{\"version\":1,\"pauseComplete\":false,\"cycle\":"<<clock.now<<",\"updates\":"<<updates
+                       <<",\"tick\":"<<game->ticks<<",\"inputHeld\":"<<sampled.held<<",\"inputPrevious\":"<<sampled.previous
+                       <<",\"pendingEffect\":"<<game->pendingSound<<",\"displayServices\":"<<clock.displays
+                       <<",\"scrollX\":"<<((game->visibleCameraX>>4)&255)
+                       <<",\"scrollY\":"<<((game->visibleCameraY>>4)&255)<<",\"windowX\":7,\"windowY\":136,\"objects\":[";
+                    for(int i=0;i<40;++i){if(i)out<<',';const auto& s=game->visibleSprites.slots[i];
+                        out<<"{\"x\":"<<s.x<<",\"y\":"<<(s.present?s.y:0)<<",\"flags\":"<<s.flags<<'}';
+                    }
+                    out<<"],\"hudRow\":[";for(int i=0;i<20;++i){if(i)out<<',';out<<int(game->hudMap[i]);}
+                    out<<"]}\n";pauseEntryReached=true;break;
+                }
+            }else clock.work(48,display,false);
             if(entityLog.is_open())for(int slot=0;slot<16;++slot){const auto& e=game->entities[slot];
                 entityLog<<updates<<','<<slot<<','<<(e.alive?e.frame:255)<<','<<((e.flags&~2)|(e.offscreen?2:0))<<','<<e.x<<','<<e.y<<'\n';
             }
@@ -196,7 +219,8 @@ int main(int argc,char** argv){
             else clock.work(28,display,false); // Exit result test before 0400's optional final wait.
             loopBoundarySafe=false;
         }
-        if(!input.eof())return 2;
+        if(!pauseEntryPath.empty()&&!pauseEntryReached)throw std::runtime_error("Native prefix did not reach a fresh Start request");
+        if(!pauseEntryReached&&!input.eof())return 2;
         if(finalWait){
             if(!game->result)throw std::runtime_error("Final wait requires a completed stunt result");
             auto start=clock.now;int tick=game->ticks;unsigned servicesBefore=clock.displays;

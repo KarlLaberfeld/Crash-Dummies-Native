@@ -26,6 +26,9 @@ DLL.ref_version.restype=ctypes.c_char_p
 if DLL.ref_version()!=b'1.0.3':raise RuntimeError('Reference DLL must be built from SameBoy 1.0.3')
 DLL.ref_observer.restype=ctypes.c_char_p
 if DLL.ref_observer()!=b'execution-callback-v1':raise RuntimeError('Requires the execution-boundary reference observer')
+DLL.ref_graphics_observer.restype=ctypes.c_char_p
+if BUILD.get('graphicsStorageObserver')!='direct-vram-pause-v1' or DLL.ref_graphics_observer()!=b'direct-vram-pause-v1':
+    raise RuntimeError('Build the current read-only pause graphics storage observer')
 PTR=ctypes.c_void_p
 HOOK=ctypes.CFUNCTYPE(None,PTR,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint64)
 BUS=ctypes.CFUNCTYPE(None,PTR,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint64)
@@ -36,6 +39,7 @@ for name in ('ref_close','ref_fail'):
 DLL.ref_hook.argtypes=[PTR,HOOK]
 DLL.ref_bus_hook.argtypes=[PTR,BUS]
 DLL.ref_lcd_snapshot.argtypes=[PTR,ctypes.POINTER(ctypes.c_uint)]
+DLL.ref_pause_graphics.argtypes=[PTR,ctypes.POINTER(ctypes.c_uint8)];DLL.ref_pause_graphics.restype=ctypes.c_int
 DLL.ref_watch.argtypes=[PTR,ctypes.c_uint]
 DLL.ref_tick.argtypes=[PTR,ctypes.c_uint]
 DLL.ref_peek.argtypes=[PTR,ctypes.c_uint];DLL.ref_peek.restype=ctypes.c_uint8
@@ -82,7 +86,7 @@ class Screen:
         return Image.frombytes('RGB',(160,144),pixels)
 
 class SameBoy:
-    reference_metadata={'emulator':'SameBoy','version':'1.0.3','bootRom':'SameBoy 1.0.3 open-source DMG boot ROM','model':'DMG-B','sourceRevision':REVISION,'referenceObserver':'execution-callback-v1','bootRomSha256':BUILD['bootRomSha256'],'referenceDllSha256':BUILD['dllSha256']}
+    reference_metadata={'emulator':'SameBoy','version':'1.0.3','bootRom':'SameBoy 1.0.3 open-source DMG boot ROM','model':'DMG-B','sourceRevision':REVISION,'referenceObserver':'execution-callback-v1','graphicsStorageObserver':'direct-vram-pause-v1','bootRomSha256':BUILD['bootRomSha256'],'referenceDllSha256':BUILD['dllSha256']}
     def __init__(self,rom,**ignored):
         self.handle=DLL.ref_open(str(Path(rom).resolve()).encode(),str(BOOT).encode())
         if not self.handle:raise RuntimeError('Cannot initialize original reference')
@@ -122,6 +126,10 @@ class SameBoy:
         # signed meaning. It is an internal diagnostic, not a hardware dot.
         result['pendingDisplayCycles']=ctypes.c_int32(values[9]).value
         return result
+    def pause_graphics_storage(self):
+        values=(ctypes.c_uint8*148)()
+        if not DLL.ref_pause_graphics(self.handle,values):raise RuntimeError('Cannot observe the identified pause storage')
+        return dict(storageReadOwner='direct-vram-pause-v1',statusRow=list(values[:20]),font=list(values[20:]))
     def set_emulation_speed(self,speed):
         if speed!=0:raise ValueError('Reference is measured without host throttling')
     def tick(self,count=1,render=True):

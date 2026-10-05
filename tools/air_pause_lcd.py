@@ -27,7 +27,11 @@ def capture(args):
         nonlocal current,phase,copy_index
         if address==0x1476 and p.memory[0xc098]==4:
             if current is not None:raise ValueError('Nested pause')
-            current=dict(points=[],bus=[],branches=[]);pauses.append(current);phase='entry';copy_index=0
+            # The shared C100 DMA source remains readable during mode 2.
+            # CPU-addressed OAM reads here would be blocked and return FF.
+            current=dict(points=[],bus=[],branches=[],entryDmaSourceObjects=[dict(y=p.memory[0xc100+4*i],x=p.memory[0xc101+4*i],
+                tile=p.memory[0xc102+4*i],flags=p.memory[0xc103+4*i]) for i in range(40)])
+            pauses.append(current);phase='entry';copy_index=0
         if address==0x03c6 and p.memory[0xc098]==4:
             startup.append(dict(cycles=p._cycles(),lcd=p.lcd_snapshot()))
         if current is None:return
@@ -36,6 +40,10 @@ def capture(args):
         elif address==0x14b9:phase='wait'
         elif address==0x14c2:phase='restore'
         elif address==0x14dc:phase='audio'
+        if address==0x1476 or address==0x14dc or (address==0x14b9 and not any(s['pc']==0x14b9 for s in current.get('graphicsStates',[]))):
+            # Accepted storage after writes, including boundaries where a CPU
+            # read would be blocked. The observer never changes time or data.
+            current.setdefault('graphicsStates',[]).append(dict(pc=address,cycles=p._cycles(),**p.pause_graphics_storage()))
         if address in (0x2365,0x2125):
             current['branches'].append(dict(phase=phase,cycles=p._cycles(),blocked=not bool(p.register_file.F&128),pc=address))
         else:current['points'].append(dict(pc=address,cycles=p._cycles(),lcd=p.lcd_snapshot(),phase=phase))

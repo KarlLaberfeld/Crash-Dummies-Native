@@ -1,6 +1,16 @@
 # Project status - October 5, 2026
 
-Latest saved runtime checkpoint: local source commit `2195119`, corresponding
+Latest development work reconstructs a bounded native Air pause graphics owner.
+Three independent original cases match 900 native prefix updates, 5,252 bus
+events (4,304 native STAT predictions and 948 data accesses), 418 paused
+services, 857 pause intervals and 1,332 accepted graphics-storage bytes, including
+restoration and return time. No captured polls/work/idle/worlds/edges drive it.
+519 pause assertions, 107 existing source assertions and 116 Python tests pass.
+The ordinary coast regression still matches 3,989 updates, 3,990 services and
+23,934 phases. See [candidate scope and reproduction](AIR_PAUSE_CANDIDATE.md).
+This candidate is not yet the production pause owner or hardware acceptance.
+
+Last tested portable runtime checkpoint: local source commit `2195119`, corresponding
 private GitHub commit `7313de4cdff7f2813e95f5978d276dfdd8ce5b54`.
 The 25 changed source/document blobs were verified exactly after publication.
 The clean-source ROM-free preview `CrashDummies-preview-2195119-9cbefd89.zip`
@@ -12,14 +22,16 @@ contains no ROM/assets/reference library. Local and GitHub commit identities
 differ because this host publishes through the GitHub connector. This is a
 development preview, not a final release.
 
-Next concrete work: native pause LCD readiness and byte-copy/script ownership.
-Use the current execution-observer recordings in `local/sameboy-air-pause-*`,
-their `*-lcd/lcd.json` bus targets and `*-timing/pause.json` source audit. Do not
-insert the observed 3,356 failed polls or reference-internal LCD fields into the
-native clock. Initial LCD phase and variable transfer time need independent
-ownership. Other interrupted entity/resource/row paths, startup/result setup,
-production clock integration and the remaining ACCEPTANCE.md items stay open.
-No unchanged native/campaign suite needs repetition without a further change.
+Next concrete work: connect the bounded pause owner to the ongoing native
+gameplay/audio replay and verify post-resume world, prepared/published sprites,
+input continuity and software voices. Use `local/pause-native-{coast,easy,hard}-data/`
+and matching `local/sameboy-air-pause-*-lcd-data/lcd.json` comparison targets.
+Initial LCD-enable phase, arbitrary IRQ acceptance, pending critical-section
+interrupts and line-135 object cancellation remain unowned and must reject.
+Other interrupted entity/resource/row paths, startup/result setup, production
+clock integration and the remaining ACCEPTANCE.md items also stay open.
+The rebuilt Windows EXE is byte-identical to the tested preview; unchanged
+campaign/UI suites do not need repetition without another runtime change.
 
 ## Objective
 

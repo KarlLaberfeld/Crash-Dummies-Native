@@ -1,5 +1,15 @@
 # Final release acceptance
 
+Latest pause checkpoint: three independent cases match 900 native prefix
+updates, 5,252 graphics/status bus events, 418 paused services, 857 intervals
+and 1,332 accepted graphics-storage bytes through restoration/return. The
+candidate derives its own readiness and work; it uses no captured poll/idle
+allowance. 519 pause assertions, 107 source assertions and 116 Python tests
+pass. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial LCD phase,
+arbitrary IRQs, software audio restoration, post-resume replay and production
+integration remain required. The rebuilt Windows EXE is byte-identical to the
+previously tested preview; no unchanged campaign/UI suite was repeated.
+
 Latest checkpoint, October 5: interrupted Air placement range ownership is
 reconstructed and tested against an independent original witness. All eleven
 earlier PyBoy clocks still pass. Three current SameBoy replays match 7,655
@@ -10,7 +20,7 @@ failed-audio 13/14 Windows checks. Standalone source work passes 107 assertions;
 Python passes 103 tests. See [placement evidence](AIR_PLACEMENTS.md).
 
 These remain development acceptance results. The final-release requirements
-below still apply, especially native pause LCD polling, other interrupted
+below still apply, especially production pause integration, other interrupted
 owners, startup/result setup, Windows scheduler integration, other stunts,
 matched images/audio and human/independent Windows validation.
 

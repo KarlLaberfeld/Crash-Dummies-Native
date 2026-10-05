@@ -11,6 +11,7 @@ typedef struct {
 } Reference;
 __declspec(dllexport) const char *ref_version(void){return GB_VERSION;}
 __declspec(dllexport) const char *ref_observer(void){return "execution-callback-v1";}
+__declspec(dllexport) const char *ref_graphics_observer(void){return "direct-vram-pause-v1";}
 __declspec(dllexport) unsigned ref_model(Reference *r){return GB_get_model(r->gb);}
 static uint32_t rgb(GB_gameboy_t *gb,uint8_t r,uint8_t g,uint8_t b){(void)gb;return (r<<16)|(g<<8)|b;}
 static void frame(GB_gameboy_t *gb,GB_vblank_type_t type){(void)type;Reference *r=GB_get_user_data(gb);++r->frames;}
@@ -57,6 +58,13 @@ __declspec(dllexport) void ref_lcd_snapshot(Reference *r,unsigned *out){
     out[4]=g->io_registers[GB_IO_WX];out[5]=g->io_registers[GB_IO_WY];out[6]=g->io_registers[GB_IO_LY];
     out[7]=g->current_line;out[8]=g->cycles_for_line;out[9]=g->display_cycles;
     out[10]=g->vram_read_blocked;out[11]=g->vram_write_blocked;
+}
+/* Read-only accepted storage, without a CPU bus access or PPU synchronization.
+   The public direct-access API is confined to the two identified pause areas. */
+__declspec(dllexport) int ref_pause_graphics(Reference *r,uint8_t *out){
+    size_t size;uint16_t bank;const uint8_t *vram=GB_get_direct_access(r->gb,GB_DIRECT_ACCESS_VRAM,&size,&bank);
+    if(!vram||size<0x1C14||bank!=0)return 0;
+    memcpy(out,vram+0x1C00,20);memcpy(out+20,vram+0x0F80,128);return 1;
 }
 __declspec(dllexport) void ref_watch(Reference *r,unsigned address){if(address<65536)r->watches[address]=1;}
 __declspec(dllexport) void ref_fail(Reference *r){r->failed=1;}

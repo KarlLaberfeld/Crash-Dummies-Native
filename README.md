@@ -38,6 +38,10 @@ scheduler integration, remaining timing branches, image/audio parity and
 physical-hardware behavior remain open; see [timing evidence and limits](docs/AIR_TIMING.md)
 and [the original comparison](docs/ORIGINAL_COMPARISON.md).
 See [pause and input evidence](docs/AIR_PAUSE.md) for the remaining boundaries.
+A bounded native pause graphics candidate now also matches three independent
+original cases through restoration and return, including 5,252 graphics/status
+accesses and 1,332 accepted storage bytes. Production integration and hardware
+qualification remain open; see [candidate evidence](docs/AIR_PAUSE_CANDIDATE.md).
 The final display wait, audio-stop work and outgoing fade also match three
 bounded original Air recordings; see [exit evidence](docs/AIR_EXIT.md).
 An independent reference now also establishes a shared-scratch interruption

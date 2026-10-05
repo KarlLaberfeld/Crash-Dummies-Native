@@ -22,11 +22,14 @@ def capture(args):
     PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
     require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
-    samples=[]
+    samples=[];air_seen=False
     def sample(_):
-        if p.memory[0xc098]!=4:return
+        nonlocal air_seen
+        selector=p.memory[0xc098]
+        if selector==4:air_seen=True
+        if selector!=4 and not (getattr(args,'include_paused',False) and air_seen and selector==1):return
         samples.append(dict(service=len(samples),tick=p.memory[0xc00a]+256*p.memory[0xc00b],
-            held=p.memory[0xff8a],pressed=p.memory[0xff8b]))
+            held=p.memory[0xff8a],pressed=p.memory[0xff8b],displaySelector=selector))
     try:
         with (args.capture/'setup.state').open('rb') as stream:p.load_state(stream)
         p.hook_register(0,0x2436,sample,None)
@@ -46,6 +49,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('rom',type=Path);parser.add_argument('--reference-lib',type=Path)
     parser.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
+    parser.add_argument('--include-paused',action='store_true',help='Include Air selector-1 samples after gameplay begins')
     parser.add_argument('--capture',type=Path,default=Path('local/original-air-steer44'))
     parser.add_argument('--out',type=Path,default=Path('local/air-steer44-input-reference'))
     capture(parser.parse_args())

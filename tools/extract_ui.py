@@ -146,6 +146,11 @@ def extract_ui(rom,output):
         for x in range(160):payload.append(pause_tiles[pause_map[x//8]*64+y*8+x%8])
     payload+=rom[address(7,0x4000):address(7,0x4180)]+rom[0x15d0:0x15d8]+rom[0x16e3:0x16eb]
     (output/'ui.dat').write_bytes(payload)
+    # Separate bounded pause-copy inputs for the native graphics candidate.
+    # Keeping the established UI07 payload unchanged preserves existing builds.
+    pause_payload=(b'TICDPA01'+rom[address(3,0x5850):address(3,0x58d0)]+
+                   rom[address(3,0x4030):address(3,0x40b0)]+pause_map[:20])
+    (output/'pause.dat').write_bytes(pause_payload)
     manifest=dict(format='TICDUI07',title_pages=len(maps),page_durations=[480,480,960,480,960],
                   high_scores=8,instructions=5,result_texts=16,ending_players=2)
     (output/'ui-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')

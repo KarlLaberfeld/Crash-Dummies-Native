@@ -1,5 +1,13 @@
 # Air pause and display-sampled input
 
+Latest native follow-up: the bounded pause graphics candidate independently
+matches all three scenarios through restoration and return: 5,252 bus events,
+418 paused services, 857 intervals and 1,332 accepted storage bytes. Native
+geometry, data and held-button samples drive it; original polls and work do
+not. See [candidate evidence and remaining integration](AIR_PAUSE_CANDIDATE.md).
+The following earlier audit is retained as history. Production pause timing,
+initial LCD phase, arbitrary IRQ acceptance and hardware remain unaccepted.
+
 Latest independent follow-up: three SameBoy execution-observer recordings also
 preserve their uninstrumented controls. They validate twelve source copies,
 418 paused services/waits and 415 frozen-world intervals. Direct bus observation
@@ -8,11 +16,10 @@ failed polls. All 60 saved-status-row reads are unblocked. The 888 graphics writ
 notifications describe attempts before the reference's access decision, not
 certified stores. See [reference details](REFERENCE_BACKENDS.md).
 
-Native pause polling remains unaccepted. Its next step is an independent LCD
-access model with scroll/object/window and initial phase ownership, then the
-identified copy/script read/write commits. Measured poll counts, internal
-reference LCD fields and HALT idle must not become native scheduling inputs.
-The new bus recorder is a comparison tool, not a substitute for that model.
+Full native pause acceptance remains open. The new bounded access model and
+copy/script commits now match the three independent-reference scenarios;
+initial phase and other unowned edges still reject. Measured poll counts,
+internal reference LCD fields and HALT idle must not become scheduling inputs.
 
 This checkpoint uses the hash-pinned US/EU cartridge and the separately
 authorized local PyBoy 2.7.0 reference. The native Windows executable contains
@@ -87,8 +94,9 @@ samples held buttons and derives its own fresh edges, even when the previous
 game update is still in progress. The existing input file supplies initial
 clock/timer/RNG phase and comparison scope; its per-update counter/button rows
 are ignored in this mode. No outcomes, measured work or original edges enter
-the native calculation. Start requests are explicitly rejected because this
-clock's pause entry/copy/return ownership is not yet accepted.
+the native calculation. Start still rejects in ordinary replay. The separate
+`--pause-entry` mode stops before the pause body and exports native graphics to
+the bounded candidate; it does not silently enable production pause scheduling.
 
 All nine existing Air cases still match 28,103 completed updates, 28,153
 services, all 168,618 semantic work phases/entry counters and the two sprite

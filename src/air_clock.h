@@ -43,6 +43,15 @@ struct AirClock {
         if(cost<0)throw std::runtime_error("Unreconstructed Air atomic work");
         now+=cost;effect();work(0,display,ready);
     }
+    // One identified graphics access: its bus sample occurs before the end
+    // of the access, while a pending interrupt waits until completion. This
+    // is a semantic boundary, not an opcode/register execution interface.
+    template<class Effect,class Display>void accessWork(int cost,int sampleOffset,Effect&& effect,Display&& display,bool ready){
+        if(cost<=0||sampleOffset<0||sampleOffset>cost)
+            throw std::runtime_error("Invalid Air graphics access boundary");
+        now+=sampleOffset;effect();now+=cost-sampleOffset;
+        work(0,display,ready);
+    }
     template<class Display>void wait(Display&& display,bool ready=true){
         lastWaitWork=60;
         // CALL/PUSH precede the counter read. A display during that prefix
