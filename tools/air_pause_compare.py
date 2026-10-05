@@ -86,6 +86,27 @@ def compare_graphics(original,prefix,native):
     return differences
 
 
+def compare_intervals(source,prefix,native):
+    entry=source['points'][0]['cycles'];interrupts=source['interrupts'];expected=[]
+    for name,c in zip(('copy0','copy1','copy2','copy3'),source['copies']):
+        expected.append((name,c['start'],c['end'],elapsed_work(c['start'],c['end'],interrupts)))
+    for i,p in enumerate(source['points'][:-1]):
+        q=source['points'][i+1];name=p['name'];active=elapsed_work(p['cycles'],q['cycles'],interrupts)
+        if name=='wait':
+            stat=sum(r['kind']=='stat' and p['cycles']<=r['start']-20 and r['end']+16<=q['cycles'] for r in interrupts)
+            active=wait_active_cycles(stat)
+        if name in ('script','wait','wake','restoreAudio','return'):expected.append((name,p['cycles'],q['cycles'],active))
+    expected.sort(key=lambda e:e[1])
+    if len(expected)!=len(native):raise ValueError('Incomplete native pause intervals')
+    differences=[]
+    for i,(a,(name,start,end,work)) in enumerate(zip(native,expected)):
+        wanted=dict(phase=name,start=start-entry,end=end-entry,work=work)
+        actual=dict(phase=a['phase'],start=a['start']-prefix['cycle'],end=a['end']-prefix['cycle'],work=a['work'])
+        fields={k:[actual[k],v] for k,v in wanted.items() if actual[k]!=v}
+        if fields:differences.append(dict(interval=i,fields=fields))
+    return differences
+
+
 def compare(args):
     manifest=load(args.capture/'capture-summary.json');trace=load(args.capture/'trace.json')
     inputs=load(args.inputs);lcd=load(args.lcd);timing=load(args.timing)
@@ -112,22 +133,8 @@ def compare(args):
         if a['cycle']-prefix['cycle']!=b['start']-20-entry:
             fields['relativeCycle']=[a['cycle']-prefix['cycle'],b['start']-20-entry]
         if fields:service_differences.append(dict(service=i,fields=fields))
-    expected=[];copies=source['copies'];points=source['points']
-    for name,c in zip(('copy0','copy1','copy2','copy3'),copies):expected.append((name,c['start'],c['end'],elapsed_work(c['start'],c['end'],interrupts)))
-    for i,p in enumerate(points[:-1]):
-        q=points[i+1];name=p['name'];active=elapsed_work(p['cycles'],q['cycles'],interrupts)
-        if name=='wait':
-            stat=sum(r['kind']=='stat' and p['cycles']<=r['start']-20 and r['end']+16<=q['cycles'] for r in interrupts)
-            active=wait_active_cycles(stat)
-        if name in ('script','wait','wake','restoreAudio','return'):expected.append((name,p['cycles'],q['cycles'],active))
-    expected.sort(key=lambda e:e[1]);native_phases=rows(args.out/'bus.csv.phases.csv')
-    if len(expected)!=len(native_phases):raise ValueError('Incomplete native pause intervals')
-    phase_differences=[]
-    for i,(a,(name,start,end,work)) in enumerate(zip(native_phases,expected)):
-        wanted=dict(phase=name,start=start-entry,end=end-entry,work=work)
-        actual=dict(phase=a['phase'],start=a['start']-prefix['cycle'],end=a['end']-prefix['cycle'],work=a['work'])
-        fields={k:[actual[k],v] for k,v in wanted.items() if actual[k]!=v}
-        if fields:phase_differences.append(dict(interval=i,fields=fields))
+    native_phases=rows(args.out/'bus.csv.phases.csv')
+    phase_differences=compare_intervals(source,prefix,native_phases)
     result=dict(comparedPrefixUpdates=len(native_states),comparedBusEvents=len(native_bus),comparedPausedServices=len(native_services),
         comparedPauseIntervals=len(native_phases),stateDifferences=state_differences,busDifferences=bus_differences,
         serviceDifferences=service_differences,phaseDifferences=phase_differences,graphicsDifferences=graphics_differences,

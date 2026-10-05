@@ -1,9 +1,12 @@
 # Air pause and display-sampled input
 
-Latest native follow-up: the bounded pause graphics candidate independently
-matches all three scenarios through restoration and return: 5,252 bus events,
-418 paused services, 857 intervals and 1,332 accepted storage bytes. Native
-geometry, data and held-button samples drive it; original polls and work do
+Latest native follow-up: the bounded pause session is coupled to gameplay,
+graphics, input and software audio. Three original controls match 7,506 updates
+through post-resume stunt end, 7,927 services, 317,080 sprite slots and 47,562
+selected voice/work rows, including native effect requests. The prior 5,252
+bus events, 418 paused services, 857 intervals and 1,332 storage bytes are
+included. Pending startup boundaries also agree; see AIR_STARTUP.md. Native
+geometry, data and held-button samples drive it; original polls/work/effects do
 not. See [candidate evidence and remaining integration](AIR_PAUSE_CANDIDATE.md).
 The following earlier audit is retained as history. Production pause timing,
 initial LCD phase, arbitrary IRQ acceptance and hardware remain unaccepted.

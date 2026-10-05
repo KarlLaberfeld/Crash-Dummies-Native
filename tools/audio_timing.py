@@ -15,6 +15,7 @@ from air_reference import write_json
 from analyze_audio import command
 from extract import read_rom
 from audio_work import command_cycles, envelope_cycles, note_cycles, output_cycles, modulation_cycles, voice_cycles, service_cycles
+from reference_backend import reference_class,require_matching_backend
 
 VERSION = 1
 VOICE_STARTS = (0x404c, 0x4330, 0x4613, 0x47ec, 0x49de, 0x4cc8)
@@ -75,11 +76,8 @@ def capture(args):
     manifest = json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['romSha256'] != hashlib.sha256(rom).hexdigest() or manifest['controlDifferences']:
         raise ValueError('Requires a matching control-verified replay')
-    if args.reference_lib:
-        sys.path.insert(0, str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy') != '2.7.0':
-        raise ValueError('Reference hooks require PyBoy 2.7.0')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     p = PyBoy(str(args.rom), window='null', sound_volume=0)
     p.set_emulation_speed(0)
     rows, current, voice = [], None, None
@@ -172,7 +170,7 @@ def capture(args):
         raise ValueError(f'Incomplete capture ({current is not None}) or changed reference control memory; services={len(rows)}, sha256={hashlib.sha256(memory).hexdigest()}')
     args.out.mkdir(parents=True,exist_ok=True)
     write_json(args.out/'music.json',dict(version=VERSION,romSha256=manifest['romSha256'],
-        controlMemorySha256=manifest['controlMemorySha256'],emulator='PyBoy 2.7.0',services=rows,
+        controlMemorySha256=manifest['controlMemorySha256'],reference=metadata,services=rows,
         captureComplete=current is None,partialFinalService=dict(start=current['start'],captureEnd=capture_end) if current else None))
     report(args)
 
@@ -265,6 +263,9 @@ def compare_native(args):
             if row['service']!=ri or row['voice']!=vi:raise ValueError('Unordered native voice row')
             post=v['post'] if v else r['postStates'][vi];active=int(bool(post['active']&128))
             expected=dict(active=active,voiceCost=v['end']-v['start']['cycles'] if v else 0,musicCost=r['end']-r['start'])
+            if getattr(args,'gameplay',False):
+                if 'effectRequest' not in row or 'effectRequest' not in r:raise ValueError('Gameplay comparison requires independently reconstructed effect requests')
+                expected['effectRequest']=r['effectRequest']
             if active:
                 for name in fields:
                     if vi==2 and name in ('stage','envelopeCounter','volume','releaseCounter','tableIndex'):continue
@@ -277,7 +278,8 @@ def compare_native(args):
                 for name,values in delta.items():first.setdefault(name,dict(service=ri,voice=vi,original=values[0],native=values[1]))
     summary=dict(services=len(data['services']),captureComplete=data.get('captureComplete',True),
         pausedServices=sum(bool(r.get('paused')) for r in data['services']),differingVoiceRows=len(differences),firstDifferences=first,
-        runtimeSchedulingFixed=False,evidenceLimit='Isolated native song/effect-request replay only. No original voice state drives it. This does not compare native gameplay effect requests, PCM waveform or Windows scheduling.')
+        runtimeSchedulingFixed=False,gameplayRequestsCompared=getattr(args,'gameplay',False),
+        evidenceLimit=('Coupled native gameplay/pause/audio replay, including independently reconstructed effect requests. No original voice state or effect requests drive it. PCM and production Windows scheduling remain unverified.' if getattr(args,'gameplay',False) else 'Isolated native song/effect-request replay only. No original voice state drives it. This does not compare native gameplay effect requests, PCM waveform or Windows scheduling.'))
     write_json(args.out/'native-comparison.json',summary)
     write_json(args.out/'native-differences.json',differences)
     print(json.dumps(summary,indent=2))
@@ -288,8 +290,9 @@ if __name__=='__main__':
     sub=parser.add_subparsers(dest='mode',required=True)
     rec=sub.add_parser('capture');rec.add_argument('rom',type=Path)
     rec.add_argument('--reference-lib',type=Path)
+    rec.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     rec.add_argument('--progress',action='store_true')
     rec.add_argument('--capture',type=Path,default=Path('local/original-air-verified'))
-    comp=sub.add_parser('compare');comp.add_argument('native_csv',type=Path)
+    comp=sub.add_parser('compare');comp.add_argument('native_csv',type=Path);comp.add_argument('--gameplay',action='store_true')
     for p in (rec,sub.add_parser('report'),comp):p.add_argument('--out',type=Path,default=Path('local/air-music-timing'))
     args=parser.parse_args();{'capture':capture,'report':report,'compare':compare_native}[args.mode](args)

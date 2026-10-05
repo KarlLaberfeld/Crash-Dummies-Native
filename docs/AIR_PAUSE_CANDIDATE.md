@@ -2,6 +2,8 @@
 
 The independent pause candidate now derives its own polls, counter waits,
 graphics accesses and return time in three control-verified original scenarios.
+Its shared session is coupled to ongoing native gameplay and software audio;
+the three replays match through the post-resume stunt end.
 This is bounded development evidence. The production Windows loop still uses
 its existing display/update cadence; this checkpoint is not a final release.
 
@@ -28,6 +30,30 @@ intervals and sixty retained status bytes. Its observed branches select audit
 targets; they never drive the native candidate. Earlier isolated music evidence
 and ordinary-clock cases retain their separate counts.
 
+### Coupled gameplay, input and audio
+
+| Scenario | Completed updates | Display services | Sprite slots | Selected voice rows |
+|---|---:|---:|---:|---:|
+| Normal coast | 3,989 | 4,025 | 161,000 | 24,150 |
+| Easy coast | 2,789 | 2,914 | 116,560 | 17,484 |
+| Hardest boost | 728 | 988 | 39,520 | 5,928 |
+| Total | 7,506 | 7,927 | 317,080 | 47,562 |
+
+These extend the same three scenarios; the prefix updates and paused services
+are included, not additional independent cases. All selected post-step worlds,
+held/fresh buttons, forty-slot sprite geometry/flags, graphics events/storage,
+pause intervals and software voice/work fields match. Effect requests come
+from native gameplay and are compared with independent original observations;
+the original requests never drive the native audio sequencer. Active wave-voice
+envelope fields and full PCM remain outside the selected software comparison.
+
+The pending startup service also matches nine original boundaries in each
+case. The missing four-cycle LCD access tail and a duplicated first ready-store
+prefix are corrected; see [startup evidence and limits](AIR_STARTUP.md).
+The coupled replays additionally match 7,509 ordinary display services, all
+45,036 semantic work phases and 120,096 pre-update entity slots. These include
+post-resume ownership and do not rely on recorded per-update counters.
+
 ## Native owners and input boundary
 
 `air_clock_probe --pause-entry` runs native ordinary gameplay until its own
@@ -43,6 +69,14 @@ source and destination accesses, the saved read values and the fixed twenty-
 column layout. A bus sample occurs within a bounded access; a pending service
 runs after that access completes. The saved status row survives the entire
 pause. Unknown readiness, non-completing polls and invalid work reject.
+
+`air_pause_session.h` shares this identified session between the isolated
+graphics probe and `air_clock_probe --pause-replay`. The latter retains the real
+native world, sprite publication, input history, pending effects and six voice
+states. Paused services publish the retained sprites and advance the shared
+game/display counter while HUD, timer, entities and driver sequencing freeze.
+Restoration resumes the pending update without another counter wait. No original
+voice, effect, geometry or update state is injected.
 
 `air_pause_lcd.h` is a bounded steady-frame readiness candidate. It selects
 the first ten native OAM objects by row, orders their fetches horizontally,
@@ -98,24 +132,43 @@ The easy/hard controls use the analogous paths. `comparison.json` explicitly
 retains `productionPauseAccepted: false`. `air_pause_access.py` separately
 audits original bus/work recordings without importing an emulator.
 
+For the coupled comparison, additionally collect matching original sprite
+and music records with `air_sprite_reference.py --include-paused` and
+`audio_timing.py capture --reference-backend sameboy`. Collect source work with
+`air_timing.py capture --reference-backend sameboy` and the pending startup
+boundaries with `air_startup_reference.py capture`. Use the existing control
+directory as `--capture` for each recorder; all must preserve its end-state hash.
+Their output paths are respectively `local/pause-coupled-{case}-sprites-reference`,
+`-audio-reference`, `-work-reference`, and `-startup-reference`. Then run:
+
+```powershell
+python tools/air_pause_coupled.py run coast
+python tools/air_pause_coupled.py run easy
+python tools/air_pause_coupled.py run hard
+```
+
+Outputs remain in `local/pause-coupled-{case}/`. Comparison rejects incomplete
+coverage or mixed backend/revision/ROM/control provenance before acceptance.
+`productionSchedulerAccepted: false` remains explicit. Audio comparison is
+coupled to native gameplay, unlike the earlier isolated request replays.
+
 ## Remaining work
 
 Qualification still needs initial LCD-enable/normal UI entry, arbitrary IRQ
 acceptance and pending interrupts across critical sections, special window
 edges and line-135 cancellation. The candidate rejects unsupported cases.
 Its paused callback is restricted to an enabled reset check, no pending effect
-request and a disabled music driver. It accounts for audio work, not restored
-audio software state or PCM.
+request and a disabled music driver. The standalone graphics callback accounts
+only for audio work; the coupled probe now also compares selected retained and
+resumed voice fields. This is not full output-state or PCM acceptance.
 
-Next integrate the bounded pause owner with the ongoing native gameplay/audio
-probe and verify post-resume world, prepared/published sprites, input history
-and software voices. Then address startup/result setup and other interrupted
+Next address the remaining first-frame/startup/result setup and interrupted
 owners before production Windows scheduling. Other stunts, matched images/audio,
 human play, physical device removal, an independent Windows host and final
 distribution remain required under ACCEPTANCE.md.
 
-Validation: 519 pause access/geometry assertions, 107 existing source assertions,
-116 Python tests and an unchanged ordinary coast replay (3,989 updates, 3,990
+Validation: 527 pause access/geometry/session assertions, 107 existing source assertions,
+119 Python tests and an ordinary coast replay (3,989 updates, 3,990
 services, 23,934 phases) pass. The rebuilt Windows EXE is byte-identical to the
 already fully tested placement preview (SHA-256
 `a6c4f2177d7f18246dd24f3c0c1d63847d9bbafb9caa806ad2aa43cd22c28b7a`).

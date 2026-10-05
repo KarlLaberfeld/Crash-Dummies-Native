@@ -38,9 +38,12 @@ scheduler integration, remaining timing branches, image/audio parity and
 physical-hardware behavior remain open; see [timing evidence and limits](docs/AIR_TIMING.md)
 and [the original comparison](docs/ORIGINAL_COMPARISON.md).
 See [pause and input evidence](docs/AIR_PAUSE.md) for the remaining boundaries.
-A bounded native pause graphics candidate now also matches three independent
-original cases through restoration and return, including 5,252 graphics/status
-accesses and 1,332 accepted storage bytes. Production integration and hardware
+A bounded native pause candidate is now coupled to gameplay and software audio.
+Three independent original controls match 7,506 updates through post-resume
+stunt end, including 317,080 sprite slots, 47,562 selected voice/work rows,
+native effect requests, 5,252 graphics/status accesses and 1,332 storage bytes.
+The pending startup services also agree; see [startup limits](docs/AIR_STARTUP.md).
+Production integration, full pixels/PCM and hardware
 qualification remain open; see [candidate evidence](docs/AIR_PAUSE_CANDIDATE.md).
 The final display wait, audio-stop work and outgoing fade also match three
 bounded original Air recordings; see [exit evidence](docs/AIR_EXIT.md).

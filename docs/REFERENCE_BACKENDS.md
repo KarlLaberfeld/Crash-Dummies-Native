@@ -89,6 +89,18 @@ python tools/air_sprite_reference.py 'path/to/original.gb' --reference-backend s
 
 ## Current independent evidence
 
+Latest coupled pause evidence extends the three existing controls through
+post-resume stunt end: 7,506 updates, 7,927 display/input samples, 317,080 sprite
+slots, 47,562 selected voice/work rows and native effect requests. All 7,509
+ordinary display services, 45,036 phases and 120,096 pre-update entity slots
+also agree. The bounded native graphics owner matches every pause event and
+accepted storage byte. Nine pending-startup boundaries per case now agree.
+See AIR_PAUSE_CANDIDATE.md and AIR_STARTUP.md. This is an experimental coupled
+probe; the production scheduler, first LCD frame, arbitrary IRQs, full pixels/
+PCM and original hardware remain unaccepted. Earlier audit-only statements
+below describe their historical scope. Current checks: 527 native pause/session
+assertions, 107 source assertions and 119 Python tests.
+
 The normal coast recording matches its uninstrumented 32,768-byte end-state
 control. The native ordinary clock matches **3,989 updates, 3,990 complete
 display services, 23,934 phase/entry-counter checks, 159,600 sprite slots and

@@ -1,12 +1,16 @@
 # Final release acceptance
 
-Latest pause checkpoint: three independent cases match 900 native prefix
-updates, 5,252 graphics/status bus events, 418 paused services, 857 intervals
-and 1,332 accepted graphics-storage bytes through restoration/return. The
-candidate derives its own readiness and work; it uses no captured poll/idle
-allowance. 519 pause assertions, 107 source assertions and 116 Python tests
-pass. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial LCD phase,
-arbitrary IRQs, software audio restoration, post-resume replay and production
+Latest coupled pause checkpoint: three independent controls match 7,506 updates,
+7,927 display/input samples, 317,080 sprite slots, 47,562 selected voice/work
+rows and native gameplay effect requests through post-resume stunt end.
+7,509 ordinary display services, 45,036 phases and 120,096 pre-update entity
+slots also agree. This includes the earlier 900 prefix updates, 5,252 bus events,
+418 paused services, 857 intervals and 1,332 storage bytes. Nine pending-startup
+boundaries per case match after the LCD-tail/first-store correction; see
+[startup limits](AIR_STARTUP.md). No original poll/work/idle/world/effect allowance
+drives the replay. 527 pause/session assertions, 107 source assertions and 119
+Python tests pass. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial
+LCD frame, arbitrary IRQs, full audio output restoration and production
 integration remain required. The rebuilt Windows EXE is byte-identical to the
 previously tested preview; no unchanged campaign/UI suite was repeated.
 

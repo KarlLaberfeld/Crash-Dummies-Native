@@ -14,7 +14,10 @@ struct DisplayInput {
 // source-derived work. Unknown work is a hard boundary, never an allowance.
 struct AirClock {
     static constexpr int Frame=70224,StatLine=135*456,VBlankLine=144*456;
-    int64_t now=16,nextStat=StatLine,nextVBlank=VBlankLine;
+    // Epoch: beginning of LCD-on's last access portion. Its remaining four
+    // cycles and the identified return (16) precede 03c6's EI. The old epoch
+    // omitted that access tail; HALT hid it in ordinary-update comparisons.
+    int64_t now=4+16,nextStat=StatLine,nextVBlank=VBlankLine;
     unsigned displays=0,statServices=0;
     int lastWaitWork=0;
     template<class Display>void vblank(Display&& display,bool ready){
@@ -23,10 +26,16 @@ struct AirClock {
         now+=20+work+16;++displays;
     }
     void stat(){now+=20+288+16;++statServices;}
-    template<class Display>void startup(Display&& display){
-        // LCD enable completes before RET(16). EI(4) takes effect after LD(8).
+    template<class Display,class Boundary>void startup(Display&& display,Boundary&& boundary){
+        // EI(4) takes effect after LD(8), following the completed access/return.
         // Source IF/IE retain both pending services. The ready store costs 12.
-        now+=4+8;vblank(display,true);stat();now+=12;
+        boundary("enableReturned",now);
+        now+=4+8;boundary("displayEntry",now+20);vblank(display,true);
+        boundary("displayReturned",now);boundary("statEntry",now+20);stat();
+        boundary("statReturned",now);now+=12;boundary("readyStored",now);
+    }
+    template<class Display>void startup(Display&& display){
+        startup(display,[](const char*,int64_t){});
     }
     template<class Display>void work(int cost,Display&& display,bool ready){
         if(cost<0)throw std::runtime_error("Unreconstructed Air game work");

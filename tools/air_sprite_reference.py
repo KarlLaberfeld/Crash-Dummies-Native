@@ -23,9 +23,13 @@ def capture(args):
     PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
     require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
-    rows=[]
+    rows=[];air_seen=False
     def hook(_):
-        if p.memory[0xc098]==4:rows.append(dict(kind='vblank',cycles=p._cycles(),oam=list(p.memory[0xc100:0xc1a0])))
+        nonlocal air_seen
+        selector=p.memory[0xc098]
+        if selector==4:air_seen=True
+        if selector==4 or (getattr(args,'include_paused',False) and air_seen and selector==1):
+            rows.append(dict(kind='vblank',cycles=p._cycles(),displaySelector=selector,oam=list(p.memory[0xc100:0xc1a0])))
     try:
         with (args.capture/'setup.state').open('rb') as stream:p.load_state(stream)
         p.hook_register(0,0x2430,hook,None)
@@ -46,5 +50,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('rom',type=Path)
     parser.add_argument('--reference-lib',type=Path);parser.add_argument('--capture',type=Path,required=True)
     parser.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
+    parser.add_argument('--include-paused',action='store_true')
     parser.add_argument('--out',type=Path,required=True)
     capture(parser.parse_args())

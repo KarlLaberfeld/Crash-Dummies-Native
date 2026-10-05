@@ -7,6 +7,8 @@
 #include "air.h"
 #include "air_clock.h"
 #include "air_placement_clock.h"
+#include "air_pause_session.h"
+#include "air_pause_lcd.h"
 #include "air_work.h"
 #include "audio.h"
 #include "audio_work.h"
@@ -19,13 +21,15 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --final-wait | --outro-fade]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath;bool finalWait=false,outroFade=false,pauseEntryReached=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
+            else if(option=="--pause-replay")pauseReplay=true;
+            else if(option=="--audio-csv"&&i+1<argc)audioPath=argv[++i];
             else if(option=="--final-wait")finalWait=true;
             else if(option=="--outro-fade"){finalWait=true;outroFade=true;}
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
@@ -34,6 +38,7 @@ int main(int argc,char** argv){
             else throw std::runtime_error("Too many clock probe arguments");
         }
         if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
+        if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto audio=std::make_unique<AudioAssets>(AudioAssets::load(L"build/audio.dat"));
@@ -52,7 +57,21 @@ int main(int argc,char** argv){
         // Capture header describes the initial clock/timer/random phase after
         // the source pending startup service; it supplies no per-update clocks.
         game->ticks=(initialTick-1)&65535;
-        services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5,inputHeld,inputPressed\n";
+        services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5,inputHeld,inputPressed,displaySelector\n";
+        std::ofstream pausePhases,pauseBus,pauseStorage;
+        std::ofstream audioLog;
+        if(!audioPath.empty()){
+            audioLog.open(audioPath);if(!audioLog)throw std::runtime_error("Cannot open native audio-state output");
+            audioLog<<"service,voice,musicCost,voiceCost,active,position,remaining,fixed,loopCount,transpose,noTranspose,fineTune,note,targetNote,frequency,stage,envelopeCounter,volume,releaseCounter,tableIndex,arpCounter,direction,vibratoWait,vibratoCounter,pitchWait,effectRequest\n";
+        }
+        AirPauseAssets pauseAssets;
+        if(pauseReplay){
+            pauseAssets=AirPauseAssets::load("build/pause.dat");
+            pausePhases.open(std::string(argv[2])+".pause.phases.csv");pauseBus.open(std::string(argv[2])+".pause.bus.csv");pauseStorage.open(std::string(argv[2])+".pause.graphics.csv");
+            if(!pausePhases||!pauseBus||!pauseStorage)throw std::runtime_error("Cannot open pause replay outputs");
+            pausePhases<<"phase,start,end,work\n";pauseBus<<"phase,kind,address,value,cycle\n";
+            pauseStorage<<"phase,cycle";for(int i=0;i<20;++i)pauseStorage<<",status"<<i;for(int i=0;i<128;++i)pauseStorage<<",font"<<i;pauseStorage<<'\n';
+        }
         std::ofstream spriteLog;
         if(!spritePath.empty()){spriteLog.open(spritePath);if(!spriteLog)throw std::runtime_error("Cannot open sprite-service output");spriteLog<<"service,slot,present,x,y,flags\n";}
         std::ofstream entityLog;
@@ -67,41 +86,57 @@ int main(int argc,char** argv){
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
             if(displayInputs.is_open()){
                 int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
-                if((held&8)&&pauseEntryPath.empty())throw std::runtime_error("Display input requests pause; native pause-clock ownership is not yet accepted");
+                if((held&8)&&pauseEntryPath.empty()&&!pauseReplay)throw std::runtime_error("Display input requests pause; native pause-clock ownership is not yet accepted");
                 sampled.sample(held);
             }
             int tick=game->ticks,pending=game->pendingSound;
-            bool refreshRangeScratch=game->hudCursor==12;
-            game->displayTick(ready);
+            bool refreshRangeScratch=!paused&&game->hudCursor==12;
+            if(paused){
+                if(ready||pending!=-1||sound.pendingEffect!=-1||(sampled.held&15)==15)
+                    throw std::runtime_error("Unowned paused resource/effect/reset service");
+                game->publishVideo();game->ticks=(game->ticks+1)&65535;game->displayWorkCycles=160;
+            }else game->displayTick(ready);
             // 2f4c/16eb divides 48 * the byte-sized collected count. Its
             // overflow scratch FF9C ends at zero and can change later range
             // reads in an interrupted 19a2 scan. FF9E is not changed here.
             if(refreshRangeScratch)placementRange.low=0;
             if(pending>=0)sound.queueEffect(pending);
             game->pendingSound=-1;sound.tick();
+            if(audioLog.is_open())for(int i=0;i<6;++i){const auto& v=sound.voices[i];
+                audioLog<<clock.displays<<','<<i<<','<<sound.musicWorkCycles<<','<<sound.voiceWorkCycles[i]<<','<<int(v.active)<<','<<v.position<<','<<v.remaining<<','<<v.fixed<<','<<v.loopCount
+                    <<','<<v.transpose<<','<<v.noTranspose<<','<<v.fineTune<<','<<v.note<<','<<v.targetNote<<','<<v.frequency<<','<<v.stage<<','<<v.envelopeCounter<<','<<v.volume
+                    <<','<<v.releaseCounter<<','<<v.tableIndex<<','<<v.arpCounter<<','<<v.direction<<','<<v.vibratoWait<<','<<v.vibratoCounter<<','<<v.pitchWait<<','<<pending<<'\n';
+            }
             services<<clock.displays<<','<<clock.now<<','<<ready<<','<<tick<<','<<game->displayWorkCycles<<','<<sound.effectWorkCycles<<','<<sound.musicWorkCycles<<','<<game->hudCursor<<','<<pending;
             for(int i=7;i<13;++i)services<<','<<int(game->hudValues[i]);
-            services<<','<<(displayInputs.is_open()?sampled.held:-1)<<','<<(displayInputs.is_open()?sampled.pressed:-1)<<'\n';
+            services<<','<<(displayInputs.is_open()?sampled.held:-1)<<','<<(displayInputs.is_open()?sampled.pressed:-1)<<','<<(paused?1:4)<<'\n';
             if(game->displayWorkCycles<0||sound.effectWorkCycles<0||sound.musicWorkCycles<0)return -1;
             return 1592+game->displayWorkCycles+sound.effectWorkCycles+sound.musicWorkCycles;
         };
-        clock.startup(display);
+        std::ofstream startupLog(std::string(argv[2])+".startup.csv");
+        if(!startupLog)throw std::runtime_error("Cannot open native startup boundaries");
+        startupLog<<"boundary,cycle\n";
+        clock.startup(display,[&](const char* name,int64_t cycle){startupLog<<name<<','<<cycle<<'\n';});
         puts("tick,handler,frame,flags,x,y,cameraX,cameraY,speed,rate,tilt,count,crash,anim,done,waiting,delay,period,transfer,remaining,map,result,seconds,secondTicks,random,pending");
-        int ignoredTick,held,updates=0;
+        int ignoredTick,held,updates=0,pauses=0;
         while(input>>ignoredTick>>held){
             // 03c7's LD A completes before 03c9 commits the ready flag. A
             // pending display between them still sees the busy resource gate.
-            loopBoundarySafe=true;clock.work(8,display,false);
-            clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
+            // The first ready store already belongs to startup's pending
+            // services. Later iterations arrive at 03c7 via the back-edge.
+            if(updates){
+                loopBoundarySafe=true;clock.work(8,display,false);
+                clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
+            }
             clock.wait(display);
-            if(!pauseEntryPath.empty()){
+            if(!pauseEntryPath.empty()||pauseReplay){
                 // The original reads fresh Start before its conditional pause
                 // call. Preserve that read across a later pending service.
                 int fresh=0;loopBoundarySafe=true;
                 clock.work(4,display,false);clock.atomicWork(12,[]{},display,false);
                 clock.accessWork(12,8,[&]{fresh=sampled.pressed;},display,false);
                 clock.work(8+(fresh&8?24:12),display,false);loopBoundarySafe=false;
-                if(fresh&8){
+                if((fresh&8)&&!pauseEntryPath.empty()){
                     std::ofstream out(pauseEntryPath);if(!out)throw std::runtime_error("Cannot open native pause-entry graphics output");
                     out<<"{\"version\":1,\"pauseComplete\":false,\"cycle\":"<<clock.now<<",\"updates\":"<<updates
                        <<",\"tick\":"<<game->ticks<<",\"inputHeld\":"<<sampled.held<<",\"inputPrevious\":"<<sampled.previous
@@ -113,6 +148,20 @@ int main(int argc,char** argv){
                     }
                     out<<"],\"hudRow\":[";for(int i=0;i<20;++i){if(i)out<<',';out<<int(game->hudMap[i]);}
                     out<<"]}\n";pauseEntryReached=true;break;
+                }
+                if((fresh&8)&&pauseReplay){
+                    if(pauses++)throw std::runtime_error("Candidate currently compares one pause per replay");
+                    if(game->pendingSound!=-1||sound.pendingEffect!=-1)throw std::runtime_error("Unowned pending effect at pause entry");
+                    AirPauseLcd lcd;lcd.scrollX=(game->visibleCameraX>>4)&255;
+                    for(int i=0;i<40;++i){const auto& s=game->visibleSprites.slots[i];lcd.objects[i]={s.x,s.present?s.y:0};}
+                    AirPauseGraphics graphics;graphics.row=game->hudMap;graphics.font=pauseAssets.restoreFont;
+                    loopBoundarySafe=true;
+                    airPauseSession(clock,sampled,graphics,pauseAssets,display,lcd,[&](bool value){paused=value;sound.setPaused(value);},
+                        [&](const char* name,int64_t start,int64_t end,int work){pausePhases<<name<<','<<start<<','<<end<<','<<work<<'\n';},
+                        [&](const char* name,const char* kind,unsigned address,int value,int64_t time){pauseBus<<name<<','<<kind<<','<<address<<','<<value<<','<<time<<'\n';},
+                        [&](const char* name,int64_t time,const AirPauseGraphics& state){pauseStorage<<name<<','<<time;for(int value:state.row)pauseStorage<<','<<value;for(int value:state.font)pauseStorage<<','<<value;pauseStorage<<'\n';});
+                    loopBoundarySafe=false;placementRange.low=0;
+                    if(graphics.row!=game->hudMap)throw std::runtime_error("Pause did not restore the native HUD row");
                 }
             }else clock.work(48,display,false);
             if(entityLog.is_open())for(int slot=0;slot<16;++slot){const auto& e=game->entities[slot];
@@ -220,6 +269,7 @@ int main(int argc,char** argv){
             loopBoundarySafe=false;
         }
         if(!pauseEntryPath.empty()&&!pauseEntryReached)throw std::runtime_error("Native prefix did not reach a fresh Start request");
+        if(pauseReplay&&!pauses)throw std::runtime_error("Native replay did not reach a pause");
         if(!pauseEntryReached&&!input.eof())return 2;
         if(finalWait){
             if(!game->result)throw std::runtime_error("Final wait requires a completed stunt result");

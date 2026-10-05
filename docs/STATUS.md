@@ -1,14 +1,19 @@
 # Project status - October 5, 2026
 
-Latest development work reconstructs a bounded native Air pause graphics owner.
-Three independent original cases match 900 native prefix updates, 5,252 bus
-events (4,304 native STAT predictions and 948 data accesses), 418 paused
-services, 857 pause intervals and 1,332 accepted graphics-storage bytes, including
-restoration and return time. No captured polls/work/idle/worlds/edges drive it.
-519 pause assertions, 107 existing source assertions and 116 Python tests pass.
-The ordinary coast regression still matches 3,989 updates, 3,990 services and
-23,934 phases. See [candidate scope and reproduction](AIR_PAUSE_CANDIDATE.md).
-This candidate is not yet the production pause owner or hardware acceptance.
+Latest development couples the bounded native Air pause session to ongoing
+gameplay, display input, graphics and software audio. Three independent original
+controls match through stunt end: 7,506 updates, 7,927 display/input samples,
+317,080 sprite slots, 47,562 selected voice/work rows and native effect requests.
+All 7,509 ordinary display services, 45,036 source phases and 120,096 pre-update
+entity slots also agree. This includes the previously checked 900 prefix
+updates, 5,252 graphics/status bus events, 418 paused services, 857 pause
+intervals and 1,332 accepted storage bytes; do not add these counts twice.
+Nine pending-startup boundaries per case match after correcting the four-cycle
+LCD access tail and duplicated first ready-store prefix. No original per-update
+counters, work, idle, worlds, edges or effect requests drive the native replay.
+527 pause/session assertions, 107 source assertions and 119 Python tests pass.
+See [candidate scope](AIR_PAUSE_CANDIDATE.md) and [startup limits](AIR_STARTUP.md).
+This is not production Windows scheduling, full PCM/pixels or hardware acceptance.
 
 Last tested portable runtime checkpoint: local source commit `2195119`, corresponding
 private GitHub commit `7313de4cdff7f2813e95f5978d276dfdd8ce5b54`.
@@ -22,10 +27,13 @@ contains no ROM/assets/reference library. Local and GitHub commit identities
 differ because this host publishes through the GitHub connector. This is a
 development preview, not a final release.
 
-Next concrete work: connect the bounded pause owner to the ongoing native
-gameplay/audio replay and verify post-resume world, prepared/published sprites,
-input continuity and software voices. Use `local/pause-native-{coast,easy,hard}-data/`
-and matching `local/sameboy-air-pause-*-lcd-data/lcd.json` comparison targets.
+Next concrete work: matched image comparison and remaining first-LCD-frame/
+interrupted owners before production clock integration. Coupled reproduction:
+`python tools/air_pause_coupled.py run coast` (also easy/hard).
+Use `local/pause-coupled-{coast,easy,hard}/` and matching `-work-reference`,
+`-startup-reference`, `-sprites-reference`, `-audio-reference` directories.
+Original bus/storage targets remain `local/sameboy-air-pause-*-lcd-data/lcd.json`;
+the standalone native geometry/prefix files remain in `local/pause-native-*-data/`.
 Initial LCD-enable phase, arbitrary IRQ acceptance, pending critical-section
 interrupts and line-135 object cancellation remain unowned and must reject.
 Other interrupted entity/resource/row paths, startup/result setup, production

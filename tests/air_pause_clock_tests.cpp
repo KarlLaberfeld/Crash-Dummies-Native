@@ -1,6 +1,7 @@
 // Synthetic graphics owners only: no ROM, reference core or captured polls.
 #include "air_pause_clock.h"
 #include "air_pause_lcd.h"
+#include "air_pause_session.h"
 #include <cstdio>
 #include <vector>
 
@@ -116,6 +117,31 @@ int main(){
         require(lcd.mode(AirClock::Frame+135*456+100)==-1,"Line-135 object cancellation requires its own fetch boundary");
         lcd.enabled=false;
         require(lcd.mode(0)==0&&lcd.readable(0)&&lcd.writable(0),"LCD off grants immediate access without a guessed first-frame phase");
+        AirClock sessionClock;sessionClock.now=AirClock::Frame+44;
+        sessionClock.nextStat+=AirClock::Frame;sessionClock.nextVBlank+=AirClock::Frame;
+        AirPauseAssets sessionAssets;AirPauseGraphics sessionGraphics;
+        for(int i=0;i<20;++i){sessionAssets.text[i]=static_cast<unsigned char>(i+30);sessionGraphics.row[i]=static_cast<unsigned char>(i+90);}
+        for(int i=0;i<128;++i){sessionAssets.font[i]=static_cast<unsigned char>(i);sessionAssets.restoreFont[i]=static_cast<unsigned char>(255-i);}
+        sessionGraphics.font=sessionAssets.restoreFont;auto initialRow=sessionGraphics.row;
+        DisplayInput sessionInput;sessionInput.sample(8);int sampleCount=0;bool audioPaused=false;
+        AirPauseLcd sessionLcd;std::vector<std::string> snapshots,phaseNames;
+        airPauseSession(sessionClock,sessionInput,sessionGraphics,sessionAssets,[&](bool ready){
+            require(!ready&&audioPaused,"Counter waits retain pause audio and the busy graphics resource gate");
+            sessionInput.sample(++sampleCount==1?0:8);return 1876;
+        },sessionLcd,[&](bool value){audioPaused=value;},
+        [&](const char* name,int64_t,int64_t,int){phaseNames.emplace_back(name);},
+        [](const char*,const char*,unsigned,int,int64_t){},
+        [&](const char* name,int64_t,const AirPauseGraphics& state){
+            snapshots.emplace_back(name);
+            if(std::string(name)=="wait")require(state.row==sessionAssets.text&&state.font==sessionAssets.font,"Session publishes its local text and pause font before waiting");
+        });
+        require(sampleCount==2&&!audioPaused&&sessionInput.pressed==8,"Session resumes on its own fresh input edge and restores the native audio owner");
+        require(sessionGraphics.row==initialRow&&sessionGraphics.font==sessionAssets.restoreFont,"Shared session restores the retained row and original font");
+        require(snapshots==std::vector<std::string>({"enter","wait","restoreAudio"}),"Session storage observations cover entry, visible pause and restoration");
+        require(phaseNames==std::vector<std::string>({"copy0","copy1","script","wait","wake","wait","wake","copy2","copy3","restoreAudio","return"}),"Shared session retains the identified copy/wait/restore order");
+        AirClock startupClock;int64_t firstService=-1;
+        startupClock.startup([&](bool){firstService=startupClock.now;return 12336;});
+        require(firstService==32&&startupClock.now==12740,"LCD access tail precedes EI, both pending services and the ready store; HALT cannot hide the startup omission");
         printf("Air pause access checks: %d passed (synthetic; no LCD/reference parity claim)\n",checks);return 0;
     }catch(const std::exception& error){fprintf(stderr,"Pause access failure after %d checks: %s\n",checks,error.what());return 1;}
 }
