@@ -1,5 +1,26 @@
 # Project status - October 5, 2026
 
+Latest saved runtime checkpoint: local source commit `2195119`, corresponding
+private GitHub commit `7313de4cdff7f2813e95f5978d276dfdd8ce5b54`.
+The 25 changed source/document blobs were verified exactly after publication.
+The clean-source ROM-free preview `CrashDummies-preview-2195119-9cbefd89.zip`
+passes all 11 manifest hashes and contains the exact tested EXE. Bundled local
+extraction succeeds in `local/Portable placement test 2195119/`; both normal
+and failed-audio UI variants pass from that folder with spaces while launched
+from another working directory. The extracted assets remain local; the archive
+contains no ROM/assets/reference library. Local and GitHub commit identities
+differ because this host publishes through the GitHub connector. This is a
+development preview, not a final release.
+
+Next concrete work: native pause LCD readiness and byte-copy/script ownership.
+Use the current execution-observer recordings in `local/sameboy-air-pause-*`,
+their `*-lcd/lcd.json` bus targets and `*-timing/pause.json` source audit. Do not
+insert the observed 3,356 failed polls or reference-internal LCD fields into the
+native clock. Initial LCD phase and variable transfer time need independent
+ownership. Other interrupted entity/resource/row paths, startup/result setup,
+production clock integration and the remaining ACCEPTANCE.md items stay open.
+No unchanged native/campaign suite needs repetition without a further change.
+
 ## Objective
 
 Produce a faithful **native Windows** port of the supplied Game Boy release,
