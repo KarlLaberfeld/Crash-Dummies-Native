@@ -11,7 +11,7 @@ from pathlib import Path
 
 from air_reference import write_json
 from extract_air import HANDLERS
-from air_timing import elapsed_work, STAGES
+from air_timing import elapsed_work, STAGES,entity_difference
 from reference_backend import require_capture_reference
 
 
@@ -28,6 +28,21 @@ def compare_states(original,native):
         source['map']=int(bool(source['map']))
         delta={name:[source[name],row[name]] for name in required if source[name]!=row[name]}
         if delta:differences.append(dict(update=index,fields=delta))
+    return differences
+
+
+def compare_entity_states(updates,native,completed_updates):
+    if not 0<completed_updates<=len(updates) or len(native)!=completed_updates*16:
+        raise ValueError('Incomplete native entity-state coverage')
+    differences=[]
+    for update in range(completed_updates):
+        original=updates[update]['update'].get('entities',[])
+        if len(original)!=16:raise ValueError('Missing original entity-state coverage')
+        for slot in range(16):
+            row=native[update*16+slot]
+            if row['update']!=update or row['slot']!=slot:raise ValueError('Unordered native entity states')
+            delta=entity_difference(original[slot],row)
+            if delta:differences.append(dict(update=update,slot=slot,fields=delta))
     return differences
 
 
@@ -128,6 +143,7 @@ def main(args):
     state_differences=compare_states(original,native)
     service_differences=compare_services([q for q in timing['interrupts'] if q['kind']=='vblank'],services,args.display_inputs)
     phase_differences=compare_phase_work(timing['updates'],timing['interrupts'],rows(args.phase_csv),len(native)) if args.phase_csv else None
+    entity_differences=compare_entity_states(timing['updates'],rows(args.entities_csv),len(native)) if getattr(args,'entities_csv',None) else None
     sprite_differences=None
     input_differences=None
     final_wait_differences=None
@@ -150,12 +166,14 @@ def main(args):
         comparedDisplayServices=len(services),differingUpdates=len(state_differences),differingDisplayServices=len(service_differences),
         differingSpriteSlots=len(sprite_differences) if sprite_differences is not None else None,
         differingWorkPhases=len(phase_differences) if phase_differences is not None else None,
+        differingEntitySlots=len(entity_differences) if entity_differences is not None else None,
         differingInputSamples=len(input_differences) if input_differences is not None else None,
         differingFinalWaitIntervals=len(final_wait_differences) if final_wait_differences is not None else None,
         finalWaitCompared=final_wait_differences is not None,
         firstUpdateDifference=state_differences[0] if state_differences else None,
         firstDisplayDifference=service_differences[0] if service_differences else None,
         firstWorkPhaseDifference=phase_differences[0] if phase_differences else None,
+        firstEntityDifference=entity_differences[0] if entity_differences else None,
         firstInputDifference=input_differences[0] if input_differences else None,
         firstFinalWaitDifference=final_wait_differences[0] if final_wait_differences else None,
         suppliesPerUpdateClock=False,runtimeSchedulingFixed=False,
@@ -164,9 +182,9 @@ def main(args):
             ('per-display button samples' if args.display_inputs else 'update-aligned buttons')+
             ' are supplied; per-update counters, costs and world outcomes are not. Physical input timing, pause, exit beyond the separately compared final wait, pixels, PCM and the Windows loop remain unverified.')
     write_json(args.native_csv.with_suffix('.clock-comparison.json'),result)
-    write_json(args.native_csv.with_suffix('.clock-differences.json'),dict(updates=state_differences,services=service_differences,sprites=sprite_differences,phases=phase_differences,inputs=input_differences,finalWait=final_wait_differences))
+    write_json(args.native_csv.with_suffix('.clock-differences.json'),dict(updates=state_differences,services=service_differences,sprites=sprite_differences,phases=phase_differences,entities=entity_differences,inputs=input_differences,finalWait=final_wait_differences))
     print(json.dumps(result,indent=2))
-    if state_differences or service_differences or sprite_differences or phase_differences or input_differences or final_wait_differences:raise ValueError('Ordinary-clock state, service, sprite, phase, input or final-wait differences')
+    if state_differences or service_differences or sprite_differences or phase_differences or entity_differences or input_differences or final_wait_differences:raise ValueError('Ordinary-clock state, service, sprite, phase, entity, input or final-wait differences')
 
 
 if __name__=='__main__':
@@ -176,6 +194,7 @@ if __name__=='__main__':
     parser.add_argument('--timing',type=Path,default=Path('local/air-display-effect-timing'))
     parser.add_argument('--sprite-reference',type=Path);parser.add_argument('--sprite-csv',type=Path)
     parser.add_argument('--phase-csv',type=Path)
+    parser.add_argument('--entities-csv',type=Path,help='Native pre-update states for all sixteen entity slots')
     parser.add_argument('--display-inputs',action='store_true',help='Require matching per-display button samples in the service CSV')
     parser.add_argument('--input-reference',type=Path,help='Independent original held/fresh button samples, for comparison only')
     parser.add_argument('--exit-csv',type=Path,help='Native complete final-wait interval; stops before audio stop/fade')

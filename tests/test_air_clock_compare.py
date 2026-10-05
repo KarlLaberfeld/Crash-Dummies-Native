@@ -3,11 +3,22 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work,compare_input_samples,compare_final_wait
+from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work,compare_input_samples,compare_final_wait,compare_entity_states
 from air_timing import STAGES
 
 
 class AirClockCompareTests(unittest.TestCase):
+    def test_newly_spawned_entity_is_compared_while_dead_slot_residue_is_ignored(self):
+        original=[dict(frame=255,flags=255,x=65535,y=65535) for _ in range(16)]
+        native=[dict(update=0,slot=i,frame=255,flags=0,x=0,y=0) for i in range(16)]
+        updates=[dict(update=dict(entities=original))]
+        self.assertEqual(compare_entity_states(updates,native,1),[])
+        original[13]=dict(frame=27,flags=16,x=100,y=200)
+        self.assertEqual(compare_entity_states(updates,native,1)[0]['slot'],13)
+        with self.assertRaises(ValueError):compare_entity_states(updates,native[:-1],1)
+        native[0]['slot']=1
+        with self.assertRaises(ValueError):compare_entity_states(updates,native,1)
+
     def test_final_wait_checks_elapsed_time_and_retained_busy_gate(self):
         loop=dict(points=[dict(name='finalWait',cycles=0,tick=65535,ready=0),dict(name='finalResume',cycles=400,tick=0,ready=0)],
                   interrupts=[dict(kind='vblank',start=100,end=200)])

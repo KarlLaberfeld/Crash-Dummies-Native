@@ -9,6 +9,15 @@ from air_timing import display_cycles, display_work, progress_bar_tiles, DISPLAY
 
 
 class AirTimingTests(unittest.TestCase):
+    def test_interrupted_range_reads_change_placement_work_without_fitting_a_delay(self):
+        records=[dict(row=row,active=0) for row in (33,35,39,40,41,42,43,44,150)]
+        reads=[dict(low=86) for _ in range(4)]+[dict(low=0,high=100) for _ in range(4)]
+        self.assertEqual(placement_cycles(86,0,records,8191,reads),9200)
+        self.assertEqual(placement_cycles(86,0,records,8191),3008)
+        with self.assertRaises(ValueError):placement_cycles(86,0,records,8191,reads[:-1])
+        reads[-1].pop('high')
+        with self.assertRaises(ValueError):placement_cycles(86,0,records,8191,reads)
+
     def test_effect_setup_keeps_absent_roots_and_no_pending_request_distinct(self):
         self.assertEqual(effect_cycles(255, 0, 0), 64)
         self.assertEqual(effect_cycles(0, 0, 0), 220)

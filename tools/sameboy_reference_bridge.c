@@ -3,25 +3,39 @@
 #include <stdlib.h>
 #include <string.h>
 typedef void (*Hook)(void *,unsigned,unsigned,uint64_t);
+typedef void (*BusHook)(void *,unsigned,unsigned,unsigned,unsigned,uint64_t);
 typedef struct {
     GB_gameboy_t *gb;uint64_t cycles8,frames;
-    uint32_t pixels[160*144];Hook hook;
+    uint32_t pixels[160*144];Hook hook;BusHook bus;
     uint8_t watches[65536];int failed,peeking;
 } Reference;
 __declspec(dllexport) const char *ref_version(void){return GB_VERSION;}
+__declspec(dllexport) const char *ref_observer(void){return "execution-callback-v1";}
 __declspec(dllexport) unsigned ref_model(Reference *r){return GB_get_model(r->gb);}
 static uint32_t rgb(GB_gameboy_t *gb,uint8_t r,uint8_t g,uint8_t b){(void)gb;return (r<<16)|(g<<8)|b;}
 static void frame(GB_gameboy_t *gb,GB_vblank_type_t type){(void)type;Reference *r=GB_get_user_data(gb);++r->frames;}
 static uint8_t read_callback(GB_gameboy_t *gb,uint16_t address,uint8_t data){
     Reference *r=GB_get_user_data(gb);
-    /* SameBoy increments PC before its opcode bus read. Watched addresses
-       are identified instruction boundaries, never patched opcodes. */
-    if(!r->peeking&&r->hook&&r->watches[address]&&GB_get_registers(gb)->pc==(uint16_t)(address+1)){
+    if(!r->peeking&&r->bus&&(address==0xFF41||(address>=0x8000&&address<0xA000)))
+        r->bus(r,0,address,data,GB_get_registers(gb)->pc,(r->cycles8+gb->cycles_since_run)/2);
+    return data;
+}
+static void execution_callback(GB_gameboy_t *gb,uint16_t address,uint8_t opcode){
+    (void)opcode;Reference *r=GB_get_user_data(gb);
+    /* The public execution observer excludes the dummy PC read during IRQ
+       entry. A read callback alone can incorrectly report that as a stage. */
+    if(r->hook&&r->watches[address]){
         size_t size;uint16_t bank=0;
         if(address>=0x4000&&address<0x8000)GB_get_direct_access(gb,GB_DIRECT_ACCESS_ROM,&size,&bank);
         r->hook(r,address,bank,(r->cycles8+gb->cycles_since_run)/2);
     }
-    return data;
+}
+static bool write_callback(GB_gameboy_t *gb,uint16_t address,uint8_t data){
+    Reference *r=GB_get_user_data(gb);
+    if(r->bus&&((address>=0x8000&&address<0xA000)||address==0xFF40))
+        r->bus(r,1,address,data,GB_get_registers(gb)->pc,(r->cycles8+gb->cycles_since_run)/2);
+    /* Observe attempted writes without suppressing or replacing them. */
+    return true;
 }
 __declspec(dllexport) Reference *ref_open(const char *rom,const char *boot){
     Reference *r=calloc(1,sizeof(*r));if(!r)return NULL;
@@ -29,10 +43,21 @@ __declspec(dllexport) Reference *ref_open(const char *rom,const char *boot){
     GB_set_user_data(r->gb,r);GB_set_palette(r->gb,&GB_PALETTE_GREY);
     GB_set_pixels_output(r->gb,r->pixels);GB_set_rgb_encode_callback(r->gb,rgb);GB_set_vblank_callback(r->gb,frame);
     if(GB_load_rom(r->gb,rom)||GB_load_boot_rom(r->gb,boot)){GB_free(r->gb);GB_dealloc(r->gb);free(r);return NULL;}
-    GB_set_read_memory_callback(r->gb,read_callback);return r;
+    GB_set_read_memory_callback(r->gb,read_callback);GB_set_write_memory_callback(r->gb,write_callback);
+    GB_set_execution_callback(r->gb,execution_callback);return r;
 }
 __declspec(dllexport) void ref_close(Reference *r){if(r){GB_free(r->gb);GB_dealloc(r->gb);free(r);}}
 __declspec(dllexport) void ref_hook(Reference *r,Hook hook){r->hook=hook;}
+__declspec(dllexport) void ref_bus_hook(Reference *r,BusHook hook){r->bus=hook;}
+/* Reference diagnostics only. These fields never enter a native clock. */
+__declspec(dllexport) void ref_lcd_snapshot(Reference *r,unsigned *out){
+    GB_gameboy_t *g=r->gb;
+    out[0]=g->io_registers[GB_IO_LCDC];out[1]=g->io_registers[GB_IO_STAT];
+    out[2]=g->io_registers[GB_IO_SCX];out[3]=g->io_registers[GB_IO_SCY];
+    out[4]=g->io_registers[GB_IO_WX];out[5]=g->io_registers[GB_IO_WY];out[6]=g->io_registers[GB_IO_LY];
+    out[7]=g->current_line;out[8]=g->cycles_for_line;out[9]=g->display_cycles;
+    out[10]=g->vram_read_blocked;out[11]=g->vram_write_blocked;
+}
 __declspec(dllexport) void ref_watch(Reference *r,unsigned address){if(address<65536)r->watches[address]=1;}
 __declspec(dllexport) void ref_fail(Reference *r){r->failed=1;}
 __declspec(dllexport) int ref_tick(Reference *r,unsigned frames){

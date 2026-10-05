@@ -17,9 +17,9 @@ class ReferenceBackendTests(unittest.TestCase):
         with self.assertRaises(ValueError):require_matching_backend(dict(emulator='PyBoy',version='2.6.0'),metadata)
 
     def test_same_version_with_different_hardware_or_source_is_rejected(self):
-        metadata=dict(emulator='SameBoy',version='1.0.3',model='DMG-B',sourceRevision='pinned')
+        metadata=dict(emulator='SameBoy',version='1.0.3',model='DMG-B',sourceRevision='pinned',referenceObserver='execution-callback-v1')
         require_matching_backend(metadata,metadata)
-        for key in ('model','sourceRevision'):
+        for key in ('model','sourceRevision','referenceObserver'):
             manifest=dict(metadata);manifest[key]='other'
             with self.assertRaises(ValueError):require_matching_backend(manifest,metadata)
         with self.assertRaises(ValueError):require_matching_backend(dict(emulator='SameBoy',version='1.0.3'),metadata)
@@ -27,7 +27,7 @@ class ReferenceBackendTests(unittest.TestCase):
     def test_legacy_pyboy_measurements_are_distinguished_from_independent_data(self):
         pyboy=dict(emulator='PyBoy',version='2.7.0')
         require_capture_reference(pyboy,{})
-        sameboy=dict(emulator='SameBoy',version='1.0.3',model='DMG-B',sourceRevision='pinned')
+        sameboy=dict(emulator='SameBoy',version='1.0.3',model='DMG-B',sourceRevision='pinned',referenceObserver='execution-callback-v1')
         with self.assertRaises(ValueError):require_capture_reference(sameboy,{})
         with self.assertRaises(ValueError):require_capture_reference(pyboy,{'reference':sameboy})
         require_capture_reference(sameboy,{'reference':sameboy})

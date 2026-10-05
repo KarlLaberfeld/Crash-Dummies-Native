@@ -1,5 +1,19 @@
 # Final release acceptance
 
+Latest checkpoint, October 5: interrupted Air placement range ownership is
+reconstructed and tested against an independent original witness. All eleven
+earlier PyBoy clocks still pass. Three current SameBoy replays match 7,655
+updates, 7,791 display/input samples, 45,930 phases and 122,480 pre-update
+frame/flags/position snapshots, plus final waits and complete outgoing fades.
+The rebuilt EXE passes full native suites, three campaigns and the normal/
+failed-audio 13/14 Windows checks. Standalone source work passes 107 assertions;
+Python passes 103 tests. See [placement evidence](AIR_PLACEMENTS.md).
+
+These remain development acceptance results. The final-release requirements
+below still apply, especially native pause LCD polling, other interrupted
+owners, startup/result setup, Windows scheduler integration, other stunts,
+matched images/audio and human/independent Windows validation.
+
 This checklist separates native implementation tests from original-reference
 evidence. Passing the native suites alone does not authorize a final-release label.
 

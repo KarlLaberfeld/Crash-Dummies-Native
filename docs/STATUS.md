@@ -22,6 +22,16 @@ PCM, and independent Windows/hardware testing remain open. The documented
 native Air recovery safeguard remains intentional. See AIR_TIMING.md and the
 latest checkpoint and AIR_PAUSE.md below. This is bounded reference evidence, not final acceptance.
 
+The latest independent-reference checkpoint also reconstructs interrupted
+placement range ownership: a HUD refresh changes shared scratch during the
+scan. Three SameBoy replays now match 7,655 updates, 7,791 services/input samples,
+45,930 phases and all 122,480 pre-update entity slots, plus final waits and the
+full outgoing fade. The eleven prior PyBoy cases remain separately verified.
+The rebuilt EXE passes all native suites/campaigns and 13/14 Windows UI checks;
+107 standalone source assertions and 103 Python tests pass. See AIR_PLACEMENTS.md
+and REFERENCE_BACKENDS.md. Native pause polling and production integration are
+still required; this does not mark the port complete.
+
 Repository descriptions and documentation must be in English. The working
 conversation remains in German. Continue development until the port is complete.
 

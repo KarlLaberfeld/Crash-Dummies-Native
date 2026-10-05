@@ -30,7 +30,7 @@ def build():
            '-D_USE_MATH_DEFINES','-DGB_VERSION="1.0.3"','-DGB_COPYRIGHT_YEAR="2026"','-I'+str(source),'-o',str(output)]
     environment=dict(os.environ,ZIG_GLOBAL_CACHE_DIR=str(ROOT/'.tools/zig-cache'),ZIG_LOCAL_CACHE_DIR=str(ROOT/'.tools/zig-local-cache'))
     subprocess.run([str(compiler),'cc',*flags,*files,str(ROOT/'tools/sameboy_reference_bridge.c'),'-lwinmm','-lws2_32'],env=environment,check=True)
-    metadata=dict(emulator='SameBoy',version='1.0.3',sourceRevision=revision,model='DMG-B',referenceOnly=True,
+    metadata=dict(emulator='SameBoy',version='1.0.3',sourceRevision=revision,model='DMG-B',referenceObserver='execution-callback-v1',referenceOnly=True,
                   dllSha256=hashlib.sha256(output.read_bytes()).hexdigest(),bootRomSha256=hashlib.sha256(boot.read_bytes()).hexdigest())
     (source/'reference-build.json').write_text(json.dumps(metadata,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(metadata,indent=2))

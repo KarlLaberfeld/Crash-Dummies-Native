@@ -48,10 +48,20 @@ timekeeping are disabled for repeatable measurements; cartridge execution and
 LCD timing remain in the external reference library.
 
 The adapter supplies buttons, read-only observations and unmodified save/load
-states. Instruction-boundary observations use the library's read callback and
-return its original byte unchanged. SameBoy increments PC before that read;
-the bridge accounts for this boundary without patching instructions. Exceptions
-stop the measurement. The native game accepts none of this CPU/register state.
+states. Instruction boundaries use the official execution callback, which
+excludes the dummy PC read during interrupt entry. The initial read-callback
+implementation could count that discarded read as an executed stage. It has
+been replaced; `execution-callback-v1` is now mandatory recording provenance
+and is checked in both the build manifest and the loaded DLL. Graphics-bus
+observations separately return original read bytes unchanged and permit every
+attempted write. Exceptions stop the measurement. The native game accepts none
+of this CPU/register state.
+
+The reference models randomized power-on memory. A new boot can therefore have
+a different starting state or full memory hash. Control equality means replay
+of the **same saved state and button events**, not identical hashes across
+different boots. Current comparisons use new control-verified execution-observer
+recordings; earlier read-observer files cannot certify the current observer.
 
 Captures explicitly select a backend; PyBoy remains the default for existing
 recordings. Backend, version, model, source revision and applicable build hashes
@@ -81,8 +91,22 @@ The measured LCD poll counts differ from the earlier PyBoy recording. They
 remain observations, not native delays. Native pause-clock ownership is still
 unaccepted.
 
-Latest pure Python tests pass 98 checks, including engine/model/provenance
-rejection. The Windows binary and full native/campaign/UI/preview validation
-from the preceding checkpoint remain applicable: this work changes reference
-tools, not the production game. SameBoy agreement is independent emulator
-evidence, not original-device capture, pixel/PCM acceptance or a final release.
+Three current timeout/steering-damage replays also validate the final wait and
+outgoing fade. They match 7,655 native updates, 7,791 display/input samples,
+45,930 source phases and 122,480 pre-update entity slots. All 222 exit intervals
+and 96 outgoing services match separately. The previously intended winning
+steering pattern actually ends in damage; it is not independent success evidence.
+See [placement ownership](AIR_PLACEMENTS.md) for the shared-scratch correction.
+
+Three pause bus recordings validate **4,304** actual STAT read/branch decisions,
+including **3,356** failed polls. All 60 status-row reads are unblocked; 888
+graphics writes are observed as attempts, not certified stores. Twelve copies,
+418 paused services/waits and 415 frozen-world intervals pass the separate source
+audit. Native polling still requires an independent LCD model and is unaccepted.
+`tools/air_pause_lcd.py` records these targets; they never become native delays.
+
+Latest pure Python tests pass 103 checks, including observer/provenance and
+range-read rejection. Native source checks pass 107 assertions. The rebuilt
+Windows EXE passes full native/campaign suites and both 13/14 automated UI
+variants. SameBoy agreement is independent emulator evidence, not original-device
+capture, pixel/PCM acceptance or a final release.

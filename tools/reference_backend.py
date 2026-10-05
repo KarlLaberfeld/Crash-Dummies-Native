@@ -18,8 +18,8 @@ def reference_class(backend='pyboy',reference_lib=None):
 def require_matching_backend(manifest,metadata):
     if manifest.get('emulator')!=metadata['emulator'] or manifest.get('version')!=metadata['version']:
         raise ValueError('Reference backend/revision differs from the original capture; do not mix recordings')
-    if metadata['emulator']=='SameBoy' and any(manifest.get(k)!=metadata.get(k) or not metadata.get(k) for k in ('model','sourceRevision')):
-        raise ValueError('Independent reference model/source differs from the original capture')
+    if metadata['emulator']=='SameBoy' and any(manifest.get(k)!=metadata.get(k) or not metadata.get(k) for k in ('model','sourceRevision','referenceObserver')):
+        raise ValueError('Independent reference model/source/observer differs from the original capture')
 
 
 def require_capture_reference(manifest,recording):

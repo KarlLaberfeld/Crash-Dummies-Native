@@ -2,6 +2,7 @@
 #include "air_work.h"
 #include "air_video_work.h"
 #include "air_clock.h"
+#include "air_placement_clock.h"
 #include "audio_work.h"
 #include <cstdio>
 #include <memory>
@@ -197,6 +198,26 @@ int main(){
         bool changed=false,observed=false;
         atomic.atomicWork(8,[&]{changed=true;},[&](bool){observed=changed;return 5000;},false);
         require(observed&&atomic.displays==1,"Sprite clearing commits its semantic write before a pending publication");
+        auto placementGame=std::make_unique<AirGame>(*assets,*shared);
+        placementGame->cameraY=86*256;
+        for(int row:{33,35,39,40,41,42,43,44})placementGame->placements.push_back({18,0,row*256,false});
+        for(int i=0;i<13;++i)placementGame->entities[i].alive=true;
+        AirClock placementClock;placementClock.now=0;placementClock.nextVBlank=1380;placementClock.nextStat=AirClock::Frame;
+        AirPlacementRange range;
+        int placementWork=airPlacementClock(*placementGame,placementClock,range,[&](bool ready){
+            require(!ready,"Interrupted placement keeps the resource gate closed");range.low=0;return 0;
+        });
+        require(placementWork==9284&&placementGame->scan==0,"HUD scratch overwrite changes four subsequent range tests; this short table also charges its wrap");
+        require(!placementGame->placements[3].active&&placementGame->placements[4].active&&placementGame->placements[5].active&&placementGame->placements[6].active&&!placementGame->placements[7].active,"Three free slots fill after the overwrite; the fourth allocation fails");
+        auto stablePlacement=std::make_unique<AirGame>(*assets,*shared);
+        stablePlacement->cameraY=86*256;stablePlacement->placements=placementGame->placements;
+        for(auto& record:stablePlacement->placements)record.active=false;
+        AirClock quietClock;quietClock.now=0;AirPlacementRange stableRange;
+        require(airPlacementClock(*stablePlacement,quietClock,stableRange,[](bool){return 0;})==3092,"Uninterrupted range scan retains source work including the table wrap");
+        AirClock prefixClock;prefixClock.now=0;prefixClock.nextVBlank=28;prefixClock.nextStat=AirClock::Frame;
+        AirPlacementRange prefixRange;stablePlacement->scan=0;
+        airPlacementClock(*stablePlacement,prefixClock,prefixRange,[&](bool){prefixRange.low=0;return 0;});
+        require(prefixRange.high==100,"Upper bound uses the retained camera value even if a display changes the lower scratch between its stores");
         Frame one;one.pieces.push_back({});
         SpriteLayer partial(true);partial.slots[0].present=true;partial.slots[0].y=20;
         partial.add(one,16,16,0);

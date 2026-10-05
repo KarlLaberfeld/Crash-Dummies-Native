@@ -1,5 +1,13 @@
 # Air final display, audio stop and outgoing fade
 
+Independent follow-up: three current SameBoy execution-observer recordings
+(one timeout, two steering-damage paths) also match final wait, audio stop and
+all outgoing fade intervals/services. This adds 222 bounded exit intervals and
+96 outgoing services checked on a second engine. All their gameplay phases,
+inputs and pre-update frame/flags/positions are separately compared. One path
+requires the [interrupted placement correction](AIR_PLACEMENTS.md). These are
+not independent successful-finish or pixel/PCM/hardware acceptance claims.
+
 This is bounded original-reference evidence for an experimental semantic clock.
 The complete port and production Windows scheduler are still unfinished. The
 reference emulator is a separate measurement tool; the native program executes

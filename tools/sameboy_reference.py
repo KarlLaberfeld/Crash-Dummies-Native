@@ -15,7 +15,7 @@ REFERENCE_ROOT=ROOT/'.tools/sameboy-reference'
 REVISION='208ba4afabffab9edde416f2dbb8ae459e34adb8'
 BOOT=ROOT/'.tools/sameboy-windows-reference/dmg_boot.bin'
 BUILD=json.loads((REFERENCE_ROOT/'reference-build.json').read_text())
-if BUILD.get('version')!='1.0.3' or BUILD.get('sourceRevision')!=REVISION or not BUILD.get('referenceOnly'):
+if BUILD.get('version')!='1.0.3' or BUILD.get('sourceRevision')!=REVISION or BUILD.get('referenceObserver')!='execution-callback-v1' or not BUILD.get('referenceOnly'):
     raise RuntimeError('Build the pinned reference adapter with tools/build_sameboy_reference.py')
 if hashlib.sha256((REFERENCE_ROOT/'reference-adapter.dll').read_bytes()).hexdigest()!=BUILD['dllSha256']:
     raise RuntimeError('Reference DLL differs from its build manifest')
@@ -24,13 +24,18 @@ if hashlib.sha256(BOOT.read_bytes()).hexdigest()!='6f64da4cecd7e54e2f928eb3e3ba7
 DLL=ctypes.CDLL(str(REFERENCE_ROOT/'reference-adapter.dll'))
 DLL.ref_version.restype=ctypes.c_char_p
 if DLL.ref_version()!=b'1.0.3':raise RuntimeError('Reference DLL must be built from SameBoy 1.0.3')
+DLL.ref_observer.restype=ctypes.c_char_p
+if DLL.ref_observer()!=b'execution-callback-v1':raise RuntimeError('Requires the execution-boundary reference observer')
 PTR=ctypes.c_void_p
 HOOK=ctypes.CFUNCTYPE(None,PTR,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint64)
+BUS=ctypes.CFUNCTYPE(None,PTR,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint,ctypes.c_uint64)
 DLL.ref_open.argtypes=[ctypes.c_char_p,ctypes.c_char_p];DLL.ref_open.restype=PTR
 DLL.ref_model.argtypes=[PTR];DLL.ref_model.restype=ctypes.c_uint
 for name in ('ref_close','ref_fail'):
     getattr(DLL,name).argtypes=[PTR]
 DLL.ref_hook.argtypes=[PTR,HOOK]
+DLL.ref_bus_hook.argtypes=[PTR,BUS]
+DLL.ref_lcd_snapshot.argtypes=[PTR,ctypes.POINTER(ctypes.c_uint)]
 DLL.ref_watch.argtypes=[PTR,ctypes.c_uint]
 DLL.ref_tick.argtypes=[PTR,ctypes.c_uint]
 DLL.ref_peek.argtypes=[PTR,ctypes.c_uint];DLL.ref_peek.restype=ctypes.c_uint8
@@ -77,7 +82,7 @@ class Screen:
         return Image.frombytes('RGB',(160,144),pixels)
 
 class SameBoy:
-    reference_metadata={'emulator':'SameBoy','version':'1.0.3','bootRom':'SameBoy 1.0.3 open-source DMG boot ROM','model':'DMG-B','sourceRevision':REVISION,'bootRomSha256':BUILD['bootRomSha256'],'referenceDllSha256':BUILD['dllSha256']}
+    reference_metadata={'emulator':'SameBoy','version':'1.0.3','bootRom':'SameBoy 1.0.3 open-source DMG boot ROM','model':'DMG-B','sourceRevision':REVISION,'referenceObserver':'execution-callback-v1','bootRomSha256':BUILD['bootRomSha256'],'referenceDllSha256':BUILD['dllSha256']}
     def __init__(self,rom,**ignored):
         self.handle=DLL.ref_open(str(Path(rom).resolve()).encode(),str(BOOT).encode())
         if not self.handle:raise RuntimeError('Cannot initialize original reference')
@@ -97,6 +102,26 @@ class SameBoy:
     def hook_register(self,bank,address,callback,context):
         if (bank,address) in self.hooks:raise ValueError('Duplicate reference hook')
         self.hooks[(bank,address)]=(callback,context);DLL.ref_watch(self.handle,address)
+    def observe_graphics_bus(self,callback):
+        """Observe actual STAT/VRAM reads and attempted VRAM/LCDC writes.
+
+        Reads retain the original returned byte. Write notifications precede
+        the library's LCD synchronization/access decision; they do not certify
+        successful stores. Snapshots are reference targets, never clock inputs.
+        """
+        def observe(_,kind,address,data,pc,cycles):
+            self.hook_cycles=cycles
+            try:callback(dict(kind='write' if kind else 'read',address=address,data=data,pc=pc,cycles=cycles))
+            except BaseException as error:self.last_error=error;DLL.ref_fail(self.handle)
+            finally:self.hook_cycles=None
+        self.bus_callback=BUS(observe);DLL.ref_bus_hook(self.handle,self.bus_callback)
+    def lcd_snapshot(self):
+        values=(ctypes.c_uint*12)();DLL.ref_lcd_snapshot(self.handle,values)
+        result=dict(zip(('lcdc','stat','scx','scy','wx','wy','ly','line','lineCycles','pendingDisplayCycles','readBlocked','writeBlocked'),values))
+        # The reference's coroutine remainder can be negative; preserve its
+        # signed meaning. It is an internal diagnostic, not a hardware dot.
+        result['pendingDisplayCycles']=ctypes.c_int32(values[9]).value
+        return result
     def set_emulation_speed(self,speed):
         if speed!=0:raise ValueError('Reference is measured without host throttling')
     def tick(self,count=1,render=True):

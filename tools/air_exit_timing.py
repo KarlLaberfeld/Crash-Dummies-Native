@@ -16,6 +16,7 @@ from air_reference import write_json
 from air_timing import elapsed_work,IRQ_PHASES,VBLANK_FIXED,vblank_work,vblank_bookkeeping_work,display_cycles
 from air_loop_timing import wait_active_cycles,stat_cycles
 from extract import read_rom
+from reference_backend import reference_class,require_matching_backend,require_capture_reference
 
 VERSION=2
 POINTS={0x0403:'audioStop',0x0406:'fadeEntry',0x20b9:'palette',0x20c7:'wait',0x20ca:'tail',0x0409:'end'}
@@ -90,9 +91,8 @@ def report(args):
 def capture(args):
     rom=read_rom(args.rom);manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['controlDifferences'] or manifest['romSha256']!=hashlib.sha256(rom).hexdigest():raise ValueError('Requires matching control-verified replay')
-    if args.reference_lib:sys.path.insert(0,str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy')!='2.7.0':raise ValueError('Requires PyBoy 2.7.0')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
     points=[];interrupts=[];opened=None;active=False
     def word(a):return p.memory[a]+256*p.memory[a+1]
@@ -132,7 +132,7 @@ def capture(args):
     if control!=manifest['controlMemorySha256'] or opened is not None or active:raise ValueError('Changed control or incomplete exit capture')
     args.out.mkdir(parents=True,exist_ok=True)
     write_json(args.out/'exit.json',dict(version=VERSION,romSha256=manifest['romSha256'],controlMemorySha256=control,
-                                      fadePalettes=list(rom[0x2118:0x2120]),points=points,interrupts=interrupts))
+                                      reference=metadata,fadePalettes=list(rom[0x2118:0x2120]),points=points,interrupts=interrupts))
     report(args)
 
 
@@ -163,6 +163,12 @@ def compare_service_rows(data,native):
 
 def compare(args):
     data=json.loads((args.out/'exit.json').read_text());expected=intervals(data)
+    if getattr(args,'capture',None):
+        manifest=json.loads((args.capture/'capture-summary.json').read_text());require_capture_reference(manifest,data)
+        if manifest['controlDifferences'] or any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')):
+            raise ValueError('Exit recording differs from the verified original control')
+    elif data.get('reference',{}).get('emulator')=='SameBoy':
+        raise ValueError('Independent exit comparison requires --capture provenance')
     with args.native_csv.open(encoding='utf-8-sig',newline='') as f:
         native=[{k:v if k=='phase' else int(v) for k,v in row.items()} for row in csv.DictReader(f)]
     if len(native)!=len(expected):raise ValueError('Incomplete native exit phase coverage')
@@ -185,6 +191,8 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     rec=sub.add_parser('capture');rec.add_argument('rom',type=Path);rec.add_argument('--reference-lib',type=Path);rec.add_argument('--capture',type=Path,required=True)
+    rec.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--services-csv',type=Path)
+    diff.add_argument('--capture',type=Path,help='Original control manifest; required for independent exit records')
     for q in (rec,diff,sub.add_parser('report')):q.add_argument('--out',type=Path,default=Path('local/air-exit-timing'))
     args=parser.parse_args();{'capture':capture,'report':report,'compare':compare}[args.mode](args)

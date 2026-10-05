@@ -6,6 +6,7 @@
 // at every service; neither mode reads original per-update counters or costs.
 #include "air.h"
 #include "air_clock.h"
+#include "air_placement_clock.h"
 #include "air_work.h"
 #include "audio.h"
 #include "audio_work.h"
@@ -18,11 +19,12 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt] [--final-wait | --outro-fade]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--display-inputs buttons.txt] [--final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath;bool finalWait=false,outroFade=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath;bool finalWait=false,outroFade=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--final-wait")finalWait=true;
             else if(option=="--outro-fade"){finalWait=true;outroFade=true;}
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
@@ -51,10 +53,13 @@ int main(int argc,char** argv){
         services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5,inputHeld,inputPressed\n";
         std::ofstream spriteLog;
         if(!spritePath.empty()){spriteLog.open(spritePath);if(!spriteLog)throw std::runtime_error("Cannot open sprite-service output");spriteLog<<"service,slot,present,x,y,flags\n";}
+        std::ofstream entityLog;
+        if(!entityPath.empty()){entityLog.open(entityPath);if(!entityLog)throw std::runtime_error("Cannot open entity-state output");entityLog<<"update,slot,frame,flags,x,y\n";}
         int activeGamePhase=-1;
         bool spriteBoundarySafe=false;
         bool mapBoundarySafe=false;
         bool loopBoundarySafe=false;
+        AirPlacementRange placementRange;
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
@@ -64,7 +69,12 @@ int main(int argc,char** argv){
                 sampled.sample(held);
             }
             int tick=game->ticks,pending=game->pendingSound;
+            bool refreshRangeScratch=game->hudCursor==12;
             game->displayTick(ready);
+            // 2f4c/16eb divides 48 * the byte-sized collected count. Its
+            // overflow scratch FF9C ends at zero and can change later range
+            // reads in an interrupted 19a2 scan. FF9E is not changed here.
+            if(refreshRangeScratch)placementRange.low=0;
             if(pending>=0)sound.queueEffect(pending);
             game->pendingSound=-1;sound.tick();
             services<<clock.displays<<','<<clock.now<<','<<ready<<','<<tick<<','<<game->displayWorkCycles<<','<<sound.effectWorkCycles<<','<<sound.musicWorkCycles<<','<<game->hudCursor<<','<<pending;
@@ -82,11 +92,14 @@ int main(int argc,char** argv){
             loopBoundarySafe=true;clock.work(8,display,false);
             clock.atomicWork(12,[]{},display,true);loopBoundarySafe=false;
             clock.wait(display);clock.work(48,display,false);
+            if(entityLog.is_open())for(int slot=0;slot<16;++slot){const auto& e=game->entities[slot];
+                entityLog<<updates<<','<<slot<<','<<(e.alive?e.frame:255)<<','<<((e.flags&~2)|(e.offscreen?2:0))<<','<<e.x<<','<<e.y<<'\n';
+            }
             int buttons=decode(displayInputs.is_open()?sampled.held:held);
             if(displayInputs.is_open())game->previous=decode(sampled.previous);
             bool priorMap=game->mapTransfer;
             auto priorSprites=game->sprites.slots;
-            game->updateGame(buttons,true);
+            game->updateGame(buttons,true,true);
             game->sprites.slots=priorSprites;
             bool preparedMap=game->mapTransfer;
             game->mapTransfer=priorMap;
@@ -101,7 +114,9 @@ int main(int argc,char** argv){
                 auto phaseStart=clock.now;
                 int phaseTick=game->ticks;
                 if(work<0){fprintf(stderr,"Unknown source work at update %d; replay stops before certification.\n",updates);return 3;}
-                if(activeGamePhase==2){
+                if(activeGamePhase==5){
+                    work=airPlacementClock(*game,clock,placementRange,display);
+                }else if(activeGamePhase==2){
                     int sum=112;
                     for(int n:game->spriteEntityWorkCycles)sum+=n;
                     if(sum!=work)throw std::runtime_error("Incomplete per-entity sprite work");

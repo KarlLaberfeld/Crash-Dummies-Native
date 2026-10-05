@@ -40,6 +40,10 @@ and [the original comparison](docs/ORIGINAL_COMPARISON.md).
 See [pause and input evidence](docs/AIR_PAUSE.md) for the remaining boundaries.
 The final display wait, audio-stop work and outgoing fade also match three
 bounded original Air recordings; see [exit evidence](docs/AIR_EXIT.md).
+An independent reference now also establishes a shared-scratch interruption
+inside Air's placement scan. The native clock matches the resulting allocations
+and all sixteen entity slots; see [placement evidence](docs/AIR_PLACEMENTS.md).
+The [reference tools](docs/REFERENCE_BACKENDS.md) remain separate from the game.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline

@@ -508,7 +508,7 @@ void AirGame::displayTick(bool resourceReady){
     if(!started)return;
     beginVideoTick(resourceReady);tickHud();ticks=(ticks+1)&65535;
 }
-void AirGame::updateGame(int buttons,bool deferSpriteClear){
+void AirGame::updateGame(int buttons,bool deferSpriteClear,bool deferPlacements){
     if(!started||result||paused)return;
     held=buttons;pressed=buttons&~previous;previous=buttons;
     animationWorkCycles=0;animationWorkComplete=true;
@@ -546,6 +546,10 @@ void AirGame::updateGame(int buttons,bool deferSpriteClear){
     // or measured frame indices are involved in this source-work calculation.
     mapWorkCycles=mapTransfer?2228+((static_cast<uint16_t>(lastMapCamera-cameraY)&0x8000)?4:0):304;
     lastMapCamera=cameraY;
+    if(deferPlacements)placementWorkCycles=0;
+    else updatePlacements();
+}
+void AirGame::updatePlacements(){
     // 19a2: entry + eight wrappers (final JR not taken) + RET. Every placement
     // adds the 19b5 call/pointer advance, its range/allocation path and wrap.
     placementWorkCycles=placements.empty()?0:608;

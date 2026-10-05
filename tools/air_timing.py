@@ -39,29 +39,36 @@ COLLISION_RETURNS = (0x61e8, 0x626c)
 COLLISION_CALLBACK_HOOKS = (0x17b8, 0x184f, 0x1852)
 MOTION_ENTRY, MOTION_RETURN = 0x659c, 0x5fe2
 INPUT_ENTRY, INPUT_RETURN = 0x5fef, 0x6026
-CAPTURE_VERSION = 8
+CAPTURE_VERSION = 9
 
 
-def placement_cycles(camera_row, scan, placements, occupied):
+def placement_cycles(camera_row, scan, placements, occupied, range_reads=None):
     """Source-derived T-cycle cost of 00:19a2 through its return.
 
     Pure work accounting, not instruction execution. Records contain only the
     placement row and active flag; occupied is the 16-bit entity-slot mask.
     The caller owns the corresponding gameplay operations.
+    Optional range reads are observed targets for this reference audit. The
+    native clock independently derives its scratch and reads none of these.
     """
     if not placements or not 0 <= scan < len(placements) or not 0 <= occupied <= 65535:
         raise ValueError('Invalid placement workload')
+    if range_reads is not None and (len(range_reads)!=8 or any(not 0<=r.get('low',-1)<=255 for r in range_reads)):
+        raise ValueError('Incomplete placement range-read observations')
     active = [bool(p['active']) for p in placements]
     # Entry, eight loop wrappers (last JR not taken), and final RET.
     cycles = 52 + 8 * 68 - 4 + 16
     high = (camera_row + 14) & 255
-    for _ in range(8):
+    for index in range(8):
         row = (placements[scan]['row'] + 3) & 255
+        low=camera_row if range_reads is None else range_reads[index]['low']
+        upper=high if range_reads is None else range_reads[index].get('high',-1)
+        if low<row and not 0<=upper<=255:raise ValueError('Missing upper placement range read')
         # CALL range test, then advance the seven-byte record pointer.
         cycles += 24 + 132
-        if camera_row >= row:
+        if low >= row:
             cycles += 144  # 19dd..19f2: first range return taken.
-        elif high < row:
+        elif upper < row:
             cycles += 168  # 19f6: second range return taken.
         elif active[scan]:
             cycles += 188  # 19f9: already active.
@@ -304,7 +311,7 @@ def effect_cycles(pending, square_root, noise_root):
 
 
 def analyze(data):
-    if data.get('version') != CAPTURE_VERSION:
+    if data.get('version') not in (8,CAPTURE_VERSION):
         raise ValueError('Timing capture schema changed; repeat capture with the current tool')
     rows, interrupts = data['updates'], data['interrupts']
     if not rows:
@@ -322,6 +329,8 @@ def analyze(data):
         a, b = row['placements']['cycles'], row['done']['cycles']
         work = elapsed_work(a, b, interrupts)
         workload = row['placements']['workload']
+        if data['version']==CAPTURE_VERSION and 'range_reads' not in workload:
+            raise ValueError('Current placement capture requires independent range reads')
         predicted = placement_cycles(**workload)
         if work != predicted:
             mismatches.append(dict(update=i, measured=work, predicted=predicted))
@@ -448,6 +457,16 @@ def capture(args):
                     fade_remaining=player.memory[0xffc9], collected=player.memory[0xc20a], quota=player.memory[0xffab])
             if name == 'tail':
                 irq_open['hudBar'] = list(player.memory[0xc046:0xc04c])
+            return
+        if address in (0x19ef,0x19f3):
+            if current is None or 'placements' not in current:return
+            reads=current['placements']['workload']['range_reads']
+            if address==0x19ef:
+                if len(reads)>=8:raise ValueError('Too many placement range reads')
+                reads.append(dict(low=player.memory[0xff9c]))
+            else:
+                if not reads or 'high' in reads[-1]:raise ValueError('Unmatched upper placement range read')
+                reads[-1]['high']=player.memory[0xff9e]
             return
         if address in IRQ_PHASES:
             if irq_open is None or irq_open['kind'] != 'vblank':
@@ -622,6 +641,7 @@ def capture(args):
                     at += 7
                 state['workload'] = dict(camera_row=player.memory[0xff95],
                     scan=(word(0xc033) - 0xd800) // 7, placements=entries,
+                    range_reads=[],
                     occupied=sum(1 << i for i in range(16) if player.memory[0xc200 + i * 16] != 255))
             current[name] = state
             if name == 'done':
@@ -633,7 +653,7 @@ def capture(args):
     try:
         with (args.capture / 'setup.state').open('rb') as stream:
             player.load_state(stream)
-        for address in (*STAGES, *IRQ_START, *IRQ_END, *IRQ_PHASES, *DISPLAY_PHASES, *ENTITY_HOOKS, ANIMATION_ENTRY,
+        for address in (*STAGES, *IRQ_START, *IRQ_END, *IRQ_PHASES, *DISPLAY_PHASES, *ENTITY_HOOKS, ANIMATION_ENTRY,0x19ef,0x19f3,
                         COLLISION_ENTRY, *COLLISION_CALLBACK_HOOKS):
             player.hook_register(0, address, hook, address)
         for address in (*ANIMATION_RETURNS, *COLLISION_RETURNS, MOTION_ENTRY, MOTION_RETURN, INPUT_ENTRY, INPUT_RETURN):
@@ -699,7 +719,7 @@ def compare(args):
 
 def compare_display(args):
     data = json.loads((args.out / 'timing.json').read_text(encoding='utf-8'))
-    if data.get('version') != CAPTURE_VERSION:
+    if data.get('version') not in (8,CAPTURE_VERSION):
         raise ValueError('Repeat capture with the current tool before comparing display work')
     with args.native_csv.open(encoding='utf-8-sig', newline='') as stream:
         native = [{k: int(v) for k, v in row.items()} for row in csv.DictReader(stream)]
@@ -744,7 +764,7 @@ def entity_difference(original, native):
 def compare_handlers(args):
     from extract_air import HANDLERS
     data = json.loads((args.out / 'timing.json').read_text(encoding='utf-8'))
-    if data.get('version') != CAPTURE_VERSION:
+    if data.get('version') not in (8,CAPTURE_VERSION):
         raise ValueError('Repeat capture with the current tool before comparing handler costs')
     original = {(i, h['slot']): h for i, update in enumerate(data['updates']) for h in update['handlers']}
     with args.native_csv.open(encoding='utf-8-sig', newline='') as stream:

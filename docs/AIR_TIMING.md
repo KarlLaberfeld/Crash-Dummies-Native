@@ -1,5 +1,12 @@
 # Air Bumper source timing: partial reconstruction
 
+Latest ownership correction: a progress-HUD refresh can overwrite placement's
+shared lower range during an interrupt. The identified scan now runs at its
+native clock phase and reads the resulting range independently. All eleven
+prior clock cases still pass; three SameBoy replays additionally match all
+six work phases and pre-update frame/flags/position snapshots for all sixteen
+entity slots. See [placement evidence and limits](AIR_PLACEMENTS.md).
+
 The production Windows scheduler is **not finished**: it still performs one
 game update per display interval. An experimental native semantic clock now
 matches nine control-verified Air cases without supplied per-update counters

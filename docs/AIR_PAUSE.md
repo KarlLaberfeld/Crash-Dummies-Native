@@ -1,5 +1,19 @@
 # Air pause and display-sampled input
 
+Latest independent follow-up: three SameBoy execution-observer recordings also
+preserve their uninstrumented controls. They validate twelve source copies,
+418 paused services/waits and 415 frozen-world intervals. Direct bus observation
+checks 4,304 STAT samples against their subsequent branch decisions; 3,356 are
+failed polls. All 60 saved-status-row reads are unblocked. The 888 graphics write
+notifications describe attempts before the reference's access decision, not
+certified stores. See [reference details](REFERENCE_BACKENDS.md).
+
+Native pause polling remains unaccepted. Its next step is an independent LCD
+access model with scroll/object/window and initial phase ownership, then the
+identified copy/script read/write commits. Measured poll counts, internal
+reference LCD fields and HALT idle must not become native scheduling inputs.
+The new bus recorder is a comparison tool, not a substitute for that model.
+
 This checkpoint uses the hash-pinned US/EU cartridge and the separately
 authorized local PyBoy 2.7.0 reference. The native Windows executable contains
 no CPU emulator. ROM, inputs, state, captures and measurements remain ignored

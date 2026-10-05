@@ -91,7 +91,8 @@ struct AirGame {
     // Separate owners for the source-derived service/update scheduler. step()
     // retains the legacy one-service wrapper until ordinary-clock acceptance.
     void displayTick(bool resourceReady=true);
-    void updateGame(int buttons,bool deferSpriteClear=false);
+    void updateGame(int buttons,bool deferSpriteClear=false,bool deferPlacements=false);
+    void updatePlacements();
     void render(bool developmentOverlay=true);
     int spawn(int kind,int x,int y,int placement=-1);
     void update(int i);
