@@ -2,6 +2,7 @@
 #include "air_work.h"
 #include "air_video_work.h"
 #include "air_clock.h"
+#include "audio_work.h"
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -190,6 +191,8 @@ int main(){
         AirClock finalWait;bool observedReady=true;
         finalWait.wait([&](bool ready){observedReady=ready;return 5000;},false);
         require(finalWait.displays==1&&!observedReady,"Final result wait retains the busy resource gate; it does not enable gameplay uploads");
+        require(finalWait.lastWaitWork==156,"Wait active work includes one STAT wake and excludes idle and interrupt service bodies");
+        require(audioStopWork()==12384,"Stop/reset source work includes bounded byte clears and initial wave copy");
         AirClock atomic;atomic.now=atomic.nextVBlank-4;atomic.nextStat=AirClock::Frame+AirClock::StatLine;
         bool changed=false,observed=false;
         atomic.atomicWork(8,[&]{changed=true;},[&](bool){observed=changed;return 5000;},false);

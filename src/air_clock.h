@@ -16,6 +16,7 @@ struct AirClock {
     static constexpr int Frame=70224,StatLine=135*456,VBlankLine=144*456;
     int64_t now=16,nextStat=StatLine,nextVBlank=VBlankLine;
     unsigned displays=0,statServices=0;
+    int lastWaitWork=0;
     template<class Display>void vblank(Display&& display,bool ready){
         int work=display(ready);
         if(work<0)throw std::runtime_error("Unreconstructed Air display/audio work");
@@ -43,6 +44,7 @@ struct AirClock {
         now+=cost;effect();work(0,display,ready);
     }
     template<class Display>void wait(Display&& display,bool ready=true){
+        lastWaitWork=60;
         // CALL/PUSH precede the counter read. A display during that prefix
         // must belong to the new snapshot, so the wait needs a later VBlank.
         // The 16-cycle read commits before a pending service; LD B costs 4.
@@ -51,11 +53,11 @@ struct AirClock {
         atomicWork(16,[&]{counter=displays;},display,ready);
         work(4,display,ready);
         do{
-            now+=4;
+            now+=4;lastWaitWork+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
             if(now<deadline)now=deadline;
-            if(nextStat<nextVBlank){nextStat+=Frame;stat();now+=16+4+12;}
-            else{nextVBlank+=Frame;vblank(display,ready);now+=16+4+8+12+16;}
+            if(nextStat<nextVBlank){nextStat+=Frame;stat();now+=16+4+12;lastWaitWork+=32;}
+            else{nextVBlank+=Frame;vblank(display,ready);now+=16+4+8+12+16;lastWaitWork+=56;}
         }while(displays==counter);
     }
 };

@@ -173,3 +173,40 @@ outside this clock's accepted scope. Pause LCD polling, interrupted entity/
 resource/row ownership, production integration, other stunts, matched pixels/PCM
 and human/independent Windows tests remain required by ACCEPTANCE.md. The
 complete port and final distribution are not accepted.
+
+## Outgoing fade and terminal sprite publication - 2026-10-05
+
+Three control-verified recordings extend the existing success, damage/explosion
+and timeout paths through the complete outgoing fade. All 222 semantic phases
+match: audio-stop work, fade entry, 24 palette writes, 96 waits and their tails.
+All 96 display services separately match source component costs and native
+HUD/bar, held inputs, effects and disabled music. Separate input captures match
+8,572 held/fresh samples through the 8,417 repeated gameplay updates and exit.
+These extend three of the ten existing cases; they do not add independent
+normal-play coverage. See AIR_EXIT.md for method, reproduction and limits.
+
+The production Windows outro now publishes the sprite list prepared by the
+terminal update. Previously it retained the preceding visible list. All-five-
+stunt marker regressions confirm publication while entities, gameplay timer
+and pending resource transfers stay unchanged. This fixes a display boundary,
+not the production scheduler or scanline pixel behavior.
+
+Validation: 94 Python tests and 102 synthetic source-work checks; full native
+suites, all 64 Air recovery phases, four input-only difficulty successes and
+all three full campaigns pass. Air passes 819,624 assertions and audio 150.
+The rebuilt Windows EXE passes 13 automated normal and 14 actual audio-open-
+failure UI checks. The ROM-free preview archive's 11 file hashes match its
+manifest and its EXE matches the tested build. Bundled extraction succeeds in
+a local folder containing spaces; both 13/14 UI variants then pass while
+launched from a different working directory. The preview is labeled unfinished
+and records its pre-commit dirty source identity. It contains no ROM/assets;
+extracted data stays in the ignored local test folder. These checks use one
+Windows host and synthetic messages, not human/device-removal acceptance.
+No unchanged campaigns were repeated before this production presentation change.
+
+The candidate clock now reaches 0409 after final wait, audio stop and outgoing
+fade. Result-screen DI/setup, normal UI startup, native pause LCD polling,
+unsupported interrupted entity/resource/row work and production integration
+remain open. Original reset voice-state parity, matched pixels/PCM, other
+stunts and human/independent Windows acceptance are still required. The private
+repository and continuation automation remain active; no final release is made.

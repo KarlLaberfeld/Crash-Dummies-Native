@@ -8,6 +8,8 @@
 #include "air_clock.h"
 #include "air_work.h"
 #include "audio.h"
+#include "audio_work.h"
+#include "ui.h"
 #include <cstdio>
 #include <fstream>
 #include <memory>
@@ -16,12 +18,13 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt] [--final-wait]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt] [--final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath;bool finalWait=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath;bool finalWait=false,outroFade=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--final-wait")finalWait=true;
+            else if(option=="--outro-fade"){finalWait=true;outroFade=true;}
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
             else if(positional++==0)difficulty=std::stoi(option);
             else if(positional==2)spritePath=option;
@@ -182,8 +185,36 @@ int main(int argc,char** argv){
             if(!exit)throw std::runtime_error("Cannot open final-wait output");
             exit<<"tickBefore,tickAfter,elapsed,displayServices,ready\n"
                 <<tick<<','<<game->ticks<<','<<(clock.now-start)<<','<<(clock.displays-servicesBefore)<<",0\n";
-            // Stop before 0403: audio stop and result fade/outro still require
-            // their own semantic ownership and original comparisons.
+            // With --final-wait alone, stop before 0403's audio stop/fade.
+        }
+        if(outroFade){
+            auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
+            std::ofstream outro(std::string(argv[2])+".outro.csv");
+            if(!outro)throw std::runtime_error("Cannot open outro-phase output");
+            outro<<"phase,index,tickBefore,tickAfter,elapsed,work,bgp,obp0,obp1,musicEnabled\n";
+            int bgp=ui->fadePalettes[0],obp0=bgp&0xcf,obp1=bgp&0xf3;
+            auto phase=[&](const char* name,int index,int work,auto&& operation){
+                auto start=clock.now;int tick=game->ticks;operation();
+                outro<<name<<','<<index<<','<<tick<<','<<game->ticks<<','<<(clock.now-start)<<','<<(work<0?clock.lastWaitWork:work)
+                     <<','<<bgp<<','<<obp0<<','<<obp1<<','<<sound.enabled<<'\n';
+            };
+            // Until reset finishes, an interrupt could observe partially
+            // cleared audio state. Reject that ownership rather than guessing.
+            activeGamePhase=-1;
+            phase("audioStop",0,audioStopWork(),[&]{clock.work(audioStopWork(),display,false);sound.stop();});
+            loopBoundarySafe=true;
+            phase("fadeEntry",0,44,[&]{clock.work(44,display,false);});
+            for(int segment=0;segment<8;++segment){
+                phase("palette",segment,76,[&]{clock.work(76,display,false);bgp=ui->fadePalettes[segment];obp0=bgp&0xcf;obp1=bgp&0xf3;});
+                for(int wait=0;wait<4;++wait){
+                    phase("wait",4*segment+wait,-1,[&]{clock.wait(display,false);});
+                    int tail=wait<3?16:segment<7?28:40;
+                    phase("tail",4*segment+wait,tail,[&]{clock.work(tail,display,false);});
+                }
+            }
+            loopBoundarySafe=false;
+            // 0409 starts DI/setup of the result screen. Its work, pixels and
+            // original audio software-state reset are outside this probe.
         }
         fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");
         return 0;

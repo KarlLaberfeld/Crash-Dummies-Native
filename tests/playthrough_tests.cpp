@@ -21,9 +21,14 @@ template<class Stunt> bool verifyStuntOutroHud(Stunt& game,const UiAssets& uiAss
  flow.outroScene=game.screen;flow.finishStunt(3,1234,0);
  game.money=1234;game.transferRemaining=8;game.transferState=1;
  const auto player=game.entities[0];int seconds=0,ticks=game.ticks;
+ const int markerColor=game.screen[40*Width+24]==3?1:3;
+ Frame marker;marker.meta={};SpritePiece piece;piece.colors.fill(markerColor);marker.pieces.push_back(piece);
+ game.sprites=SpriteLayer(false);game.sprites.add(marker,24,40,0);
  if constexpr(!std::is_same_v<Stunt,BombGame>)seconds=game.seconds;
  flow.refreshStuntOutro(game);if(game.hudCursor!=0)return false;
- for(int n=0;n<32;++n){flow.step(0);flow.refreshStuntOutro(game);}
+ for(int n=0;n<32;++n){flow.step(0);flow.refreshStuntOutro(game);
+  if(n==0&&game.screen[40*Width+24]!=markerColor)return false;
+ }
  // Even the 13-column HUD must publish the last score within two cycles.
  if(game.hudMap[game.assets.hudColumns[1]]!=0xf7||game.transferRemaining!=8||game.transferState!=1||
     game.entities[0].x!=player.x||game.entities[0].y!=player.y||game.ticks!=ticks)return false;

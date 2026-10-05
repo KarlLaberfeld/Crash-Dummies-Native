@@ -38,6 +38,8 @@ scheduler integration, remaining timing branches, image/audio parity and
 physical-hardware behavior remain open; see [timing evidence and limits](docs/AIR_TIMING.md)
 and [the original comparison](docs/ORIGINAL_COMPARISON.md).
 See [pause and input evidence](docs/AIR_PAUSE.md) for the remaining boundaries.
+The final display wait, audio-stop work and outgoing fade also match three
+bounded original Air recordings; see [exit evidence](docs/AIR_EXIT.md).
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU
 interpreter, JIT recompiler, or emulator core. The cartridge is read offline
