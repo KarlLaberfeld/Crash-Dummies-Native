@@ -1,5 +1,14 @@
 # Project status - October 5, 2026
 
+Latest image follow-up: 87 complete Air frames (29 per matching pause control),
+2,004,480 pixels, agree exactly. The selection covers incoming fade, ordinary
+play, visible pause and post-resume play on easy/normal/hardest. No region is
+masked; world/service logs are unchanged by optional image export. Blank and
+repeated frozen frames are included, not additional independent scenarios.
+See [image alignment and remaining scope](AIR_PIXELS.md). The Windows runtime
+and preview package are unchanged; this does not qualify arbitrary scanlines,
+other stunts, full PCM, production scheduling or final release acceptance.
+
 Latest development couples the bounded native Air pause session to ongoing
 gameplay, display input, graphics and software audio. Three independent original
 controls match through stunt end: 7,506 updates, 7,927 display/input samples,
@@ -27,13 +36,17 @@ contains no ROM/assets/reference library. Local and GitHub commit identities
 differ because this host publishes through the GitHub connector. This is a
 development preview, not a final release.
 
-Next concrete work: matched image comparison and remaining first-LCD-frame/
-interrupted owners before production clock integration. Coupled reproduction:
+Next concrete work: remaining first-LCD-frame/interrupted owners, wider
+collision/success/result image comparisons and production clock integration.
+Coupled reproduction:
 `python tools/air_pause_coupled.py run coast` (also easy/hard).
 Use `local/pause-coupled-{coast,easy,hard}/` and matching `-work-reference`,
 `-startup-reference`, `-sprites-reference`, `-audio-reference` directories.
 Original bus/storage targets remain `local/sameboy-air-pause-*-lcd-data/lcd.json`;
 the standalone native geometry/prefix files remain in `local/pause-native-*-data/`.
+Selected image measurements are in `local/pause-pixels-{coast,easy,hard}-reference/`
+and native projections in matching `-native/` folders. See AIR_PIXELS.md for
+the exact selections and reproduction; do not rerun unchanged native campaigns.
 Initial LCD-enable phase, arbitrary IRQ acceptance, pending critical-section
 interrupts and line-135 object cancellation remain unowned and must reject.
 Other interrupted entity/resource/row paths, startup/result setup, production

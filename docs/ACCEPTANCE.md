@@ -1,5 +1,13 @@
 # Final release acceptance
 
+Latest image checkpoint: 87 complete matched Air frames, 2,004,480 pixels,
+have zero differences, including incoming fade, ordinary play, visible pause
+and post-resume play on three difficulties. No region is masked. This is
+selected framebuffer evidence; blank/frozen repetitions are included. Wider
+collisions/success/result/outro, partial visible writes, other stunts, PCM,
+production scheduling and independent hardware/Windows remain required.
+See [pixel scope and alignment](AIR_PIXELS.md).
+
 Latest coupled pause checkpoint: three independent controls match 7,506 updates,
 7,927 display/input samples, 317,080 sprite slots, 47,562 selected voice/work
 rows and native gameplay effect requests through post-resume stunt end.

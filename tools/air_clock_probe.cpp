@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <fstream>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -23,13 +24,15 @@ using namespace ticd;
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--pause-replay")pauseReplay=true;
             else if(option=="--audio-csv"&&i+1<argc)audioPath=argv[++i];
+            else if(option=="--frames-dir"&&i+1<argc)framesPath=argv[++i];
+            else if(option=="--frame-services"&&i+1<argc)frameSelection=argv[++i];
             else if(option=="--final-wait")finalWait=true;
             else if(option=="--outro-fade"){finalWait=true;outroFade=true;}
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
@@ -39,6 +42,14 @@ int main(int argc,char** argv){
         }
         if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
         if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
+        if(framesPath.empty()!=frameSelection.empty())throw std::runtime_error("Frame output requires a directory and selected services");
+        std::set<unsigned> frameServices;
+        for(size_t begin=0;begin<frameSelection.size();){
+            auto end=frameSelection.find(',',begin);auto value=frameSelection.substr(begin,end-begin);
+            if(value.empty()||value.find_first_not_of("0123456789")!=std::string::npos)throw std::runtime_error("Invalid frame service selection");
+            frameServices.insert(static_cast<unsigned>(std::stoul(value)));if(end==std::string::npos)break;begin=end+1;
+        }
+        std::unique_ptr<UiAssets> frameUi;if(!framesPath.empty())frameUi=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
         auto audio=std::make_unique<AudioAssets>(AudioAssets::load(L"build/audio.dat"));
@@ -102,6 +113,14 @@ int main(int argc,char** argv){
             if(refreshRangeScratch)placementRange.low=0;
             if(pending>=0)sound.queueEffect(pending);
             game->pendingSound=-1;sound.tick();
+            if(frameServices.count(clock.displays)){
+                game->render(false);auto image=paused?renderPausedGame(*frameUi,game->screen):game->screen;
+                int palette=frameUi->fadePalettes[std::min(game->displayFadeRemaining,7)];
+                for(auto& shade:image)shade=(palette>>(shade*2))&3;
+                std::ofstream file(framesPath+"/native-"+std::to_string(clock.displays)+".pgm",std::ios::binary);
+                if(!file)throw std::runtime_error("Cannot open local frame output");
+                file<<"P5\n160 144\n255\n";for(auto shade:image)file.put(static_cast<char>(255-85*(shade&3)));
+            }
             if(audioLog.is_open())for(int i=0;i<6;++i){const auto& v=sound.voices[i];
                 audioLog<<clock.displays<<','<<i<<','<<sound.musicWorkCycles<<','<<sound.voiceWorkCycles[i]<<','<<int(v.active)<<','<<v.position<<','<<v.remaining<<','<<v.fixed<<','<<v.loopCount
                     <<','<<v.transpose<<','<<v.noTranspose<<','<<v.fineTune<<','<<v.note<<','<<v.targetNote<<','<<v.frequency<<','<<v.stage<<','<<v.envelopeCounter<<','<<v.volume
@@ -310,6 +329,7 @@ int main(int argc,char** argv){
             // 0409 starts DI/setup of the result screen. Its work, pixels and
             // original audio software-state reset are outside this probe.
         }
+        if(!frameServices.empty()&&*frameServices.rbegin()>=clock.displays)throw std::runtime_error("Selected native frame services exceed replay coverage");
         fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");
         return 0;
     }catch(const std::exception& e){fprintf(stderr,"%s\n",e.what());return 1;}
