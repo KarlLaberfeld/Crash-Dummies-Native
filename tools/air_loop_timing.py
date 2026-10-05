@@ -13,6 +13,7 @@ import sys
 from air_reference import write_json
 from air_timing import elapsed_work
 from extract import read_rom
+from reference_backend import reference_class,require_matching_backend
 
 VERSION=1
 BOUNDARIES={0x03c6:'enable',0x03cb:'wait',0x03ce:'resume',0x03d8:'update',0x03fa:'done',0x0400:'finalWait',0x0403:'finalResume'}
@@ -110,9 +111,8 @@ def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['romSha256']!=hashlib.sha256(rom).hexdigest() or manifest['controlDifferences']:
         raise ValueError('Requires matching control-verified Air replay')
-    if args.reference_lib:sys.path.insert(0,str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy')!='2.7.0':raise ValueError('Requires PyBoy 2.7.0')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
     points=[];interrupts=[];opened=None
     def word(a):return p.memory[a]+256*p.memory[a+1]
@@ -147,7 +147,7 @@ def capture(args):
     partial=dict(opened,captureEnd=capture_end) if opened is not None else None
     args.out.mkdir(parents=True,exist_ok=True)
     write_json(args.out/'loop.json',dict(version=VERSION,romSha256=manifest['romSha256'],controlMemorySha256=control,
-        emulator='PyBoy 2.7.0',captureComplete=partial is None,partialFinalInterrupt=partial,points=points,interrupts=interrupts))
+        reference=metadata,captureComplete=partial is None,partialFinalInterrupt=partial,points=points,interrupts=interrupts))
     report(args)
 
 
@@ -160,6 +160,7 @@ def report(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     rec=sub.add_parser('capture');rec.add_argument('rom',type=Path);rec.add_argument('--reference-lib',type=Path)
+    rec.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     rec.add_argument('--capture',type=Path,default=Path('local/original-air-verified'));rec.add_argument('--progress',action='store_true')
     for q in (rec,sub.add_parser('report')):q.add_argument('--out',type=Path,default=Path('local/air-loop-timing'))
     args=parser.parse_args();{'capture':capture,'report':report}[args.mode](args)

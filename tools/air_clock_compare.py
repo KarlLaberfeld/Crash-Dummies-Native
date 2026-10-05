@@ -12,6 +12,7 @@ from pathlib import Path
 from air_reference import write_json
 from extract_air import HANDLERS
 from air_timing import elapsed_work, STAGES
+from reference_backend import require_capture_reference
 
 
 def compare_states(original,native):
@@ -119,6 +120,7 @@ def main(args):
             return [{k:int(v) for k,v in row.items()} for row in csv.DictReader(stream)]
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     timing=json.loads((args.timing/'timing.json').read_text())
+    require_capture_reference(manifest,timing)
     if manifest['controlDifferences'] or timing['romSha256']!=manifest['romSha256'] or timing['controlMemorySha256']!=manifest['controlMemorySha256']:
         raise ValueError('Unverified or mismatched original capture')
     original=json.loads((args.capture/'trace.json').read_text())['post']
@@ -131,14 +133,17 @@ def main(args):
     final_wait_differences=None
     if args.exit_csv:
         loop=json.loads(args.loop_reference.read_text())
+        require_capture_reference(manifest,loop)
         if loop.get('version')!=1 or loop['romSha256']!=manifest['romSha256'] or loop['controlMemorySha256']!=manifest['controlMemorySha256']:raise ValueError('Unverified final-wait loop reference')
         final_wait_differences=compare_final_wait(loop,rows(args.exit_csv))
     if args.input_reference:
         ref=json.loads(args.input_reference.read_text())
+        require_capture_reference(manifest,ref)
         if ref.get('version')!=1 or ref['controlMemorySha256']!=manifest['controlMemorySha256'] or ref['romSha256']!=manifest['romSha256']:raise ValueError('Unverified input reference')
         input_differences=compare_input_samples(ref['samples'],services)
     if args.sprite_reference:
         sprite_reference=json.loads(args.sprite_reference.read_text())
+        require_capture_reference(manifest,sprite_reference)
         if sprite_reference['controlMemorySha256']!=manifest['controlMemorySha256'] or sprite_reference['romSha256']!=manifest['romSha256']:raise ValueError('Unverified sprite reference')
         sprite_differences=compare_sprites([q for q in sprite_reference['interrupts'] if q['kind']=='vblank'],rows(args.sprite_csv),len(services))
     result=dict(comparedUpdates=len(native),originalUpdates=len(original),captureComplete=len(native)==len(original),

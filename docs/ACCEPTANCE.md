@@ -236,3 +236,30 @@ portable preview from the outgoing-fade checkpoint remain applicable; unchanged
 campaigns were not repeated. Captures and logs remain ignored/local under
 local/air-steer16-*. Production integration and the remaining ACCEPTANCE.md
 requirements are still open. No final-release status is claimed.
+
+## Independent original reference - 2026-10-05
+
+The locally installed PyBoy reference uses a fixed LCD pixel-transfer duration,
+which cannot establish original pause polling behavior. An independent official
+SameBoy 1.0.3 reference (pinned source, open boot ROM, DMG-B model) is now set up
+under ignored .tools/. It is used only for authorized original measurements;
+no reference core, DLL, boot ROM or recording enters the port or preview.
+See REFERENCE_BACKENDS.md for the hardware-source link and reproducible setup.
+
+The first control-verified SameBoy normal-coast case independently matches
+3,989 native ordinary-clock updates, 3,990 complete services, 23,934 source
+phases/entry counters, 159,600 sprite slots and 3,990 held/fresh samples. This
+repeats an existing scenario on another engine; the eleven earlier PyBoy cases
+remain separately counted. All measurement runs preserve the uninstrumented
+end-state control. A SameBoy pause recording validates four copies, 35 paused
+services/waits and 34 frozen-world intervals. Its LCD poll counts are observed
+comparison data, never native clock inputs; independent native polling work
+remains required.
+
+Backend, revision/model and independent recording provenance are now explicit;
+mixed records are rejected. The separate reference adapter exposes read-only
+observations and button inputs with unmodified save/load states. The official
+source revision and library/boot identity are checked. Latest pure Python tests
+pass 98 checks. Native code/build/three campaigns and both Windows/portable UI
+variants remain unchanged from the fully tested outgoing-fade checkpoint, so
+those suites were not repeated. The overall port is still incomplete.

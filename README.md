@@ -155,3 +155,7 @@ ROMs, extracted original graphics, asset packages, and local analysis dumps
 are excluded from the repository. Generate assets from your own original
 cartridge file. Original game content and trademarks belong to their respective
 owners. This is an unofficial project.
+
+Optional original-reference measurements now also support a separately compiled,
+independent SameBoy backend. It is excluded from the native build and preview;
+see [reference setup and evidence](docs/REFERENCE_BACKENDS.md).

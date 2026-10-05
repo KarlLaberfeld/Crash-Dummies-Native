@@ -12,15 +12,15 @@ import sys
 
 from air_reference import write_json
 from extract import read_rom
+from reference_backend import reference_class,require_matching_backend
 
 
 def capture(args):
     rom=read_rom(args.rom);manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['romSha256']!=hashlib.sha256(rom).hexdigest() or manifest['controlDifferences']:
         raise ValueError('Requires matching control-verified Air replay')
-    if args.reference_lib:sys.path.insert(0,str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy')!='2.7.0':raise ValueError('Requires PyBoy 2.7.0')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
     samples=[]
     def sample(_):
@@ -38,13 +38,14 @@ def capture(args):
     finally:p.stop(save=False)
     if control!=manifest['controlMemorySha256'] or not samples:raise ValueError('Changed control memory or missing input samples')
     args.out.mkdir(parents=True,exist_ok=True)
-    write_json(args.out/'inputs.json',dict(version=1,romSha256=manifest['romSha256'],controlMemorySha256=control,samples=samples))
+    write_json(args.out/'inputs.json',dict(version=1,romSha256=manifest['romSha256'],controlMemorySha256=control,reference=metadata,samples=samples))
     print(json.dumps(dict(samples=len(samples),controlDifferences=0,evidenceLimit='Single source joypad-return boundary. Recorded edges are comparison targets, never native input. Physical input timing remains unverified.'),indent=2))
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('rom',type=Path);parser.add_argument('--reference-lib',type=Path)
+    parser.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     parser.add_argument('--capture',type=Path,default=Path('local/original-air-steer44'))
     parser.add_argument('--out',type=Path,default=Path('local/air-steer44-input-reference'))
     capture(parser.parse_args())

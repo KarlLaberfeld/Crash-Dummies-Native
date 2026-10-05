@@ -14,6 +14,7 @@ from pathlib import Path
 
 from extract import read_rom
 from extract_air import HANDLERS
+from reference_backend import reference_class
 
 
 def write_json(path, value):
@@ -22,9 +23,7 @@ def write_json(path, value):
 
 def capture(args):
     data = read_rom(args.rom)
-    if args.reference_lib:
-        sys.path.insert(0, str(args.reference_lib.resolve()))
-    from pyboy import PyBoy
+    PyBoy,reference_metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
 
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -172,8 +171,8 @@ def capture(args):
     frozen = stall is not None and all(all(row[k] == post[stall][k] for k in frozen_fields)
                                       for row in post[stall:])
     summary = dict(romSha256=hashlib.sha256(data).hexdigest(), python=platform.python_version(),
-                   emulator='PyBoy', version=importlib.metadata.version('pyboy'),
-                   bootRom='PyBoy bundled boot ROM', soundEmulated=True, soundVolume=0,
+                   emulator=reference_metadata['emulator'], version=reference_metadata['version'],
+                   bootRom=reference_metadata['bootRom'], soundEmulated=True, soundVolume=0,
                    setup='Original password and Start inputs; no gameplay RAM writes',
                    hookAddresses=['00:03d8', '00:03fa'], completedUpdates=len(post),
                    stallUpdate=stall, frozenAfterStall=frozen,
@@ -181,6 +180,7 @@ def capture(args):
                    controlComparedBytes=len(actual), controlDifferences=differences,
                    controlMemorySha256=hashlib.sha256(actual).hexdigest(),
                    hardwareVerified=False)
+    summary.update({k:v for k,v in reference_metadata.items() if k not in summary})
     summary.update(difficulty=args.difficulty,inputPattern=args.pattern,maxFrames=args.max_frames,
         steerPeriod=args.steer_period,steerOffset=args.steer_offset,
         pauseAfter=getattr(args,'pause_after',0),pauseFrames=getattr(args,'pause_frames',120),pauseSamples=pause_samples,
@@ -235,6 +235,7 @@ if __name__ == '__main__':
     record = sub.add_parser('capture')
     record.add_argument('rom', type=Path)
     record.add_argument('--reference-lib', type=Path)
+    record.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     record.add_argument('--out', type=Path, default=Path('local/original-air'))
     record.add_argument('--difficulty',type=int,choices=range(4),default=1)
     record.add_argument('--pattern',choices=('alternating','coast','boost','accelerate'),default='alternating')

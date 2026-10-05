@@ -15,6 +15,7 @@ from air_reference import write_json
 from air_loop_timing import stat_cycles, wait_active_cycles
 from air_timing import elapsed_work, VBLANK_FIXED, vblank_bookkeeping_work
 from extract import read_rom
+from reference_backend import reference_class,require_matching_backend
 
 VERSION=1
 POINTS={0x1476:'enter',0x1492:'copyEntry',0x14ac:'script',0x14b9:'wait',
@@ -113,9 +114,8 @@ def capture(args):
     rom=read_rom(args.rom);manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['romSha256']!=hashlib.sha256(rom).hexdigest() or manifest['controlDifferences'] or not manifest.get('pauseSamples'):
         raise ValueError('Requires matching control-verified pause replay')
-    if args.reference_lib:sys.path.insert(0,str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy')!='2.7.0':raise ValueError('Requires PyBoy 2.7.0')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     p=PyBoy(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
     pauses=[];current=opened=copy=None;in_script=False
     def word(a):return p.memory[a]+256*p.memory[a+1]
@@ -175,7 +175,7 @@ def capture(args):
     finally:p.stop(save=False)
     if current is not None or control!=manifest['controlMemorySha256']:raise ValueError('Incomplete pause or changed control memory')
     args.out.mkdir(parents=True,exist_ok=True)
-    write_json(args.out/'pause.json',dict(version=VERSION,romSha256=manifest['romSha256'],controlMemorySha256=control,pauses=pauses))
+    write_json(args.out/'pause.json',dict(version=VERSION,romSha256=manifest['romSha256'],controlMemorySha256=control,reference=metadata,pauses=pauses))
     report(args)
 
 
@@ -188,6 +188,7 @@ def report(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     rec=sub.add_parser('capture');rec.add_argument('rom',type=Path);rec.add_argument('--reference-lib',type=Path)
+    rec.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     rec.add_argument('--capture',type=Path,default=Path('local/original-air-pause'))
     for q in (rec,sub.add_parser('report')):q.add_argument('--out',type=Path,default=Path('local/air-pause-timing'))
     args=parser.parse_args();{'capture':capture,'report':report}[args.mode](args)

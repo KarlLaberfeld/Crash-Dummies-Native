@@ -13,6 +13,7 @@ import sys
 
 from air_reference import write_json
 from extract import read_rom
+from reference_backend import reference_class,require_matching_backend
 
 
 STAGES = {0x03d8: 'update', 0x03de: 'entitiesDone', 0x03e4: 'sprites',
@@ -416,11 +417,8 @@ def capture(args):
     manifest = json.loads((args.capture / 'capture-summary.json').read_text(encoding='utf-8'))
     if manifest['romSha256'] != hashlib.sha256(rom).hexdigest() or manifest['controlDifferences']:
         raise ValueError('Requires a matching, control-verified reference capture')
-    if args.reference_lib:
-        sys.path.insert(0, str(args.reference_lib.resolve()))
-    if importlib.metadata.version('pyboy') != '2.7.0':
-        raise ValueError('Cycle instrumentation is validated with PyBoy 2.7.0 only')
-    from pyboy import PyBoy
+    PyBoy,metadata=reference_class(getattr(args,'reference_backend','pyboy'),args.reference_lib)
+    require_matching_backend(manifest,metadata)
     player = PyBoy(str(args.rom), window='null', sound_volume=0)
     player.set_emulation_speed(0)
     rows, interrupts, frames = [], [], {}
@@ -661,7 +659,7 @@ def capture(args):
         if row['update']['tick'] != pre['tick'] or row['done']['tick'] != post['tick']:
             raise ValueError('Timing replay counter differs from verified capture')
     data = dict(version=CAPTURE_VERSION, updates=rows, interrupts=interrupts, frames=frames, romSha256=manifest['romSha256'],
-                controlMemorySha256=manifest['controlMemorySha256'], emulator='PyBoy 2.7.0')
+                controlMemorySha256=manifest['controlMemorySha256'], reference=metadata)
     args.out.mkdir(parents=True, exist_ok=True)
     write_json(args.out / 'timing.json', data)
     report(argparse.Namespace(out=args.out))
@@ -822,6 +820,7 @@ if __name__ == '__main__':
     record = sub.add_parser('capture')
     record.add_argument('rom', type=Path)
     record.add_argument('--reference-lib', type=Path)
+    record.add_argument('--reference-backend',choices=('pyboy','sameboy'),default='pyboy')
     record.add_argument('--capture', type=Path, default=Path('local/original-air-verified'))
     record.add_argument('--out', type=Path, default=Path('local/air-timing'))
     view = sub.add_parser('report')
