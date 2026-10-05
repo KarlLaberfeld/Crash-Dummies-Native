@@ -141,6 +141,16 @@ inline int airSpawnRelativeWork(const AirGame& game,bool other){
         return (other?296:284)+816+52*slot;
     return (other?296:284)+868;
 }
+inline int airExplodingWork(const AirGame& game,int countBefore){
+    if(countBefore<0||countBefore>255)return -1;
+    int phase=(countBefore-1)&255;
+    // 62a9 countdown + branch to 62f6's hide/frame helper.
+    if(!phase)return 92+292;
+    if(phase&7)return 124;
+    // Two 1723 calls cost 172 each. Their carry paths take equal work.
+    // 62b3..62ea contributes 276, followed by the countdown/sound test.
+    return 112+276+2*172+airSpawnRelativeWork(game,false)+((phase&15)?104:144);
+}
 inline int airSeverityWork(const AirGame& g){
     int severity=g.entities[0].params[5]>>6;
     if(!severity)return 208;
@@ -218,6 +228,7 @@ inline int airSimpleHandlerWork(const AirGame& game,const AirEntity& before,
     case AirHandler::BeginFinish:return 140+(game.finishTimer==0?48:0);
     case AirHandler::FinishDelay:return 44+(game.finishTimer==0?48:0);
     case AirHandler::FinishMotion:return game.complexBodyWorkCycles;
+    case AirHandler::Exploding:return game.complexBodyWorkCycles;
     case AirHandler::Wait:return before.params[0]!=1?100:game.complexBodyWorkCycles<0?-1:184+game.complexBodyWorkCycles;
     case AirHandler::Animation:return starter?-1:animation; // Deferred native safeguard is not an original body.
     case AirHandler::Hide:return 292;

@@ -42,17 +42,20 @@ struct AirClock {
         if(cost<0)throw std::runtime_error("Unreconstructed Air atomic work");
         now+=cost;effect();work(0,display,ready);
     }
-    template<class Display>void wait(Display&& display){
-        // Snapshot precedes HALT. Ordinary active entry costs 60; first HALT
-        // contributes 4 before sleeping. STAT cannot change the wait counter.
-        auto counter=displays;
-        work(60,display,true);
+    template<class Display>void wait(Display&& display,bool ready=true){
+        // CALL/PUSH precede the counter read. A display during that prefix
+        // must belong to the new snapshot, so the wait needs a later VBlank.
+        // The 16-cycle read commits before a pending service; LD B costs 4.
+        work(40,display,ready);
+        unsigned counter=displays;
+        atomicWork(16,[&]{counter=displays;},display,ready);
+        work(4,display,ready);
         do{
             now+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
             if(now<deadline)now=deadline;
             if(nextStat<nextVBlank){nextStat+=Frame;stat();now+=16+4+12;}
-            else{nextVBlank+=Frame;vblank(display,true);now+=16+4+8+12+16;}
+            else{nextVBlank+=Frame;vblank(display,ready);now+=16+4+8+12+16;}
         }while(displays==counter);
     }
 };

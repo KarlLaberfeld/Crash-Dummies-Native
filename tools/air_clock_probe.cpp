@@ -16,11 +16,12 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--display-inputs buttons.txt] [--final-wait]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath;bool finalWait=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option=="--final-wait")finalWait=true;
             else if(option.rfind("--",0)==0)throw std::runtime_error("Unknown/incomplete clock probe option");
             else if(positional++==0)difficulty=std::stoi(option);
             else if(positional==2)spritePath=option;
@@ -170,9 +171,20 @@ int main(int argc,char** argv){
                 game->result,game->seconds,game->secondTicks,game->randomState,game->crashRecoveryPending);
             ++updates;
             if(!game->result)clock.work(32,display,false); // Result test + taken back-edge.
-            else clock.work(28,display,false); // Exit result test; final display/outro wait is not modeled yet.
+            else clock.work(28,display,false); // Exit result test before 0400's optional final wait.
         }
         if(!input.eof())return 2;
+        if(finalWait){
+            if(!game->result)throw std::runtime_error("Final wait requires a completed stunt result");
+            auto start=clock.now;int tick=game->ticks;unsigned servicesBefore=clock.displays;
+            loopBoundarySafe=true;clock.wait(display,false);loopBoundarySafe=false;
+            std::ofstream exit(std::string(argv[2])+".exit.csv");
+            if(!exit)throw std::runtime_error("Cannot open final-wait output");
+            exit<<"tickBefore,tickAfter,elapsed,displayServices,ready\n"
+                <<tick<<','<<game->ticks<<','<<(clock.now-start)<<','<<(clock.displays-servicesBefore)<<",0\n";
+            // Stop before 0403: audio stop and result fade/outro still require
+            // their own semantic ownership and original comparisons.
+        }
         fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");
         return 0;
     }catch(const std::exception& e){fprintf(stderr,"%s\n",e.what());return 1;}

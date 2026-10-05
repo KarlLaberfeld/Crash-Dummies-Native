@@ -329,6 +329,7 @@ void AirGame::collide(){
 }
 void AirGame::update(int i){
     auto& e=entities[i];
+    int explosionPrefix=0;
     switch(e.handler){
     case AirHandler::Intro:e.handler=AirHandler::Rise;[[fallthrough]];
     case AirHandler::Rise:
@@ -442,10 +443,12 @@ void AirGame::update(int i){
             if(measureWork&&complexBodyWorkCycles>=0)complexBodyWorkCycles+=52+68+44;
             e.handler=AirHandler::Play;break;
         }
-        complexBodyWorkCycles=-1; // Exploding fallthrough still needs a complete source model.
+        // 6284..62a9: hazard test, handler/countdown writes and forced frame.
+        if(measureWork)explosionPrefix=complexBodyWorkCycles<0?-1:complexBodyWorkCycles+356;
         e.handler=AirHandler::Exploding;e.params[0]=64;setFrame(i,6);[[fallthrough]];
     }
     case AirHandler::Exploding:
+        if(measureWork)complexBodyWorkCycles=explosionPrefix<0?-1:explosionPrefix+airExplodingWork(*this,e.params[0]);
         if(--e.params[0]){if(!(e.params[0]&7)){int dx=(randomByte()&15)*16,dy=(randomByte()&31)*16;spawn(33,e.x+dx,e.y+dy);}if(!(e.params[0]&15))pendingSound=14;break;}
         [[fallthrough]];
     case AirHandler::Hide:e.flags|=8;e.handler=AirHandler::Return;setFrame(i,0);break;

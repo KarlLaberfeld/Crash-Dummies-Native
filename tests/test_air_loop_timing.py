@@ -28,6 +28,36 @@ class AirLoopTests(unittest.TestCase):
         self.assertEqual(wait_active_cycles(1),156)
         with self.assertRaises(ValueError):wait_active_cycles(-1)
 
+    def test_display_before_counter_snapshot_needs_a_later_service(self):
+        data=self.data()
+        data['interrupts']=[dict(kind='vblank',start=44,end=144,returnAddress=0x2618),
+                            dict(kind='vblank',start=180,end=280,returnAddress=0x261d)]
+        data['points'][1]['counter']=1
+        result=analyze(data)
+        self.assertEqual(result['sourceMismatches'],[])
+        self.assertEqual(result['waitDisplayCounts'],[2])
+        self.assertEqual(result['idleRange'],[8,8])
+        data['interrupts'][0]['returnAddress']=0x261d
+        with self.assertRaises(ValueError):analyze(data)
+
+    def test_partial_final_interrupt_is_explicit_and_never_completed_work(self):
+        data=self.data()
+        data.update(captureComplete=False,partialFinalInterrupt=dict(kind='vblank',start=600,captureEnd=620))
+        result=analyze(data)
+        self.assertFalse(result['captureComplete'])
+        self.assertEqual(result['waits'],1)
+        data['partialFinalInterrupt']['start']=300
+        with self.assertRaises(ValueError):analyze(data)
+
+    def test_final_wait_retains_busy_gate(self):
+        data=self.data();data['points']=data['points'][:2]
+        data['points'][0].update(name='finalWait',ready=0)
+        data['points'][1].update(name='finalResume',ready=0)
+        self.assertEqual(analyze(data)['waitDisplayCounts'],[1])
+        self.assertEqual(analyze(data)['finalWaits'],1)
+        data['points'][1]['ready']=1
+        with self.assertRaises(ValueError):analyze(data)
+
     def test_missing_counter_change_or_resume_is_rejected(self):
         data=self.data();data['points'][1]['counter']=255
         with self.assertRaises(ValueError):analyze(data)

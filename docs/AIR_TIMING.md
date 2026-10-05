@@ -306,8 +306,8 @@ counts are not native work inputs. Latest tests pass 82 Python and 92 synthetic
 source-work checks, the full native suites/three campaigns and Windows UI
 tests with normal and failed audio output.
 
-1. Expand the existing winning FinishMotion/WallSlide evidence to other branches,
-   Exploding and additional collision cases. Reconstruct missing work and check state/effect/cost ownership; unknown
+1. Expand the existing FinishMotion/WallSlide and Exploding evidence to other
+   branches and additional collision cases. Reconstruct missing work and check state/effect/cost ownership; unknown
    paths remain -1. Expand music branches without an existing reference witness.
 2. Account for interrupts within entity updates, resource/map callbacks and
    sprite geometry and row construction. Piece writes and no-row callbacks
@@ -323,3 +323,72 @@ tests with normal and failed audio output.
 Do not hardcode overrun update numbers, drive cartridge timing from Windows CPU
 speed, add a runtime emulator or mark release timing accepted at this
 checkpoint.
+
+## Explosion and wait-counter ownership - 2026-10-05
+
+An input-only easy-difficulty capture with alternating steering period 52
+reaches a damage result after 2,077 updates. All state and update/handler costs
+agree, including 63 Exploding and 61 Return calls. The new source explosion
+formula separates countdown-only, final hide/animation, particle allocation,
+RNG and alternating sound paths. Invalid countdowns remain -1; this does not
+certify every possible allocation or collision branch.
+
+A counter-read boundary in 2617's wait was previously charged as one block.
+If VBlank runs during the preceding CALL/PUSH, the original reads the updated
+counter and needs another service before returning. The native model now
+charges that prefix before taking its snapshot, then commits the read before
+a pending service. Total work remains unchanged. Two synthetic regressions
+distinguish an interrupt before the read from one pending during the read.
+
+The corrected ordinary clock matches all 2,077 updates and 2,105 services of
+this case, all six work phases/entry counters, 84,200 sprite slots and 2,105
+independently captured held/fresh inputs. All nine previous cases still pass.
+Combined evidence now covers 30,180 updates, 30,258 services and 181,080 phases;
+three sprite/input captures cover 243,040 slots and 6,076 samples. Latest
+validation passes 84 Python tests, 99 synthetic source-work checks and 13
+Windows UI checks on the rebuilt EXE. Prior full gameplay/campaign tests remain
+applicable because this work changes accounting, not production gameplay.
+
+An independent loop capture validates 2,077 waits with one or two VBlanks,
+2,106 STAT bodies and all resume/tail costs. Return addresses distinguish a
+service before the snapshot from a HALT wake. The last incomplete interrupt
+is explicitly recorded/excluded; changed control still rejects the capture.
+Idle remains a measurement, not a native work allowance.
+
+Original captures and logs remain ignored/local. The new phase agreement does
+not establish native pause LCD polling, unsupported interrupted entity/resource
+or row work, UI startup/exit, production scheduler integration, matched pixels
+or PCM, or final release acceptance.
+
+## Final gameplay display wait - 2026-10-05
+
+The ordinary-clock probe can now continue through 0400's final display wait,
+stopping at 0403 before audio stop and the outgoing fade. The original leaves
+FFAE clear throughout this wait; the native callback therefore retains the busy
+resource gate rather than enabling an extra graphics upload. It continues HUD,
+display counter, button sampling and music services without another game update.
+
+Three new control-verified recordings extend existing input-only paths by two
+hardware frames after the result: damage/explosion, successful finish and
+normal-difficulty timeout. The native final wait matches original entry/exit
+counters, elapsed cycles, one complete display service and the retained gate in
+all three cases. The measured durations differ (47,740 / 31,940 / 58,636 cycles);
+they are comparison targets, never native delays. State, phase and service
+comparisons continue to match across the 8,417 repeated gameplay updates and
+8,476 services including these waits. The damage case additionally matches all
+84,240 sprite slots and 2,106 independently recorded held/fresh samples through
+the final service. These are extensions of three of the ten cases, not three
+new independent gameplay paths.
+
+Reference tools now allow a bounded post-result recording and compare the final
+wait explicitly. Missing boundaries, changed controls, enabled resource gates
+and incomplete final intervals are rejected. Latest validation passes 87 Python
+and 100 synthetic source-work tests. The existing 13-check Windows UI run passed
+after the accounting-only change; no new production scheduling behavior is
+claimed. Evidence stays under ignored local/air-final-{wait,win,timeout}-*.
+
+Audio stop at 0403, outgoing fade/result setup and normal UI startup are still
+outside this clock's accepted scope. Pause LCD polling, interrupted entity/
+resource/row ownership, production integration, other stunts, matched pixels/PCM
+and human/independent Windows tests remain required by ACCEPTANCE.md. The
+complete port and final distribution are not accepted.

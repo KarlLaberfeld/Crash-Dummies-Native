@@ -77,6 +77,23 @@ def compare_input_samples(original,native):
     return differences
 
 
+def compare_final_wait(loop,native):
+    if len(native)!=1:raise ValueError('Final wait must have one complete native interval')
+    points=loop['points']
+    candidates=[(p,points[i+1]) for i,p in enumerate(points[:-1]) if p['name']=='finalWait' and points[i+1]['name']=='finalResume']
+    if len(candidates)!=1:raise ValueError('Requires one complete original final wait')
+    start,end=candidates[0]
+    partial=loop.get('partialFinalInterrupt')
+    if partial is not None and end['cycles']>partial['start']-20:raise ValueError('Final wait overlaps an incomplete original service')
+    services=[q for q in loop['interrupts'] if q['kind']=='vblank' and start['cycles']<=q['start']-20 and q['end']+16<=end['cycles']]
+    if start['ready'] or end['ready'] or not services:raise ValueError('Invalid original final-wait gate/services')
+    expected=dict(tickBefore=start['tick'],tickAfter=end['tick'],elapsed=end['cycles']-start['cycles'],displayServices=len(services),ready=0)
+    row=native[0]
+    if any(name not in row for name in expected):raise ValueError('Missing native final-wait field')
+    delta={name:[value,row[name]] for name,value in expected.items() if value!=row[name]}
+    return [delta] if delta else []
+
+
 def compare_phase_work(original,interrupts,native,completed_updates):
     if len(native)!=completed_updates*6 or not 0<completed_updates<=len(original):raise ValueError('Incomplete native phase-work coverage')
     names=list(STAGES.values())
@@ -111,6 +128,11 @@ def main(args):
     phase_differences=compare_phase_work(timing['updates'],timing['interrupts'],rows(args.phase_csv),len(native)) if args.phase_csv else None
     sprite_differences=None
     input_differences=None
+    final_wait_differences=None
+    if args.exit_csv:
+        loop=json.loads(args.loop_reference.read_text())
+        if loop.get('version')!=1 or loop['romSha256']!=manifest['romSha256'] or loop['controlMemorySha256']!=manifest['controlMemorySha256']:raise ValueError('Unverified final-wait loop reference')
+        final_wait_differences=compare_final_wait(loop,rows(args.exit_csv))
     if args.input_reference:
         ref=json.loads(args.input_reference.read_text())
         if ref.get('version')!=1 or ref['controlMemorySha256']!=manifest['controlMemorySha256'] or ref['romSha256']!=manifest['romSha256']:raise ValueError('Unverified input reference')
@@ -124,19 +146,22 @@ def main(args):
         differingSpriteSlots=len(sprite_differences) if sprite_differences is not None else None,
         differingWorkPhases=len(phase_differences) if phase_differences is not None else None,
         differingInputSamples=len(input_differences) if input_differences is not None else None,
+        differingFinalWaitIntervals=len(final_wait_differences) if final_wait_differences is not None else None,
+        finalWaitCompared=final_wait_differences is not None,
         firstUpdateDifference=state_differences[0] if state_differences else None,
         firstDisplayDifference=service_differences[0] if service_differences else None,
         firstWorkPhaseDifference=phase_differences[0] if phase_differences else None,
         firstInputDifference=input_differences[0] if input_differences else None,
+        firstFinalWaitDifference=final_wait_differences[0] if final_wait_differences else None,
         suppliesPerUpdateClock=False,runtimeSchedulingFixed=False,
         inputMode='display-sampled' if args.display_inputs else 'update-aligned',
         evidenceLimit='Experimental semantic-phase replay. Initial clock/timer/random phase and '+
             ('per-display button samples' if args.display_inputs else 'update-aligned buttons')+
-            ' are supplied; per-update counters, costs and world outcomes are not. Physical input timing, pause/exit/outro, pixels, PCM and the Windows loop remain unverified.')
+            ' are supplied; per-update counters, costs and world outcomes are not. Physical input timing, pause, exit beyond the separately compared final wait, pixels, PCM and the Windows loop remain unverified.')
     write_json(args.native_csv.with_suffix('.clock-comparison.json'),result)
-    write_json(args.native_csv.with_suffix('.clock-differences.json'),dict(updates=state_differences,services=service_differences,sprites=sprite_differences,phases=phase_differences,inputs=input_differences))
+    write_json(args.native_csv.with_suffix('.clock-differences.json'),dict(updates=state_differences,services=service_differences,sprites=sprite_differences,phases=phase_differences,inputs=input_differences,finalWait=final_wait_differences))
     print(json.dumps(result,indent=2))
-    if state_differences or service_differences or sprite_differences or phase_differences or input_differences:raise ValueError('Ordinary-clock state, service, sprite, phase or input differences')
+    if state_differences or service_differences or sprite_differences or phase_differences or input_differences or final_wait_differences:raise ValueError('Ordinary-clock state, service, sprite, phase, input or final-wait differences')
 
 
 if __name__=='__main__':
@@ -148,7 +173,10 @@ if __name__=='__main__':
     parser.add_argument('--phase-csv',type=Path)
     parser.add_argument('--display-inputs',action='store_true',help='Require matching per-display button samples in the service CSV')
     parser.add_argument('--input-reference',type=Path,help='Independent original held/fresh button samples, for comparison only')
+    parser.add_argument('--exit-csv',type=Path,help='Native complete final-wait interval; stops before audio stop/fade')
+    parser.add_argument('--loop-reference',type=Path,help='Control-verified original final-wait boundaries')
     args=parser.parse_args()
     if bool(args.sprite_reference)!=bool(args.sprite_csv):parser.error('Sprite reference and native sprite CSV are required together')
     if args.input_reference and not args.display_inputs:parser.error('Input reference requires display-sampled mode')
+    if bool(args.exit_csv)!=bool(args.loop_reference):parser.error('Native exit CSV and original loop reference are required together')
     main(args)

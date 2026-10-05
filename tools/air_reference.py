@@ -136,6 +136,8 @@ def capture(args):
                 break
         if stall is not None:
             tick(600)
+        elif post[-1]['result'] and getattr(args,'after_result_frames',0):
+            tick(args.after_result_frames)
         original.screen.image.save(str(out / 'last.png'))
         expected = bytes(original.memory[0x8000:0x10000])
         (out / 'hooked-end.bin').write_bytes(expected)
@@ -183,6 +185,7 @@ def capture(args):
         steerPeriod=args.steer_period,steerOffset=args.steer_offset,
         pauseAfter=getattr(args,'pause_after',0),pauseFrames=getattr(args,'pause_frames',120),pauseSamples=pause_samples,
         pauseReached=bool(pause_samples),
+        afterResultFrames=getattr(args,'after_result_frames',0),
         stopReason='stall' if stall is not None else 'result' if post[-1]['result'] else 'frameLimit')
     write_json(out / 'capture-summary.json', summary)
     print(json.dumps(summary, indent=2))
@@ -240,9 +243,10 @@ if __name__ == '__main__':
     record.add_argument('--steer-offset',type=int,default=24)
     record.add_argument('--pause-after',type=int,default=0)
     record.add_argument('--pause-frames',type=int,default=120)
+    record.add_argument('--after-result-frames',type=int,default=0,help='Retain input-only recording through the first result display/fade services')
     diff = sub.add_parser('compare')
     diff.add_argument('native_csv', type=Path)
     diff.add_argument('--out', type=Path, default=Path('local/original-air'))
     options = parser.parse_args()
-    if options.mode=='capture' and (options.max_frames<=0 or options.steer_period<=0 or options.pause_after<0 or options.pause_frames<=0):parser.error('Frame limit, steering period and pause duration must be positive; pause update cannot be negative')
+    if options.mode=='capture' and (options.max_frames<=0 or options.steer_period<=0 or options.pause_after<0 or options.pause_frames<=0 or options.after_result_frames<0):parser.error('Frame limit, steering period and pause duration must be positive; pause update and post-result duration cannot be negative')
     (capture if options.mode == 'capture' else compare)(options)

@@ -3,11 +3,28 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work,compare_input_samples
+from air_clock_compare import compare_states, compare_services, compare_sprites, compare_phase_work,compare_input_samples,compare_final_wait
 from air_timing import STAGES
 
 
 class AirClockCompareTests(unittest.TestCase):
+    def test_final_wait_checks_elapsed_time_and_retained_busy_gate(self):
+        loop=dict(points=[dict(name='finalWait',cycles=0,tick=65535,ready=0),dict(name='finalResume',cycles=400,tick=0,ready=0)],
+                  interrupts=[dict(kind='vblank',start=100,end=200)])
+        native=[dict(tickBefore=65535,tickAfter=0,elapsed=400,displayServices=1,ready=0)]
+        self.assertEqual(compare_final_wait(loop,native),[])
+        native[0]['elapsed']=404
+        self.assertEqual(compare_final_wait(loop,native)[0],{'elapsed':[400,404]})
+        loop['points'][0]['ready']=1
+        with self.assertRaises(ValueError):compare_final_wait(loop,native)
+
+    def test_final_wait_rejects_missing_or_partial_reference(self):
+        loop=dict(points=[dict(name='finalWait',cycles=0,tick=1,ready=0)],interrupts=[])
+        with self.assertRaises(ValueError):compare_final_wait(loop,[{}])
+        loop['points'].append(dict(name='finalResume',cycles=400,tick=2,ready=0))
+        loop['partialFinalInterrupt']=dict(start=300)
+        with self.assertRaises(ValueError):compare_final_wait(loop,[{}])
+
     def state(self):
         names='tick frame flags x y cameraX cameraY speed rate tilt count crash done waiting delay period transfer remaining map result seconds secondTicks random'.split()
         original=dict.fromkeys(names,0);original['handler']=0x23e2

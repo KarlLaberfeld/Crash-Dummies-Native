@@ -15,7 +15,7 @@ from air_timing import elapsed_work
 from extract import read_rom
 
 VERSION=1
-BOUNDARIES={0x03c6:'enable',0x03cb:'wait',0x03ce:'resume',0x03d8:'update',0x03fa:'done',0x0400:'finalWait'}
+BOUNDARIES={0x03c6:'enable',0x03cb:'wait',0x03ce:'resume',0x03d8:'update',0x03fa:'done',0x0400:'finalWait',0x0403:'finalResume'}
 
 
 def stat_cycles(selector):
@@ -39,6 +39,12 @@ def analyze(data):
     if data.get('version')!=VERSION:raise ValueError('Recapture with current loop hooks')
     interrupts=data['interrupts'];points=data['points']
     unknown=[];differences=[];waits=[];prefixes=[];tails=[]
+    partial=data.get('partialFinalInterrupt')
+    if partial is not None:
+        if data.get('captureComplete',True) or partial['start']>partial['captureEnd']:
+            raise ValueError('Invalid partial final interrupt metadata')
+        if interrupts and partial['start']<interrupts[-1]['end']+16:
+            raise ValueError('Partial final interrupt overlaps completed evidence')
     previous=-1
     for i,q in enumerate(interrupts):
         if not previous<=q['start']<q['end']:raise ValueError('Unordered loop interrupts')
@@ -51,20 +57,31 @@ def analyze(data):
     for i,p in enumerate(points):
         if p['cycles']<=previous:raise ValueError('Unordered main-loop boundaries')
         previous=p['cycles']
-        if p['name'] not in ('wait','resume','done','enable'):continue
+        if p['name'] not in ('wait','finalWait','resume','done','enable'):continue
         if i+1==len(points):continue # Last boundary can await completion.
         following=points[i+1]
         start,end=p['cycles'],following['cycles']
+        if partial is not None and end>partial['start']-20:
+            raise ValueError('Completed main-loop interval overlaps a partial interrupt')
         included=[q for q in interrupts if start<=q['start']-20 and q['end']+16<=end]
         active=elapsed_work(start,end,interrupts)
-        if p['name']=='wait':
-            if following['name']!='resume':raise ValueError('Wait missing its resume boundary')
-            if sum(q['kind']=='vblank' for q in included)!=1:raise ValueError('Wait does not contain exactly one counter-changing service')
-            wakes=sum(q['kind']=='stat' for q in included)
+        if p['name'] in ('wait','finalWait'):
+            if following['name']!=('resume' if p['name']=='wait' else 'finalResume'):raise ValueError('Wait missing its resume boundary')
+            if p['name']=='finalWait' and (p['ready'] or following['ready']):raise ValueError('Final wait unexpectedly enables the resource gate')
+            vblanks=[q for q in included if q['kind']=='vblank']
+            if not vblanks:raise ValueError('Wait lacks a counter-changing service')
+            if len(vblanks)>1:
+                # An interrupt before LD A,(counter) changes the snapshot.
+                # It is not a HALT wake; the later VBlank ends the wait.
+                if any(q.get('returnAddress') not in (0x03cb,0x2617,0x2618) for q in vblanks[:-1]) or vblanks[-1].get('returnAddress')!=0x261d:
+                    raise ValueError('Unsupported multiple-service wait ownership')
+            wakes=sum(q['kind']=='stat' and q.get('returnAddress',0x261d)==0x261d for q in included)
+            if any(q['kind']=='stat' and q.get('returnAddress',0x261d) not in (0x03cb,0x2617,0x2618,0x261b,0x261c,0x261d) for q in included):
+                raise ValueError('Unsupported STAT wait ownership')
             predicted=wait_active_cycles(wakes);idle=active-predicted
             if idle<0 or idle%4:raise ValueError('Invalid HALT idle interval')
-            if following['counter']!=(p['counter']+1)&255:raise ValueError('Wait counter does not advance once')
-            waits.append(dict(start=start,end=end,statWakes=wakes,activeSource=predicted,idle=idle))
+            if following['counter']!=(p['counter']+len(vblanks))&255:raise ValueError('Wait counter disagrees with completed services')
+            waits.append(dict(start=start,end=end,final=p['name']=='finalWait',statWakes=wakes,displayServices=len(vblanks),activeSource=predicted,idle=idle))
         elif p['name']=='resume':
             if following['name']!='update':raise ValueError('Pause or resume path needs a separate comparison')
             prefixes.append(active)
@@ -80,6 +97,9 @@ def analyze(data):
             if active!=24:differences.append(dict(boundary=i,name='enable',measured=active,source=24))
     return dict(statServices=sum(q['kind']=='stat' for q in interrupts),unknownStatServices=unknown,
         sourceMismatches=differences,waits=len(waits),statWakeCounts=sorted(set(w['statWakes'] for w in waits)),
+        ordinaryWaits=sum(not w['final'] for w in waits),finalWaits=sum(w['final'] for w in waits),
+        waitDisplayCounts=sorted(set(w['displayServices'] for w in waits)),
+        captureComplete=partial is None,partialFinalInterrupt=partial,
         idleRange=[min(w['idle'] for w in waits),max(w['idle'] for w in waits)] if waits else [],
         resumePrefixes=len(prefixes),loopTails=len(tails),runtimeSchedulingFixed=False,
         evidenceLimit='Wait active work is source derived. HALT idle is measured elapsed time, not a scheduling allowance or proof of interrupt deadlines.')
@@ -121,11 +141,13 @@ def capture(args):
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
             else:raise ValueError('Unknown replay event')
         control=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
+        capture_end=p._cycles()
     finally:p.stop(save=False)
-    if opened is not None or control!=manifest['controlMemorySha256']:raise ValueError('Unclosed interrupt or changed control memory')
+    if control!=manifest['controlMemorySha256']:raise ValueError('Changed control memory; reference measurement rejected')
+    partial=dict(opened,captureEnd=capture_end) if opened is not None else None
     args.out.mkdir(parents=True,exist_ok=True)
     write_json(args.out/'loop.json',dict(version=VERSION,romSha256=manifest['romSha256'],controlMemorySha256=control,
-        emulator='PyBoy 2.7.0',points=points,interrupts=interrupts))
+        emulator='PyBoy 2.7.0',captureComplete=partial is None,partialFinalInterrupt=partial,points=points,interrupts=interrupts))
     report(args)
 
 
