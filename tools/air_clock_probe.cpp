@@ -56,7 +56,7 @@ int main(int argc,char** argv){
         bool mapBoundarySafe=false;
         bool loopBoundarySafe=false;
         auto display=[&](bool ready){
-            if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted an unsupported gameplay phase; finer ownership is required");
+            if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
             if(displayInputs.is_open()){
                 int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
@@ -173,8 +173,13 @@ int main(int argc,char** argv){
                 p.delay,p.period,game->transferState,game->transferRemaining,game->mapTransfer,
                 game->result,game->seconds,game->secondTicks,game->randomState,game->crashRecoveryPending);
             ++updates;
+            // 03fa's result read/rotate/branch follows all six completed
+            // gameplay phases. A display here sees the complete prepared
+            // state while FFAE stays busy; it does not interrupt an entity.
+            loopBoundarySafe=true;
             if(!game->result)clock.work(32,display,false); // Result test + taken back-edge.
             else clock.work(28,display,false); // Exit result test before 0400's optional final wait.
+            loopBoundarySafe=false;
         }
         if(!input.eof())return 2;
         if(finalWait){

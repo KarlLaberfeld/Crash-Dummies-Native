@@ -429,3 +429,29 @@ unsupported interrupted entity/resource/row work and production integration
 remain open. Original reset voice-state parity, matched pixels/PCM, other
 stunts and human/independent Windows acceptance are still required. The private
 repository and continuation automation remain active; no final release is made.
+
+## Result-test interrupt boundary - 2026-10-05
+
+A second input-only easy winning replay alternates steering every 16 updates
+and reaches result 3 with 11 items after 2,621 updates. Its experimental clock
+initially stopped after update 2,414. The original interrupt returned to 03fd:
+it occurred in the result read/rotate/back-edge test, after all six gameplay
+phases, while FFAE was still zero. It did not interrupt a figure's handler.
+The probe now accepts this completed-state loop boundary. Unsupported entity,
+resource and row ownership continues to reject; error messages include phase,
+tick and service identifiers for accurate diagnosis.
+
+The entire new replay matches 2,621 updates, 2,651 complete services, 15,726 work
+phases/entry counters, 106,040 sprite slots and 2,651 independently captured
+held/fresh samples. The terminal extra partial service is outside the native
+comparison scope. Combined ordinary-gameplay evidence now comprises eleven
+cases, 32,801 updates, 32,909 services and 196,806 phases; four sprite/input cases
+cover 349,080 slots and 8,727 samples. The separate three final-wait/fade cases
+remain extensions, not additional independent gameplay cases.
+
+This is a probe/diagnostic change with a new original witness. The production
+Windows build, full native/campaign tests, normal/failed-audio UI checks and
+portable preview from the outgoing-fade checkpoint remain applicable; unchanged
+campaigns were not repeated. Captures and logs remain ignored/local under
+local/air-steer16-*. Production integration and the remaining ACCEPTANCE.md
+requirements are still open. No final-release status is claimed.

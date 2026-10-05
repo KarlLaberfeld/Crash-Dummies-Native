@@ -29,7 +29,7 @@ Air Bumper includes one documented native stability correction: if the crash
 animation is still running when recovery is requested, the request is retained
 until that animation finishes. This prevents a reproducible permanent stall.
 The original ROM reproduces the failure in a separate reference emulator.
-An experimental native clock now matches ten Air reference cases without
+An experimental native clock now matches eleven Air reference cases without
 supplied per-update counters, including partial sprite publication and buttons
 sampled at each display service. Three additional original pause captures check
 counter continuity, retained gameplay and suspended/resumed music; the native
