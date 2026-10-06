@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <stdexcept>
 
 namespace ticd {
@@ -20,12 +21,20 @@ struct AirClock {
     int64_t now=4+16,nextStat=StatLine,nextVBlank=VBlankLine;
     unsigned displays=0,statServices=0;
     int lastWaitWork=0;
+    // Optional bounded image observer. It charges no work and executes no IRQ
+    // instructions; halted distinguishes accepted counter-wait ownership.
+    std::function<void(int64_t,bool)> objectDisable;
     template<class Display>void vblank(Display&& display,bool ready){
         int work=display(ready);
         if(work<0)throw std::runtime_error("Unreconstructed Air display/audio work");
         now+=20+work+16;++displays;
     }
-    void stat(){now+=20+288+16;++statServices;}
+    void stat(bool halted=false){
+        // 0048..254f: source body prefix 228, then LCDC write sample at +8.
+        // The pinned DMG bus observer exposes that sample two cycles earlier.
+        if(objectDisable)objectDisable(now+20+228+8-2,halted);
+        now+=20+288+16;++statServices;
+    }
     template<class Display,class Boundary>void startup(Display&& display,Boundary&& boundary){
         // EI(4) takes effect after LD(8), following the completed access/return.
         // Source IF/IE retain both pending services. The ready store costs 12.
@@ -74,7 +83,7 @@ struct AirClock {
             now+=4;lastWaitWork+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
             if(now<deadline)now=deadline;
-            if(nextStat<nextVBlank){nextStat+=Frame;stat();now+=16+4+12;lastWaitWork+=32;}
+            if(nextStat<nextVBlank){nextStat+=Frame;stat(true);now+=16+4+12;lastWaitWork+=32;}
             else{nextVBlank+=Frame;vblank(display,ready);now+=16+4+8+12+16;lastWaitWork+=56;}
         }while(displays==counter);
     }

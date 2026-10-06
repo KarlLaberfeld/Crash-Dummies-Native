@@ -1,52 +1,110 @@
 # Selected complete Air framebuffer comparisons
 
-Three independent SameBoy controls now match **87 complete 160x144 images**:
-29 per case, or **2,004,480 compared pixels**, with zero differences. The cases
-are normal coast with a 31-frame pause hold, easy coast with a 120-frame hold,
-and hardest boost with a 255-frame hold. They are the existing coupled pause
-controls, not new input scenarios or original-hardware recordings.
+The six existing independent SameBoy controls now match **258 complete
+160x144 images**, or **5,944,320 compared pixels**, with zero differences.
+This closes the three known differing sprite pixels and the outgoing-palette
+qualification for this selection. It is a correction to the bounded native
+clock/image probe, not production Windows scheduler integration or final acceptance.
 
-Each selection includes the first twenty complete gameplay display frames,
-then nine frames covering ordinary play, the visible pause, post-resume play
-and later stunt motion. The first frames include the source-derived incoming
-palette fade. Blank fade frames and repeated frozen pause images are included;
-87 image checks do not mean 87 distinct situations. Other stunts, collisions,
-success/result transitions, outgoing fades and partial visible writes are not
-certified by this selection.
+| Control | Selected images | Coverage |
+|---|---:|---|
+| Normal coast, 31-frame pause hold | 29 | Incoming fade, play, pause, resume and later motion |
+| Easy coast, 120-frame pause hold | 29 | Same boundaries on easy |
+| Hardest boost, 255-frame pause hold | 29 | Same boundaries on hardest |
+| Normal timeout | 57 | Incoming fade, play and outgoing fade |
+| Easy damage/explosion | 57 | Incoming fade, play and outgoing fade |
+| Easy alternating steering, period 44 / offset 12 | 57 | Incoming fade, late object cancellation and outgoing fade after damage |
+
+These extend the existing controls; they are not six new scenarios. Blank
+fade images and repeated frozen scenes are included, so 258 image checks do
+not mean 258 distinct situations. The last original capture's historical
+directory suffix is `win`, but this SameBoy control ends in damage, not success.
+Do not count it as a successful-finish image comparison. Earlier successful
+PyBoy timing evidence remains separate.
 
 ## Alignment and ownership
 
 `air_pixels.py capture` reads the original completed framebuffer at the single
-`00:2430` pre-DMA boundary. It also records the service index, selector, palette
-and scroll metadata. Pixels are observations only. Every capture preserves
-the existing uninstrumented 32,768-byte end-state digest and pinned reference
-ROM/backend/model/revision provenance. No original memory writes are used.
+`00:2430` pre-DMA boundary. It records service, selector, palettes, scroll and
+selected read-only LCDC-disable observations. Every capture preserves its
+uninstrumented 32,768-byte end-state digest and pinned ROM/backend/model/revision
+provenance. No original memory writes are used. This is emulator reference
+evidence; no original hardware has been measured.
 
 `air_clock_probe --frames-dir ... --frame-services ...` projects the native
 scene after its display callback. That publication is compared with the
 completed original framebuffer before the following DMA: native service N
-against original service N+1. This relation follows the publication order,
-not a searched frame shift. Per-frame original worlds, palettes, OAM, tiles,
-pixels, cycles or costs do not enter the native process. Only the established
+against original service N+1. This relation follows publication order, not
+a searched frame shift. Per-frame original worlds, palettes, OAM, pixels,
+edges, costs or cycles do not enter the native process. Only the established
 initial clock/timer/RNG header and raw held-button samples drive the replay.
+Graphics and palette tables come from the local extracted native assets.
 
-The native image uses `AirGame::render(false)`, its published sprite/camera/
-HUD state, the existing native pause-strip compositor and locally extracted UI
-fade palettes indexed by its own source-derived remaining-fade counter. The
-optional image export leaves complete world and service logs byte-identical
-to the coupled replay without image export. It does not change the Windows
-runtime, its scheduler or existing preview package.
+Both sides use the reference's four gray levels. All 23,040 pixels of every
+image are compared; no HUD, sprite, edge or blank region is masked. The
+comparator verifies original hashes, geometry and provenance and writes local
+difference images. `productionPixelsAccepted: false` remains explicit.
 
-Both sides are normalized to the independent reference's four gray levels.
-All 23,040 pixels are compared; no HUD, sprite, edge or blank region is masked.
-The comparator verifies original image hashes, geometry and recording provenance,
-and writes local difference images. `productionPixelsAccepted: false` remains
-explicit: selected whole-frame agreement is not arbitrary scanline ownership.
+## Final gameplay row: the three differing pixels
+
+The previous easy alternating-steering projection drew three extra black
+pixels at (108,135), (109,135) and (110,135), original service 1500 / native
+publication 1499. The original shows the background there. Its source STAT
+handler (`0048`, `24e4`, then `2549..254f`) clears LCDC object enable while
+line 135 is still drawing. A fetch in progress is cancelled at that edge.
+
+The optional clock observer derives the write from the native STAT entry:
+20 cycles of interrupt entry, a 228-cycle identified source prefix, the
+8-cycle register access and the pinned bus observer's two-cycle sampling
+convention. In the accepted counter-wait/HALT witness this gives line dot
+262 after the established eight-cycle LCD phase adjustment. The read-only
+original bus witness independently agrees. Its coordinates and timing are
+comparison targets, never native inputs.
+
+`airLastLineObjectLimit` uses native published geometry, SCX and the first ten
+selected objects to derive the per-row fetch stalls and cancellation position.
+Transparent selected pieces still contribute fetch work. The source-owned
+edge cancels the object starting at x=108; only later object output is omitted,
+while the actual native background is retained. This changes no earlier row
+or HUD pixel. The complete original image now agrees.
+
+Interrupted non-HALT acceptance is still unqualified. The probe accepts an
+interrupted edge only when a conservative 24-cycle acceptance range changes
+none of that scene's actual object pixels; otherwise it rejects rather than
+choosing a fitted delay. Additional neighboring original services 1498 and
+1499 were attempted and rejected with `Unowned interrupted line-135 object
+edge`. They are not included in the 258 passed images. General instruction
+acceptance and these neighboring edges belong to the remaining clock work.
+
+## Outgoing fade: visible palette writes
+
+The earlier image export used the gameplay fade palette throughout the outro.
+Replacing it with a single new palette per image is also insufficient: an
+outgoing HUD refresh can delay the main-thread palette change until part of
+the next visible frame has already been drawn. The source at `20b9..20c5`
+writes BGP, OBP1 and OBP0 at separate offsets of 16, 36 and 64 cycles.
+The pinned bus observer samples each two cycles earlier.
+
+The projection retains a native palette owner for each visible pixel:
+background/window, OBP0 or OBP1. It derives output time from its own line phase,
+scroll and selected object geometry, and applies the corresponding source
+palette write only to pixels that have not yet been output. Already drawn
+pixels keep the previous palette. Background-masked and cancelled objects
+do not claim object-palette ownership. An interruption of the palette prefix
+still rejects; no observed prefix timing is supplied as a scheduling delay.
+
+The 32 consecutive images selected around each outgoing interval now agree,
+alongside the other 25 selected images. They cover every palette stage; the
+last publication has no following pre-DMA target and is not an extra image
+comparison. The same replays retain exact agreement for all 222 exit
+phases and 96 outgoing display services, including the register palettes,
+work, waits, counters, HUD and held buttons. This does not compare the result
+screen after `0409`, audio PCM or a successful result transition.
 
 ## Local reproduction
 
-Build the current clock probe as described in AIR_PAUSE_CANDIDATE.md. Create
-the native output directory before running. Example for normal coast:
+Build the clock probe as described in AIR_PAUSE_CANDIDATE.md. Create the native
+output directory first. Normal-coast pause example:
 
 ```powershell
 python tools/air_pixels.py capture 'path/to/original.gb' --capture local/sameboy-air-pause-coast --out local/pause-pixels-coast-reference --services 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,100,299,305,320,340,500,1000,2000,4000
@@ -54,20 +112,29 @@ python tools/air_pixels.py capture 'path/to/original.gb' --capture local/sameboy
 python tools/air_pixels.py compare --capture local/sameboy-air-pause-coast --out local/pause-pixels-coast-reference --native-dir local/pause-pixels-coast-native
 ```
 
-The easy/hard cases use difficulty 0/3 and their matching input/control paths.
-Both also select original services 1 through 20. Easy additionally selects
+Easy/hard pause cases use difficulty 0/3 and matching input/control paths.
+Both select original services 1 through 20. Easy additionally selects
 100,499,505,560,620,630,1000,2000,2900; hardest selects
-99,105,200,300,370,500,750,980,985. Native selections are each original index
-minus one. All images, input files, extracted graphics and measurements remain
-ignored/local; only diagnostic source and this English report are published.
+99,105,200,300,370,500,750,980,985.
 
-## Remaining image and timing qualification
+For each outgoing control use `local/sameboy-air-outro-{timeout,damage,win}`,
+its `inputs.txt` and `local/sameboy-outro-{case}-buttons.txt`, difficulty 1/0/0,
+and `--outro-fade`. Select original services 1..20,100,500,1000,1500,1800
+and 32 consecutive services n-32..n-1, where n is respectively 4023/1902/1866.
+The native selection is each original index minus one. Capture/compare into
+`local/outro-pixels-{case}-reference/` and matching `-native/` folders.
+For the extra LCDC bus witness use the `win` control with original services
+1498,1499,1500,1501,1502 and inspect `objectDisableWrites` in `frames.json`.
+The native `edges.csv` records only native-derived edges and cancellation limits.
+All images, measurements, ROM and extracted assets remain ignored/local.
 
-The incoming whole frames agree, including their fade palette, but this does
-not identify all first-LCD-frame access modes or preceding UI startup work.
-The pause access model still rejects that first frame and unsupported special
-window/line-135 edges. Mid-frame graphics changes around entering/leaving pause
-are not covered by the selected steady frames. Arbitrary interrupt latency,
-interrupted entity/resource/map owners, production clock integration and result
-setup remain open. Original-hardware, PCM, other-stunt and independent Windows
-acceptance remain required under ACCEPTANCE.md. This is not a final release.
+## Remaining qualification
+
+The Windows application retains its existing scheduler and default rendering
+cadence; the optional publication cutoff/owner plane is used by this clock
+probe. Integrating the accepted owners requires the production clock work,
+not copying original measurements into the game. Initial LCD-enable access,
+arbitrary IRQ acceptance, interrupted entity/resource/map owners, pause-entry
+visible changes and result setup remain open. Wider collisions/success cases,
+other stunts, PCM, human play and independent Windows/hardware acceptance
+remain required under ACCEPTANCE.md. This is not a final release.

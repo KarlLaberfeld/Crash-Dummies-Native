@@ -9,6 +9,7 @@
 #include "air_placement_clock.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
+#include "air_pixels.h"
 #include "air_work.h"
 #include "audio.h"
 #include "audio_work.h"
@@ -92,6 +93,37 @@ int main(int argc,char** argv){
         bool mapBoundarySafe=false;
         bool loopBoundarySafe=false;
         AirPlacementRange placementRange;
+        int projectionPalette=-1; // Only the native outgoing palette owner overrides gameplay fade.
+        std::array<uint8_t,Width*Height> projectedScene{};unsigned projectedService=0;
+        int projectedPalette=0;bool selectedProjection=false;
+        std::array<uint8_t,Width> projectedBackground{};SpriteLayer projectedSprites(false);int projectedScroll=0;
+        std::array<uint8_t,Width*Height> projectedOwners{};
+        std::array<int,Width*Height> projectedPalettes{};
+        int64_t projectedLineZero=0;
+        std::ofstream pixelEdges;
+        if(!framesPath.empty()){pixelEdges.open(framesPath+"/edges.csv");if(!pixelEdges)throw std::runtime_error("Cannot open native pixel edges");pixelEdges<<"service,disableDot,halted,limit\n";}
+        auto writeProjection=[&]{
+            std::ofstream file(framesPath+"/native-"+std::to_string(projectedService)+".pgm",std::ios::binary);
+            if(!file)throw std::runtime_error("Cannot open local frame output");
+            file<<"P5\n160 144\n255\n";
+            for(size_t i=0;i<projectedScene.size();++i)file.put(static_cast<char>(255-85*((projectedPalettes[i]>>(projectedScene[i]*2))&3)));
+        };
+        clock.objectDisable=[&](int64_t time,bool halted){
+            if(!selectedProjection)return;
+            if(time<AirClock::StatLine)return; // Startup's pending STAT precedes the first projected visible frame.
+            int dot=static_cast<int>((time+8)%AirClock::Frame)-AirClock::StatLine;
+            int limit=airLastLineObjectLimit(projectedSprites,projectedScroll,dot);
+            // Interrupted instructions still have unqualified acceptance
+            // latency. Certify only if a conservative 24-cycle range changes
+            // none of this publication's actual object pixels.
+            if(!halted){
+                int later=airLastLineObjectLimit(projectedSprites,projectedScroll,std::min(dot+24,456));
+                for(int x=limit;x<later;++x)if(projectedScene[135*Width+x]!=projectedBackground[x])
+                    throw std::runtime_error("Unowned interrupted line-135 object edge");
+            }
+            for(int x=limit;x<Width;++x){projectedScene[135*Width+x]=projectedBackground[x];projectedOwners[135*Width+x]=0;}
+            pixelEdges<<projectedService<<','<<dot<<','<<halted<<','<<limit<<'\n';writeProjection();
+        };
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
@@ -113,13 +145,19 @@ int main(int argc,char** argv){
             if(refreshRangeScratch)placementRange.low=0;
             if(pending>=0)sound.queueEffect(pending);
             game->pendingSound=-1;sound.tick();
-            if(frameServices.count(clock.displays)){
-                game->render(false);auto image=paused?renderPausedGame(*frameUi,game->screen):game->screen;
-                int palette=frameUi->fadePalettes[std::min(game->displayFadeRemaining,7)];
-                for(auto& shade:image)shade=(palette>>(shade*2))&3;
-                std::ofstream file(framesPath+"/native-"+std::to_string(clock.displays)+".pgm",std::ios::binary);
-                if(!file)throw std::runtime_error("Cannot open local frame output");
-                file<<"P5\n160 144\n255\n";for(auto shade:image)file.put(static_cast<char>(255-85*(shade&3)));
+            selectedProjection=frameServices.count(clock.displays);
+            if(selectedProjection){
+                game->render(false,Width,&projectedOwners);projectedScene=paused?renderPausedGame(*frameUi,game->screen):game->screen;
+                if(paused)std::fill(projectedOwners.begin()+PlayHeight*Width,projectedOwners.end(),0);
+                projectedSprites=game->visibleSprites;projectedScroll=(game->visibleCameraX>>4)&255;
+                game->render(false,0);std::copy_n(game->screen.begin()+135*Width,Width,projectedBackground.begin());
+                projectedService=clock.displays;
+                projectedPalette=projectionPalette>=0?projectionPalette:frameUi->fadePalettes[std::min(game->displayFadeRemaining,7)];
+                // Keep the published scene; apply later source palette writes
+                // only to pixels whose bounded output edge follows each write.
+                projectedLineZero=(clock.now/AirClock::Frame+1)*AirClock::Frame-8;
+                projectedPalettes.fill(projectedPalette);
+                writeProjection();
             }
             if(audioLog.is_open())for(int i=0;i<6;++i){const auto& v=sound.voices[i];
                 audioLog<<clock.displays<<','<<i<<','<<sound.musicWorkCycles<<','<<sound.voiceWorkCycles[i]<<','<<int(v.active)<<','<<v.position<<','<<v.remaining<<','<<v.fixed<<','<<v.loopCount
@@ -306,6 +344,7 @@ int main(int argc,char** argv){
             if(!outro)throw std::runtime_error("Cannot open outro-phase output");
             outro<<"phase,index,tickBefore,tickAfter,elapsed,work,bgp,obp0,obp1,musicEnabled\n";
             int bgp=ui->fadePalettes[0],obp0=bgp&0xcf,obp1=bgp&0xf3;
+            projectionPalette=bgp;
             auto phase=[&](const char* name,int index,int work,auto&& operation){
                 auto start=clock.now;int tick=game->ticks;operation();
                 outro<<name<<','<<index<<','<<tick<<','<<game->ticks<<','<<(clock.now-start)<<','<<(work<0?clock.lastWaitWork:work)
@@ -318,7 +357,21 @@ int main(int argc,char** argv){
             loopBoundarySafe=true;
             phase("fadeEntry",0,44,[&]{clock.work(44,display,false);});
             for(int segment=0;segment<8;++segment){
-                phase("palette",segment,76,[&]{clock.work(76,display,false);bgp=ui->fadePalettes[segment];obp0=bgp&0xcf;obp1=bgp&0xf3;});
+                phase("palette",segment,76,[&]{
+                    auto start=clock.now;
+                    clock.work(76,display,false);bgp=ui->fadePalettes[segment];obp0=bgp&0xcf;obp1=bgp&0xf3;projectionPalette=bgp;
+                    if(selectedProjection&&projectedPalette!=bgp){
+                        if(clock.now-start!=76)throw std::runtime_error("Unowned interrupted palette projection");
+                        // The three identified palette writes have separate
+                        // bus samples: BGP +16, OBP1 +36, OBP0 +64. Observer
+                        // sampling is two cycles ahead of completion owners.
+                        for(int y=0;y<Height;++y)for(int x=0;x<Width;++x){int i=y*Width+x;
+                            int64_t pixelTime=projectedLineZero+456*y+airPixelDot(projectedSprites,projectedScroll,y,x);
+                            if(start+airPaletteSampleOffset(projectedOwners[i])<pixelTime)projectedPalettes[i]=bgp;
+                        }
+                        projectedPalette=bgp;writeProjection();
+                    }
+                });
                 for(int wait=0;wait<4;++wait){
                     phase("wait",4*segment+wait,-1,[&]{clock.wait(display,false);});
                     int tail=wait<3?16:segment<7?28:40;

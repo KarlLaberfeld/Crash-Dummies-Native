@@ -588,12 +588,13 @@ void AirGame::text(int x,int y,const std::string& value){
     for(char c:value){int n=c==' '?0:c>='0'&&c<='9'?c-'0'+1:c>='A'&&c<='Z'?c-'A'+11:c=='-'?39:0;
         for(int py=0;py<8;++py)for(int px=0;px<8;++px)if(x+px>=0&&x+px<Width&&y+py>=0&&y+py<Height)screen[(y+py)*Width+x+px]=shared.font[n*64+py*8+px];x+=8;}
 }
-void AirGame::render(bool developmentOverlay){
+void AirGame::render(bool developmentOverlay,int finalPlayRowLimit,std::array<uint8_t,Width*Height>* paletteOwners){
+    if(paletteOwners)paletteOwners->fill(0);
     const auto& l=assets.levels[difficulty];int cx=started?visibleCameraX:l.cameraX,cy=started?visibleCameraY:l.cameraY;
     for(int y=0;y<PlayHeight;++y)for(int x=0;x<Width;++x){int wx=(cx>>4)+x,wy=(cy>>4)+y;
         int tile=tileAt(wx*16,wy*16);screen[y*Width+x]=assets.tiles[tile*64+(wy&7)*8+(wx&7)];}
     if(started){
-        visibleSprites.draw(screen);
+        visibleSprites.draw(screen,finalPlayRowLimit,paletteOwners);
         for(int col=0;col<20;++col)for(int y=0;y<8;++y)for(int x=0;x<8;++x)screen[(PlayHeight+y)*Width+col*8+x]=assets.hudTiles[hudMap[col]*64+y*8+x];
     }else{
         for(int y=64;y<144;++y)std::fill_n(screen.begin()+y*Width,Width,0);

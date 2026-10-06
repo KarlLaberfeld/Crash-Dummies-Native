@@ -45,8 +45,10 @@ native effect requests, 5,252 graphics/status accesses and 1,332 storage bytes.
 The pending startup services also agree; see [startup limits](docs/AIR_STARTUP.md).
 Production integration, full pixels/PCM and hardware
 qualification remain open; see [candidate evidence](docs/AIR_PAUSE_CANDIDATE.md).
-Selected complete images now also agree: 87 matched Air frames including the
-incoming fade, ordinary play, pause and post-resume play. See
+Selected complete images now also agree: 258 matched Air frames, including the
+incoming fade, ordinary play, pause, post-resume play and selected outgoing
+fades. The bounded image probe now owns the known final-row object cancellation
+and separate visible palette writes; Windows clock integration remains open. See
 [image alignment and limits](docs/AIR_PIXELS.md); this is bounded evidence,
 not full presentation or final-release acceptance.
 The final display wait, audio-stop work and outgoing fade also match three

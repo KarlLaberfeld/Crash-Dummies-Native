@@ -1,13 +1,33 @@
-# Project status - October 5, 2026
+# Project status - October 6, 2026
 
-Latest image follow-up: 87 complete Air frames (29 per matching pause control),
-2,004,480 pixels, agree exactly. The selection covers incoming fade, ordinary
-play, visible pause and post-resume play on easy/normal/hardest. No region is
-masked; world/service logs are unchanged by optional image export. Blank and
-repeated frozen frames are included, not additional independent scenarios.
-See [image alignment and remaining scope](AIR_PIXELS.md). The Windows runtime
-and preview package are unchanged; this does not qualify arbitrary scanlines,
-other stunts, full PCM, production scheduling or final release acceptance.
+Latest image follow-up: 258 complete Air frames, 5,944,320 pixels, agree exactly.
+The three known differing pixels at x=108..110 on row 135 are corrected in
+the bounded native clock projection. The source-owned STAT object-disable
+edge cancels a fetch on that row; outgoing palette writes now retain the
+separate background/OBP0/OBP1 owners and already drawn pixels. The selection
+extends the three 29-image pause controls with 57 images per existing outgoing
+control. It covers incoming fade, play, steady pause/resume and selected
+outgoing fades. No region is masked. Blank and repeated frozen images are
+included, not new independent situations. All 222 exit phases and 96 fade
+services still agree. The historical SameBoy `win` directory is an alternating
+steering damage control, not a successful-finish image witness.
+See [image ownership and remaining scope](AIR_PIXELS.md). The Windows clock
+integration is still open; the default runtime cadence has not changed.
+Additional neighboring original services 1498/1499 reject an unowned interrupted
+line-135 edge and are excluded from the 258 passes. No arbitrary interrupt,
+other-stunt, full PCM, hardware or final-release acceptance is claimed.
+
+The current Windows build passes the full native suites, three complete
+campaign scenarios, 34 sprite assertions and the normal/failed-audio 13/14
+automated UI checks. The campaign pilot records 20/0 wins with one retry,
+20/20 wins with three/two retries, and player-one elimination followed by
+player two's 20 wins. Current savings are 8,478/0, 8,620/8,455 and 0/8,493;
+these are native pilot results, not original-game outcomes. The EXE is
+1,089,536 bytes, SHA-256
+`c176f819ed021281ef4ef4a0d50942f03d872d19826249282fbe7259833a783b`.
+Build log: ignored `local/air-pixel-fix-build-test.log`; current Windows
+UI logs remain under ignored `build/`. No final release or new portable
+package is claimed by this image checkpoint.
 
 Latest development couples the bounded native Air pause session to ongoing
 gameplay, display input, graphics and software audio. Three independent original
@@ -20,7 +40,7 @@ intervals and 1,332 accepted storage bytes; do not add these counts twice.
 Nine pending-startup boundaries per case match after correcting the four-cycle
 LCD access tail and duplicated first ready-store prefix. No original per-update
 counters, work, idle, worlds, edges or effect requests drive the native replay.
-527 pause/session assertions, 107 source assertions and 119 Python tests pass.
+537 pause/session/pixel assertions, 107 source assertions and 119 Python tests pass.
 See [candidate scope](AIR_PAUSE_CANDIDATE.md) and [startup limits](AIR_STARTUP.md).
 This is not production Windows scheduling, full PCM/pixels or hardware acceptance.
 
@@ -48,11 +68,13 @@ Selected image measurements are in `local/pause-pixels-{coast,easy,hard}-referen
 and native projections in matching `-native/` folders. See AIR_PIXELS.md for
 the exact selections and reproduction; do not rerun unchanged native campaigns.
 Initial LCD-enable phase, arbitrary IRQ acceptance, pending critical-section
-interrupts and line-135 object cancellation remain unowned and must reject.
+interrupts and sensitive non-HALT line-135 edges remain unowned and must reject.
+The selected HALT object-disable edge is now source-owned; see AIR_PIXELS.md.
 Other interrupted entity/resource/row paths, startup/result setup, production
 clock integration and the remaining ACCEPTANCE.md items also stay open.
-The rebuilt Windows EXE is byte-identical to the tested preview; unchanged
-campaign/UI suites do not need repetition without another runtime change.
+The shared renderer's optional cutoff/palette-owner API rebuilt the Windows
+EXE, so the current build differs from the prior tested preview. The production
+callers retain their default full-row behavior pending clock integration.
 
 ## Objective
 

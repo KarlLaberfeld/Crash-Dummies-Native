@@ -93,7 +93,8 @@ struct AirGame {
     void displayTick(bool resourceReady=true);
     void updateGame(int buttons,bool deferSpriteClear=false,bool deferPlacements=false);
     void updatePlacements();
-    void render(bool developmentOverlay=true);
+    void render(bool developmentOverlay=true,int finalPlayRowLimit=Width,
+                std::array<uint8_t,Width*Height>* paletteOwners=nullptr);
     int spawn(int kind,int x,int y,int placement=-1);
     void update(int i);
     void startAnimation(int i,int sequence,bool force=false);

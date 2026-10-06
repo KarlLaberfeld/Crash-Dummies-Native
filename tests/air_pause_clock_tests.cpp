@@ -2,6 +2,7 @@
 #include "air_pause_clock.h"
 #include "air_pause_lcd.h"
 #include "air_pause_session.h"
+#include "air_pixels.h"
 #include <cstdio>
 #include <vector>
 
@@ -142,6 +143,28 @@ int main(){
         AirClock startupClock;int64_t firstService=-1;
         startupClock.startup([&](bool){firstService=startupClock.now;return 12336;});
         require(firstService==32&&startupClock.now==12740,"LCD access tail precedes EI, both pending services and the ready store; HALT cannot hide the startup omission");
+        SpriteLayer rowObjects(false);
+        require(airLastLineObjectLimit(rowObjects,0,262)==160,"An empty final play row has no object-dependent clipping before completion");
+        require(airPixelDot(rowObjects,4,135,108)==208&&airPixelDot(rowObjects,4,136,0)==102,"Play scroll and fixed status window have separate pixel clocks");
+        for(int i=0;i<7;++i){rowObjects.slots[i].present=true;rowObjects.slots[i].y=143;}
+        for(int i=0;i<7;++i)rowObjects.slots[i].x=std::array<int,7>{60,68,74,82,90,108,116}[i];
+        require(airLastLineObjectLimit(rowObjects,76,262)==108,"Final-row fetch cancellation stops at the uncompleted object rather than drawing three late pixels");
+        require(airLastLineObjectLimit(rowObjects,76,274)>108,"A later interrupted disable edge must remain distinguishable from the counter-wait owner");
+        require(airPixelDot(rowObjects,76,135,107)<262&&airPixelDot(rowObjects,76,135,108)>=262,"Retained pixels precede the cancelled object's fetch cost");
+        auto transparentClock=airLastLineObjectLimit(rowObjects,76,262);rowObjects.slots[6].colors.fill(3);
+        require(airLastLineObjectLimit(rowObjects,76,262)==transparentClock,"Fetch work depends on selected geometry, including transparent pieces, not visible pixel colors");
+        SpriteLayer selectedLimit(false);
+        for(int i=0;i<10;++i)selectedLimit.slots[i]={true,168,143,0,{}};
+        selectedLimit.slots[10]={true,116,143,0,{}};
+        require(airLastLineObjectLimit(selectedLimit,0,262)==160,"Offscreen objects retain first-ten selection priority without a visible fetch stall");
+        require(airPaletteSampleOffset(0)==14&&airPaletteSampleOffset(2)==34&&airPaletteSampleOffset(1)==62,"Three source palette writes own separate bus times");
+        rejected=false;try{airPaletteSampleOffset(3);}catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"Unknown palette ownership cannot be projected as background");
+        int64_t disable=0;bool waited=false;AirClock observed;observed.now=AirClock::Frame+44;
+        observed.nextStat+=AirClock::Frame;observed.nextVBlank+=AirClock::Frame;
+        observed.objectDisable=[&](int64_t time,bool halted){disable=time;waited=halted;};
+        observed.wait(display);
+        require(waited&&disable==AirClock::Frame+AirClock::StatLine+254,"Counter-wait STAT observer exposes the identified LCD write without adding source work");
         printf("Air pause access checks: %d passed (synthetic; no LCD/reference parity claim)\n",checks);return 0;
     }catch(const std::exception& error){fprintf(stderr,"Pause access failure after %d checks: %s\n",checks,error.what());return 1;}
 }

@@ -1,5 +1,13 @@
 # Air final display, audio stop and outgoing fade
 
+October 6 image follow-up: the existing three SameBoy controls now also match
+171 selected complete images, including the outgoing palette stages. The
+native projection retains separate palette owners and pixels drawn before
+a visible write. The 222 exit phases and 96 display services still agree.
+See [full-image scope and remaining limits](AIR_PIXELS.md). The historical
+SameBoy `win` directory is a steering-damage recording, as described below;
+it is not the separate earlier successful PyBoy control.
+
 Independent follow-up: three current SameBoy execution-observer recordings
 (one timeout, two steering-damage paths) also match final wait, audio stop and
 all outgoing fade intervals/services. This adds 222 bounded exit intervals and

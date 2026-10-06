@@ -1,12 +1,25 @@
 # Final release acceptance
 
-Latest image checkpoint: 87 complete matched Air frames, 2,004,480 pixels,
-have zero differences, including incoming fade, ordinary play, visible pause
-and post-resume play on three difficulties. No region is masked. This is
-selected framebuffer evidence; blank/frozen repetitions are included. Wider
-collisions/success/result/outro, partial visible writes, other stunts, PCM,
-production scheduling and independent hardware/Windows remain required.
+Latest image checkpoint, October 6: 258 complete matched Air frames,
+5,944,320 pixels, have zero differences. The bounded image probe corrects the
+known three final-row sprite pixels and retains the source's separate outgoing
+palette-write boundaries. All 222 exit phases and 96 fade display services
+still agree. No region is masked. Blank/frozen repetitions are included.
+The SameBoy `win`-suffixed outgoing control actually ends in damage and does
+not qualify a successful finish. Two extra neighboring images reject unowned
+interrupt acceptance and are excluded from the passed count. Wider collision/
+success/result cases, other partial visible writes, other stunts, PCM, production
+clock integration and independent hardware/Windows remain required.
 See [pixel scope and alignment](AIR_PIXELS.md).
+
+The October 6 rebuild passes full native suites and all three complete
+campaign scenarios, 34 sprite assertions and normal/failed-audio 13/14 Windows
+UI checks. Solo completes twenty wins with one retry; both players complete
+twenty wins with three/two retries; elimination loses player one's five lives
+and then completes player two's twenty wins. These use native predictive
+pilots and synthetic Windows messages, not original inputs or human/second-host
+acceptance. The current EXE is 1,089,536 bytes, SHA-256
+`c176f819ed021281ef4ef4a0d50942f03d872d19826249282fbe7259833a783b`.
 
 Latest coupled pause checkpoint: three independent controls match 7,506 updates,
 7,927 display/input samples, 317,080 sprite slots, 47,562 selected voice/work
@@ -16,11 +29,11 @@ slots also agree. This includes the earlier 900 prefix updates, 5,252 bus events
 418 paused services, 857 intervals and 1,332 storage bytes. Nine pending-startup
 boundaries per case match after the LCD-tail/first-store correction; see
 [startup limits](AIR_STARTUP.md). No original poll/work/idle/world/effect allowance
-drives the replay. 527 pause/session assertions, 107 source assertions and 119
+drives the replay. 537 pause/session/pixel assertions, 107 source assertions and 119
 Python tests pass. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial
 LCD frame, arbitrary IRQs, full audio output restoration and production
-integration remain required. The rebuilt Windows EXE is byte-identical to the
-previously tested preview; no unchanged campaign/UI suite was repeated.
+integration remain required. The optional renderer API changes the rebuilt
+Windows EXE's hash; production callers still retain default full-row rendering.
 
 Latest checkpoint, October 5: interrupted Air placement range ownership is
 reconstructed and tested against an independent original witness. All eleven

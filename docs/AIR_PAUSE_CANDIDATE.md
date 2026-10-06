@@ -1,5 +1,12 @@
 # Native Air pause graphics candidate
 
+October 6 image follow-up: 258 selected complete images now agree, including
+the known final-row object cancellation and visible outgoing palette writes.
+See [pixel ownership and limits](AIR_PIXELS.md). This extends the bounded probe;
+production scheduler integration remains open. The shared optional renderer
+API changes the rebuilt EXE's hash; the byte-identical claim below describes
+the earlier pause-only checkpoint, not this image follow-up.
+
 The independent pause candidate now derives its own polls, counter waits,
 graphics accesses and return time in three control-verified original scenarios.
 Its shared session is coupled to ongoing native gameplay and software audio;

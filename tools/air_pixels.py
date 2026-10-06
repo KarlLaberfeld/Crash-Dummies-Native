@@ -1,8 +1,9 @@
 """Matched local Air frame comparison; no original pixels drive the port.
 
 The original completed framebuffer is observed before the next DMA. Native
-after-display publication projects the following frame. Partial visible graphics
-writes and scanline changes are deliberately not certified by that projection.
+after-display publication projects the following frame, including bounded
+line-135 object cancellation and separately owned outgoing palette writes.
+Other partial visible writes and arbitrary interrupt latency are not certified.
 """
 import argparse
 import hashlib
@@ -27,7 +28,11 @@ def capture(args):
         raise ValueError('Requires matching control-verified original')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
-    args.out.mkdir(parents=True,exist_ok=True);service=0;air_seen=False;frames=[]
+    args.out.mkdir(parents=True,exist_ok=True);service=0;air_seen=False;frames=[];object_disable=[]
+    def bus(event):
+        if event['kind']=='write' and event['address']==0xff40 and event['pc']==0x2551 and service in wanted:
+            object_disable.append(dict(**event,service=service,lcd=player.lcd_snapshot(),
+                objects=list(player.memory[0xc100:0xc1a0])))
     def hook(_):
         nonlocal service,air_seen
         selector=player.memory[0xc098]
@@ -44,6 +49,7 @@ def capture(args):
         service+=1
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
+        player.observe_graphics_bus(bus)
         player.hook_register(0,0x2430,hook,None)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
@@ -54,7 +60,7 @@ def capture(args):
     if {f['service'] for f in frames}!=wanted or control!=manifest['controlMemorySha256']:
         raise ValueError('Incomplete selected frames or changed original control')
     write_json(args.out/'frames.json',dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,
-        frames=frames,completedServices=service,alignment='original-pre-next-DMA/native-after-prior-display'))
+        frames=frames,objectDisableWrites=object_disable,completedServices=service,alignment='original-pre-next-DMA/native-after-prior-display'))
     print(json.dumps(dict(frames=len(frames),controlDifferences=0,selectedServices=sorted(wanted))))
 
 
@@ -79,7 +85,7 @@ def compare(args):
         results.append(dict(service=frame['service'],nativePublishedService=frame['nativePublishedService'],differingPixels=len(changed),
             differingRows=sorted(set(i//160 for i in changed)),firstDifference=[changed[0]%160,changed[0]//160] if changed else None))
     result=dict(comparedFrames=len(results),comparedPixels=len(results)*160*144,frames=results,
-        productionPixelsAccepted=False,evidenceLimit='Selected complete original framebuffers compared with native after-display projection. This does not certify partial visible writes, scanline interrupts, fades outside selection, other scenarios or production Windows scheduling.')
+        productionPixelsAccepted=False,evidenceLimit='Selected complete original framebuffers compared with native after-display projection, including bounded final-row object cancellation and outgoing palette writes. This does not certify arbitrary interrupt acceptance, other visible writes, fades outside selection, other scenarios or production Windows scheduling.')
     write_json(args.out/'native-comparison.json',result);print(json.dumps(result,indent=2))
     if any(r['differingPixels'] for r in results):raise ValueError('Native selected pixels differ from the original; inspect local difference images')
 

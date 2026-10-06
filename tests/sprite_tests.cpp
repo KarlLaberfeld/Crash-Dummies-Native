@@ -91,7 +91,15 @@ int runSpriteTests(){
         check(image[25*Width+22]==1&&image[24*Width+22]==0,"Signed origin and half extent position the emitted piece");
         SpriteLayer hud(false);hud.add(dark,20,135,0);image.fill(0);hud.draw(image);
         check(image[135*Width+20]==3&&image[136*Width+20]==0,"Sprites stop at the original HUD boundary");
-        auto first=image;image.fill(0);hud.draw(image);check(first==image,"Repainting does not advance sprite allocation phase");
+        SpriteLayer cancellation(false);cancellation.slots[0]={true,116,143,0,{}};cancellation.slots[0].colors.fill(3);
+        Image owners{};image.fill(2);cancellation.draw(image,108,&owners);
+        check(image[134*Width+108]==3&&image[135*Width+108]==2&&image[136*Width+108]==2,"Final-row object cutoff retains the prior row and background without changing HUD pixels");
+        check(owners[134*Width+108]==1&&owners[135*Width+108]==0,"Cancelled pixels retain background palette ownership");
+        cancellation.slots[0].flags=16;image.fill(0);owners.fill(0);cancellation.draw(image,160,&owners);
+        check(owners[135*Width+108]==2,"Alternate object palette is retained for mid-frame palette changes");
+        cancellation.slots[0].flags=128;image.fill(2);owners.fill(0);cancellation.draw(image,160,&owners);
+        check(owners[135*Width+108]==0&&image[135*Width+108]==2,"A background-masked object does not claim the pixel palette");
+        image.fill(0);hud.draw(image);auto first=image;image.fill(0);hud.draw(image);check(first==image,"Repainting does not advance sprite allocation phase");
         fprintf(log,"PASS: %d native sprite composition assertions. Global allocation phase and reference images remain unverified.\n",assertions);fclose(log);return 0;
     }catch(const std::exception& e){fprintf(log,"FAIL after %d sprite assertions: %s\n",assertions,e.what());fclose(log);return 1;}
 }

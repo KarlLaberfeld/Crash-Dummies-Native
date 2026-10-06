@@ -85,7 +85,9 @@ public:
         }
         full=cursor<0||cursor>=40;
     }
-    void draw(std::array<uint8_t,Width*Height>& screen) const{
+    void draw(std::array<uint8_t,Width*Height>& screen,int finalPlayRowLimit=Width,
+              std::array<uint8_t,Width*Height>* paletteOwners=nullptr) const{
+        if(finalPlayRowLimit<0||finalPlayRowLimit>Width)throw std::runtime_error("Invalid final-row object limit");
         for(int y=0;y<PlayHeight;++y){
             std::array<int,10> selected{};int count=0;
             for(int i=0;i<40&&count<10;++i){const auto& e=slots[i];
@@ -94,12 +96,13 @@ public:
             // DMG overlap priority: smaller X, then smaller slot index. The
             // first ten Y matches are selected before this ordering is applied.
             std::stable_sort(selected.begin(),selected.begin()+count,[&](int a,int b){return slots[a].x<slots[b].x;});
-            for(int x=0;x<Width;++x)for(int n=0;n<count;++n){const auto& e=slots[selected[n]];
+            for(int x=0;x<(y==PlayHeight-1?finalPlayRowLimit:Width);++x)for(int n=0;n<count;++n){const auto& e=slots[selected[n]];
                 int sx=x-(e.x-8),sy=y-(e.y-16);if(sx<0||sx>=8)continue;
                 if(e.flags&32)sx=7-sx;if(e.flags&64)sy=15-sy;
                 int color=e.colors[sy*8+sx];if(!color)continue;
                 auto& background=screen[y*Width+x];
-                if(!(e.flags&128)||!background){int palette=(e.flags&16)?0xe0:0xc4;background=(palette>>(color*2))&3;}
+                if(!(e.flags&128)||!background){int palette=(e.flags&16)?0xe0:0xc4;background=(palette>>(color*2))&3;
+                    if(paletteOwners)(*paletteOwners)[y*Width+x]=(e.flags&16)?2:1;}
                 // A background-masked winning piece also masks lower objects.
                 break;
             }
