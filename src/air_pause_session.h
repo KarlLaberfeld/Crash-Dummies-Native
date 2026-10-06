@@ -23,16 +23,17 @@ struct AirPauseGraphics {
 };
 // The identified pause session, for the bounded candidate clock. Display and
 // audio ownership belong to the caller's actual native state. Unknown graphics
-// edges/pending critical-section interrupts reject, never become allowances.
+// edges reject, never become allowances. Protected service handoffs follow
+// the two identified short source sections and their delayed-enable follower;
+// a pending crossing still needs an independent original witness.
 template<class Display,class Lcd,class Audio,class Phase,class Bus,class Snapshot>
 void airPauseSession(AirClock& clock,DisplayInput& input,AirPauseGraphics& graphics,
                      const AirPauseAssets& assets,Display&& display,Lcd& lcd,
                      Audio&& audio,Phase&& phase,Bus&& bus,Snapshot&& snapshot){
     const char* owner="entry";
-    auto critical=[&](int cost){
-        if(clock.now+cost>=std::min(clock.nextStat,clock.nextVBlank))
-            throw std::runtime_error("Unowned pending interrupt across pause critical section");
-        clock.now+=cost;
+    auto quietProtected=[&](int cost,int follower){
+        if(clock.now+cost+follower>=std::min(clock.nextStat,clock.nextVBlank))
+            throw std::runtime_error("Unqualified pending Air pause handoff");
     };
     auto status=[&](int64_t time){int mode=lcd.mode(time);bus(owner,"read",0xff41,mode,time);return mode;};
     auto write=[&](unsigned address,unsigned char value,int64_t time){
@@ -54,8 +55,12 @@ void airPauseSession(AirClock& clock,DisplayInput& input,AirPauseGraphics& graph
         },write);
         phase(owner,start,clock.now,result.cycles);
     };
-    snapshot("enter",clock.now,graphics);critical(192);audio(true);
-    clock.work(60,display,false);copy("copy0",20,0xc0a0,0);
+    quietProtected(192,12);
+    snapshot("enter",clock.now,graphics);clock.holdServices(192);audio(true);
+    // 1491's enable takes effect after 1492's 12-cycle copy-source setup.
+    // The remaining destination/size/call prefix still owns 48 cycles.
+    clock.resumeServices(12,display,false);
+    clock.work(48,display,false);copy("copy0",20,0xc0a0,0);
     clock.work(68,display,false);copy("copy1",128,0x8f80,1);
     owner="script";auto start=clock.now;
     auto text=airPauseText(clock,assets.text,display,status,write);
@@ -70,8 +75,11 @@ void airPauseSession(AirClock& clock,DisplayInput& input,AirPauseGraphics& graph
     }
     clock.work(60,display,false);copy("copy2",20,0x9c00,2);
     clock.work(68,display,false);copy("copy3",128,0x8f80,3);
+    quietProtected(140,16);
     snapshot("restoreAudio",clock.now,graphics);
-    start=clock.now;critical(140);audio(false);phase("restoreAudio",start,clock.now,140);
-    start=clock.now;clock.atomicWork(16,[]{},display,false);phase("return",start,clock.now,16);
+    start=clock.now;clock.holdServices(140);audio(false);phase("restoreAudio",start,clock.now,140);
+    // 14f0's enable takes effect after 14f1's return has completed. Pending
+    // callbacks therefore see restored selector/audio and the caller boundary.
+    start=clock.now;clock.resumeServices(16,display,false);phase("return",start,clock.now,16);
 }
 }

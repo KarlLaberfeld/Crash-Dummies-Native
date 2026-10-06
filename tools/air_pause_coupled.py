@@ -20,42 +20,56 @@ from reference_backend import require_capture_reference
 
 def compare(case,out):
     capture=Path('local/sameboy-air-pause-'+case);manifest=load(capture/'capture-summary.json')
-    inputs=load(Path('local/pause-prefix-'+case+'-input/inputs.json'))
-    lcd=load(Path('local/sameboy-air-pause-'+case+'-lcd-data/lcd.json'))
-    sprites=load(Path('local/pause-coupled-'+case+'-sprites-reference/sprites.json'))
-    timing=load(Path('local/sameboy-air-pause-'+case+'-timing/pause.json'))
-    music_root=Path('local/pause-coupled-'+case+'-audio-reference');music=load(music_root/'music.json')
-    work=load(Path('local/pause-coupled-'+case+'-work-reference/timing.json'))
     if manifest.get('controlDifferences') or not manifest.get('pauseReached'):raise ValueError('Requires a verified original pause')
-    for data in (inputs,lcd,sprites,music,timing,work):
+    def reference(path):
+        data=load(path)
         require_capture_reference(manifest,data)
         if any(data.get(k)!=manifest.get(k) for k in ('romSha256','controlMemorySha256')):raise ValueError('Mixed original controls')
-    if not music.get('captureComplete'):raise ValueError('Coupled comparison requires complete music services')
-    states=rows(out/'states.csv');services=rows(out/'services.csv');published=rows(out/'sprites.csv')
+        return data
+    # Large recordings are checked sequentially. Keeping work, sprites and
+    # music (and a second music decode) together exhausts Windows commit.
+    inputs=reference(Path('local/pause-prefix-'+case+'-input/inputs.json'))
+    states=rows(out/'states.csv');services=rows(out/'services.csv')
     original=load(capture/'trace.json')['post']
     if len(states)!=len(original) or len(services)!=len(inputs['samples']):raise ValueError('Incomplete coupled game/input coverage')
     state=compare_states(original,states);buttons=compare_input_samples(inputs['samples'],services)
+    update_count=len(states);service_count=len(services)
+    del original,states,inputs
+    work=reference(Path('local/pause-coupled-'+case+'-work-reference/timing.json'))
     ordinary=[dict(row,service=i) for i,row in enumerate(s for s in services if s['displaySelector']==4)]
     original_services=[q for q in work['interrupts'] if q['kind']=='vblank']
-    if work.get('version')!=9 or len(work['updates'])!=len(states) or len(original_services)!=len(ordinary):
+    if work.get('version')!=9 or len(work['updates'])!=update_count or len(original_services)!=len(ordinary):
         raise ValueError('Incomplete coupled phase/display coverage')
     display=compare_services(original_services,ordinary,True)
     phase_rows=[dict(row,phase=int(row['phase'])) for row in rows(out/'services.csv.phases.csv')]
-    phases=compare_phase_work(work['updates'],work['interrupts'],phase_rows,len(states))
-    entities=rows(out/'entities.csv');entity=compare_entity_states(work['updates'],entities,len(states))
-    sprite=compare_sprites(sprites['interrupts'],published,len(services))
+    phases=compare_phase_work(work['updates'],work['interrupts'],phase_rows,update_count)
+    entities=rows(out/'entities.csv');entity=compare_entity_states(work['updates'],entities,update_count)
+    ordinary_count=len(ordinary);entity_count=len(entities)
+    del work,ordinary,original_services,phase_rows,entities
+    sprites=reference(Path('local/pause-coupled-'+case+'-sprites-reference/sprites.json'))
+    published=rows(out/'sprites.csv')
+    sprite=compare_sprites(sprites['interrupts'],published,service_count)
+    sprite_count=len(published)
+    del sprites,published
+    lcd=reference(Path('local/sameboy-air-pause-'+case+'-lcd-data/lcd.json'))
     prefix=load(Path('local/pause-native-'+case+'-data/graphics.json'))
     bus=compare_bus(lcd,prefix,rows(out/'services.csv.pause.bus.csv'))
     storage=compare_graphics(lcd,prefix,rows(out/'services.csv.pause.graphics.csv'))
+    del lcd
+    timing=reference(Path('local/sameboy-air-pause-'+case+'-timing/pause.json'))
     intervals=compare_intervals(timing['pauses'][0],prefix,rows(out/'services.csv.pause.phases.csv'))
-    compare_native(SimpleNamespace(native_csv=out/'voices.csv',out=music_root,gameplay=True))
+    del timing,prefix
+    music_root=Path('local/pause-coupled-'+case+'-audio-reference');music=reference(music_root/'music.json')
+    if not music.get('captureComplete'):raise ValueError('Coupled comparison requires complete music services')
+    compare_native(SimpleNamespace(native_csv=out/'voices.csv',out=music_root,gameplay=True),music)
+    del music
     audio=load(music_root/'native-comparison.json')
-    if audio['services']!=len(services):raise ValueError('Incomplete coupled audio coverage')
+    if audio['services']!=service_count:raise ValueError('Incomplete coupled audio coverage')
     startup=compare_startup(SimpleNamespace(capture=capture,out=Path('local/pause-coupled-'+case+'-startup-reference'),native_csv=out/'services.csv'))
-    result=dict(comparedUpdates=len(states),comparedDisplayServices=len(services),comparedInputSamples=len(services),
-        comparedSpriteSlots=len(published),comparedVoiceRows=audio['services']*6,pausedServices=audio['pausedServices'],
+    result=dict(comparedUpdates=update_count,comparedDisplayServices=service_count,comparedInputSamples=service_count,
+        comparedSpriteSlots=sprite_count,comparedVoiceRows=audio['services']*6,pausedServices=audio['pausedServices'],
         comparedStartupPoints=startup['comparedStartupPoints'],startupDifferences=startup['differences'],
-        comparedOrdinaryServices=len(ordinary),comparedWorkPhases=len(states)*6,comparedPreUpdateEntitySlots=len(entities),
+        comparedOrdinaryServices=ordinary_count,comparedWorkPhases=update_count*6,comparedPreUpdateEntitySlots=entity_count,
         displayWorkDifferences=display,phaseWorkDifferences=phases,entityDifferences=entity,
         stateDifferences=state,inputDifferences=buttons,spriteDifferences=sprite,pauseBusDifferences=bus,
         pauseStorageDifferences=storage,pauseIntervalDifferences=intervals,audioDifferences=audio['differingVoiceRows'],productionSchedulerAccepted=False,

@@ -1,7 +1,8 @@
 # Selected complete Air framebuffer comparisons
 
-The six existing independent SameBoy controls now match **258 complete
-160x144 images**, or **5,944,320 compared pixels**, with zero differences.
+The six existing independent SameBoy controls now match **262 unique complete
+160x144 images**, or **6,036,480 compared pixels**, with zero differences.
+The earlier 258-image selection and five consecutive late images overlap once.
 This closes the three known differing sprite pixels and the outgoing-palette
 qualification for this selection. It is a correction to the bounded native
 clock/image probe, not production Windows scheduler integration or final acceptance.
@@ -13,11 +14,11 @@ clock/image probe, not production Windows scheduler integration or final accepta
 | Hardest boost, 255-frame pause hold | 29 | Same boundaries on hardest |
 | Normal timeout | 57 | Incoming fade, play and outgoing fade |
 | Easy damage/explosion | 57 | Incoming fade, play and outgoing fade |
-| Easy alternating steering, period 44 / offset 12 | 57 | Incoming fade, late object cancellation and outgoing fade after damage |
+| Easy alternating steering, period 44 / offset 12 | 61 | Incoming fade, five consecutive late object-cancellation images and outgoing fade after damage |
 
 These extend the existing controls; they are not six new scenarios. Blank
-fade images and repeated frozen scenes are included, so 258 image checks do
-not mean 258 distinct situations. The last original capture's historical
+fade images and repeated frozen scenes are included, so 262 image checks do
+not mean 262 distinct situations. The last original capture's historical
 directory suffix is `win`, but this SameBoy control ends in damage, not success.
 Do not count it as a successful-finish image comparison. Earlier successful
 PyBoy timing evidence remains separate.
@@ -68,13 +69,18 @@ edge cancels the object starting at x=108; only later object output is omitted,
 while the actual native background is retained. This changes no earlier row
 or HUD pixel. The complete original image now agrees.
 
-Interrupted non-HALT acceptance is still unqualified. The probe accepts an
-interrupted edge only when a conservative 24-cycle acceptance range changes
-none of that scene's actual object pixels; otherwise it rejects rather than
-choosing a fitted delay. Additional neighboring original services 1498 and
-1499 were attempted and rejected with `Unowned interrupted line-135 object
-edge`. They are not included in the 258 passed images. General instruction
-acceptance and these neighboring edges belong to the remaining clock work.
+The identified placement accesses and conditional returns now complete before
+pending interrupt acceptance. Original services 1498 and 1499, previously
+rejected, independently match the native object-disable edge at dot 270 and
+their complete images. Services 1500..1502 match the counter-wait edge at dot
+262. One overlaps the earlier image selection, giving four additional unique
+images. All 77 placement interrupt vectors separately agree exactly; see
+[completion evidence](AIR_IRQ_BOUNDARIES.md).
+
+Other aggregate acceptance remains unqualified. Such an edge is accepted only
+when a conservative 24-cycle range changes none of that scene's actual object
+pixels; otherwise it rejects. Pending protected pause crossings also reject
+without independent evidence. General interrupt acceptance is still open.
 
 ## Outgoing fade: visible palette writes
 

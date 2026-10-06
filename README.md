@@ -45,7 +45,7 @@ native effect requests, 5,252 graphics/status accesses and 1,332 storage bytes.
 The pending startup services also agree; see [startup limits](docs/AIR_STARTUP.md).
 Production integration, full pixels/PCM and hardware
 qualification remain open; see [candidate evidence](docs/AIR_PAUSE_CANDIDATE.md).
-Selected complete images now also agree: 258 matched Air frames, including the
+Selected complete images now also agree: 262 unique matched Air frames, including the
 incoming fade, ordinary play, pause, post-resume play and selected outgoing
 fades. The bounded image probe now owns the known final-row object cancellation
 and separate visible palette writes; Windows clock integration remains open. See
@@ -56,6 +56,10 @@ bounded original Air recordings; see [exit evidence](docs/AIR_EXIT.md).
 An independent reference now also establishes a shared-scratch interruption
 inside Air's placement scan. The native clock matches the resulting allocations
 and all sixteen entity slots; see [placement evidence](docs/AIR_PLACEMENTS.md).
+All 77 placement interrupt vectors and 836 pause counter-wait vectors now agree
+on absolute source time. The identified source completion boundaries fix the
+two previously rejected neighboring images. Protected pause crossings remain
+unqualified and reject until measured; see [IRQ limits](docs/AIR_IRQ_BOUNDARIES.md).
 The [reference tools](docs/REFERENCE_BACKENDS.md) remain separate from the game.
 
 The Windows application uses C++ and Win32. It contains no Game Boy CPU

@@ -1,7 +1,8 @@
 // Experimental ordinary-clock native replay. No original service costs, per-
 // update counters, world outcomes or voice states drive this probe. Source
-// work is charged at semantic phase boundaries; subinstruction IRQ latency is
-// deliberately not certified, and this is not yet the Windows-loop scheduler.
+// work is charged at semantic boundaries. Identified placement/access owners
+// now qualify their completion; other aggregate IRQ latency is not certified.
+// This is not yet the Windows-loop scheduler.
 // Optional display input replaces update-aligned buttons with a button sample
 // at every service; neither mode reads original per-update counters or costs.
 #include "air.h"
@@ -23,15 +24,16 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--pause-replay")pauseReplay=true;
             else if(option=="--audio-csv"&&i+1<argc)audioPath=argv[++i];
+            else if(option=="--interrupts-csv"&&i+1<argc)interruptPath=argv[++i];
             else if(option=="--frames-dir"&&i+1<argc)framesPath=argv[++i];
             else if(option=="--frame-services"&&i+1<argc)frameSelection=argv[++i];
             else if(option=="--final-wait")finalWait=true;
@@ -89,6 +91,20 @@ int main(int argc,char** argv){
         std::ofstream entityLog;
         if(!entityPath.empty()){entityLog.open(entityPath);if(!entityLog)throw std::runtime_error("Cannot open entity-state output");entityLog<<"update,slot,frame,flags,x,y\n";}
         int activeGamePhase=-1;
+        int currentUpdate=-1;
+        std::ofstream interruptLog;
+        if(!interruptPath.empty()){
+            interruptLog.open(interruptPath);if(!interruptLog)throw std::runtime_error("Cannot open native interrupt output");
+            interruptLog<<"kind,vectorCycle,owner,update,phase\n";
+        }
+        clock.interrupt=[&](const char* kind,int64_t time,AirIrqOwner owner){
+            // Protected handoffs have a source model and synthetic tests, but
+            // no independently captured pending-service crossing yet. Quiet
+            // controls must not silently certify that unobserved path.
+            if(owner==AirIrqOwner::ProtectedResume)
+                throw std::runtime_error("Protected Air service resume needs an independent pending-interrupt witness");
+            if(interruptLog.is_open())interruptLog<<kind<<','<<time<<','<<int(owner)<<','<<currentUpdate<<','<<activeGamePhase<<'\n';
+        };
         bool spriteBoundarySafe=false;
         bool mapBoundarySafe=false;
         bool loopBoundarySafe=false;
@@ -101,14 +117,14 @@ int main(int argc,char** argv){
         std::array<int,Width*Height> projectedPalettes{};
         int64_t projectedLineZero=0;
         std::ofstream pixelEdges;
-        if(!framesPath.empty()){pixelEdges.open(framesPath+"/edges.csv");if(!pixelEdges)throw std::runtime_error("Cannot open native pixel edges");pixelEdges<<"service,disableDot,halted,limit\n";}
+        if(!framesPath.empty()){pixelEdges.open(framesPath+"/edges.csv");if(!pixelEdges)throw std::runtime_error("Cannot open native pixel edges");pixelEdges<<"service,disableDot,halted,limit,owner\n";}
         auto writeProjection=[&]{
             std::ofstream file(framesPath+"/native-"+std::to_string(projectedService)+".pgm",std::ios::binary);
             if(!file)throw std::runtime_error("Cannot open local frame output");
             file<<"P5\n160 144\n255\n";
             for(size_t i=0;i<projectedScene.size();++i)file.put(static_cast<char>(255-85*((projectedPalettes[i]>>(projectedScene[i]*2))&3)));
         };
-        clock.objectDisable=[&](int64_t time,bool halted){
+        clock.objectDisable=[&](int64_t time,AirIrqOwner owner){
             if(!selectedProjection)return;
             if(time<AirClock::StatLine)return; // Startup's pending STAT precedes the first projected visible frame.
             int dot=static_cast<int>((time+8)%AirClock::Frame)-AirClock::StatLine;
@@ -116,13 +132,13 @@ int main(int argc,char** argv){
             // Interrupted instructions still have unqualified acceptance
             // latency. Certify only if a conservative 24-cycle range changes
             // none of this publication's actual object pixels.
-            if(!halted){
+            if(owner==AirIrqOwner::Unqualified){
                 int later=airLastLineObjectLimit(projectedSprites,projectedScroll,std::min(dot+24,456));
                 for(int x=limit;x<later;++x)if(projectedScene[135*Width+x]!=projectedBackground[x])
                     throw std::runtime_error("Unowned interrupted line-135 object edge");
             }
             for(int x=limit;x<Width;++x){projectedScene[135*Width+x]=projectedBackground[x];projectedOwners[135*Width+x]=0;}
-            pixelEdges<<projectedService<<','<<dot<<','<<halted<<','<<limit<<'\n';writeProjection();
+            pixelEdges<<projectedService<<','<<dot<<','<<(owner==AirIrqOwner::CounterWait)<<','<<limit<<','<<int(owner)<<'\n';writeProjection();
         };
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
@@ -177,6 +193,7 @@ int main(int argc,char** argv){
         puts("tick,handler,frame,flags,x,y,cameraX,cameraY,speed,rate,tilt,count,crash,anim,done,waiting,delay,period,transfer,remaining,map,result,seconds,secondTicks,random,pending");
         int ignoredTick,held,updates=0,pauses=0;
         while(input>>ignoredTick>>held){
+            currentUpdate=updates;activeGamePhase=-1;
             // 03c7's LD A completes before 03c9 commits the ready flag. A
             // pending display between them still sees the busy resource gate.
             // The first ready store already belongs to startup's pending
@@ -329,6 +346,7 @@ int main(int argc,char** argv){
         if(pauseReplay&&!pauses)throw std::runtime_error("Native replay did not reach a pause");
         if(!pauseEntryReached&&!input.eof())return 2;
         if(finalWait){
+            activeGamePhase=-1;currentUpdate=-1;
             if(!game->result)throw std::runtime_error("Final wait requires a completed stunt result");
             auto start=clock.now;int tick=game->ticks;unsigned servicesBefore=clock.displays;
             loopBoundarySafe=true;clock.wait(display,false);loopBoundarySafe=false;

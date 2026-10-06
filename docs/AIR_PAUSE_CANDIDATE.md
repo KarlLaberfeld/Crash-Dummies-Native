@@ -1,6 +1,14 @@
 # Native Air pause graphics candidate
 
-October 6 image follow-up: 258 selected complete images now agree, including
+October 6 timing follow-up: 836 pause counter-wait interrupt vectors agree
+on absolute time in the same three controls. Source-protected entry and restore
+handoffs now include their enable followers; pending protected crossings still
+reject until independently measured. Full coupled comparisons pass again after
+reducing simultaneous recording loads. See [IRQ scope](AIR_IRQ_BOUNDARIES.md).
+Latest checks pass 573 pause/session/pixel, 113 source assertions and 133 Python
+tests with a serial O0 diagnostic build; the production EXE is unchanged.
+
+October 6 image follow-up: 262 unique selected complete images now agree, including
 the known final-row object cancellation and visible outgoing palette writes.
 See [pixel ownership and limits](AIR_PIXELS.md). This extends the bounded probe;
 production scheduler integration remains open. The shared optional renderer
@@ -163,7 +171,9 @@ coupled to native gameplay, unlike the earlier isolated request replays.
 
 Qualification still needs initial LCD-enable/normal UI entry, arbitrary IRQ
 acceptance and pending interrupts across critical sections, special window
-edges and line-135 cancellation. The candidate rejects unsupported cases.
+edges and interrupted line-135 readiness. The bounded image projection owns
+selected cancellation edges separately; it does not remove the LCD readiness
+guard. The candidate rejects unsupported cases.
 Its paused callback is restricted to an enabled reset check, no pending effect
 request and a disabled music driver. The standalone graphics callback accounts
 only for audio work; the coupled probe now also compares selected retained and

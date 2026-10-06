@@ -162,9 +162,45 @@ int main(){
         require(rejected,"Unknown palette ownership cannot be projected as background");
         int64_t disable=0;bool waited=false;AirClock observed;observed.now=AirClock::Frame+44;
         observed.nextStat+=AirClock::Frame;observed.nextVBlank+=AirClock::Frame;
-        observed.objectDisable=[&](int64_t time,bool halted){disable=time;waited=halted;};
+        observed.objectDisable=[&](int64_t time,AirIrqOwner owner){disable=time;waited=owner==AirIrqOwner::CounterWait;};
         observed.wait(display);
         require(waited&&disable==AirClock::Frame+AirClock::StatLine+254,"Counter-wait STAT observer exposes the identified LCD write without adding source work");
+        for(int protectedCost:{192,140})for(int offset:{4,128,protectedCost-4,protectedCost,protectedCost+8}){
+            int follower=protectedCost==192?12:16;
+            AirClock protectedClock;protectedClock.now=0;
+            protectedClock.nextVBlank=offset;protectedClock.nextStat=AirClock::Frame;
+            int64_t vector=-1;AirIrqOwner owner=AirIrqOwner::Unqualified;bool restored=false,observedRestored=false;
+            protectedClock.interrupt=[&](const char*,int64_t time,AirIrqOwner value){vector=time;owner=value;};
+            protectedClock.holdServices(protectedCost);
+            require(protectedClock.displays==0&&protectedClock.now==protectedCost,"Protected source stores retain pending services without advancing display callbacks");
+            restored=true;
+            protectedClock.resumeServices(follower,[&](bool ready){observedRestored=restored&&!ready;return 100;},false);
+            require(vector==protectedCost+follower+20&&owner==AirIrqOwner::ProtectedResume&&observedRestored,"Pending display observes restored state only after the identified enable follower completes");
+            require(protectedClock.now==protectedCost+follower+136&&!protectedClock.servicesHeld,"Protected resume retains original active work and one complete returning service");
+        }
+        AirClock pendingBoth;pendingBoth.now=0;pendingBoth.nextStat=4;pendingBoth.nextVBlank=8;
+        std::vector<std::string> pendingOrder;
+        pendingBoth.interrupt=[&](const char* kind,int64_t,AirIrqOwner){pendingOrder.push_back(kind);};
+        pendingBoth.holdServices(140);pendingBoth.resumeServices(16,[](bool){return 0;},false);
+        require(pendingOrder==std::vector<std::string>({"vblank","stat"})&&pendingBoth.displays==1&&pendingBoth.statServices==1,"Both pending protected requests use display priority rather than their original deadline order");
+        require(pendingBoth.now==140+16+36+324,"Pending service priority adds only the identified entry/body/return costs");
+        AirClock invalidProtected;invalidProtected.holdServices(140);
+        rejected=false;try{invalidProtected.work(4,display,false);}catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"Ordinary work cannot bypass a protected source follower");
+        rejected=false;try{invalidProtected.resumeServices(8,display,false);}catch(const std::runtime_error&){rejected=true;}
+        require(rejected&&invalidProtected.servicesHeld,"An unidentified enable follower retains the closed service gate and rejects");
+        AirClock unqualifiedPause;unqualifiedPause.now=AirClock::Frame+44;
+        unqualifiedPause.nextStat=unqualifiedPause.now+200;unqualifiedPause.nextVBlank=unqualifiedPause.now+1000;
+        auto beforeUnqualified=unqualifiedPause.now;bool unqualifiedSideEffect=false;
+        rejected=false;try{
+            airPauseSession(unqualifiedPause,sessionInput,sessionGraphics,sessionAssets,
+                [&](bool){unqualifiedSideEffect=true;return 0;},sessionLcd,
+                [&](bool){unqualifiedSideEffect=true;},[](const char*,int64_t,int64_t,int){},
+                [](const char*,const char*,unsigned,unsigned,int64_t){},
+                [&](const char*,int64_t,const AirPauseGraphics&){unqualifiedSideEffect=true;});
+        }catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"A request during the delayed-enable follower still needs an independent original witness");
+        require(unqualifiedPause.now==beforeUnqualified&&!unqualifiedSideEffect,"Unqualified pause handoff rejects before clock/audio/graphics ownership changes");
         printf("Air pause access checks: %d passed (synthetic; no LCD/reference parity claim)\n",checks);return 0;
     }catch(const std::exception& error){fprintf(stderr,"Pause access failure after %d checks: %s\n",checks,error.what());return 1;}
 }

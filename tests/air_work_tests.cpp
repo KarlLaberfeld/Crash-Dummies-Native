@@ -218,6 +218,20 @@ int main(){
         AirPlacementRange prefixRange;stablePlacement->scan=0;
         airPlacementClock(*stablePlacement,prefixClock,prefixRange,[&](bool){prefixRange.low=0;return 0;});
         require(prefixRange.high==100,"Upper bound uses the retained camera value even if a display changes the lower scratch between its stores");
+        auto verifyPlacementEdge=[&](int deadline,int accepted,int row){
+            stablePlacement->scan=0;stablePlacement->placements.assign(8,{18,0,row*256,0,true});
+            AirClock edge;edge.now=0;edge.nextStat=deadline;edge.nextVBlank=AirClock::Frame;
+            AirPlacementRange bounds;int64_t vector=-1;AirIrqOwner owner=AirIrqOwner::Unqualified;
+            edge.interrupt=[&](const char*,int64_t time,AirIrqOwner value){vector=time;owner=value;};
+            auto work=airPlacementClock(*stablePlacement,edge,bounds,[](bool){return 0;});
+            if(vector!=accepted+20||owner!=AirIrqOwner::SourceBoundary)
+                fprintf(stderr,"Placement edge: deadline=%d row=%d vector=%lld expected=%d owner=%d\n",deadline,row,static_cast<long long>(vector),accepted+20,int(owner));
+            require(vector==accepted+20&&owner==AirIrqOwner::SourceBoundary,"Pending placement STAT waits for the identified access/conditional-return completion");
+            require(edge.now==work+324,"Source-boundary completion changes acceptance, not total active work or service cost");
+        };
+        verifyPlacementEdge(252,260,92); // High-range read completes before 19f5.
+        verifyPlacementEdge(276,284,140); // Taken upper-range return completes before 19b8.
+        verifyPlacementEdge(292,304,92); // Upper comparison + active-byte test precede the taken return.
         Frame one;one.pieces.push_back({});
         SpriteLayer partial(true);partial.slots[0].present=true;partial.slots[0].y=20;
         partial.add(one,16,16,0);

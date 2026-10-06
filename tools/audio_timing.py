@@ -244,8 +244,8 @@ def report(args):
     print(json.dumps(summary,indent=2))
     if mismatches:raise ValueError('Music source work differs from reference measurement')
 
-def compare_native(args):
-    data=json.loads((args.out/'music.json').read_text())
+def compare_native(args,data=None):
+    if data is None:data=json.loads((args.out/'music.json').read_text())
     validate_services(data)
     if any(not r['enabled'] and len(r.get('postStates',[]))!=6 for r in data['services']):
         raise ValueError('Disabled original services need additional post-state capture for native comparison')

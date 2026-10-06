@@ -1,6 +1,18 @@
 # Project status - October 6, 2026
 
-Latest image follow-up: 258 complete Air frames, 5,944,320 pixels, agree exactly.
+Latest timing follow-up: all 77 placement interrupt vectors match the original
+exactly after reconstructing source access/conditional-return completion.
+The same three pause controls additionally match all 836 absolute counter-wait
+interrupt vectors. Source-only protected pause handoffs now include their
+12/16-cycle enable followers, but an actual pending crossing remains unqualified
+and explicitly rejects in the probe. See [IRQ evidence](AIR_IRQ_BOUNDARIES.md).
+Full coupled original comparisons pass again with sequential recording loads;
+Windows commit exhaustion no longer blocks those checks. Latest validation:
+113 source assertions, 573 pause/session/pixel assertions and 133 Python tests.
+The current diagnostic was rebuilt serially at O0; its optimized rebuild failed
+under the low Windows commit budget. The production EXE is unchanged.
+
+Latest image follow-up: 262 unique complete Air frames, 6,036,480 pixels, agree exactly.
 The three known differing pixels at x=108..110 on row 135 are corrected in
 the bounded native clock projection. The source-owned STAT object-disable
 edge cancels a fetch on that row; outgoing palette writes now retain the
@@ -8,13 +20,14 @@ separate background/OBP0/OBP1 owners and already drawn pixels. The selection
 extends the three 29-image pause controls with 57 images per existing outgoing
 control. It covers incoming fade, play, steady pause/resume and selected
 outgoing fades. No region is masked. Blank and repeated frozen images are
-included, not new independent situations. All 222 exit phases and 96 fade
+included, not new independent situations. Four unique late images extend the
+earlier 258-image selection; the five-image sequence overlaps once. All 222 exit phases and 96 fade
 services still agree. The historical SameBoy `win` directory is an alternating
 steering damage control, not a successful-finish image witness.
 See [image ownership and remaining scope](AIR_PIXELS.md). The Windows clock
 integration is still open; the default runtime cadence has not changed.
-Additional neighboring original services 1498/1499 reject an unowned interrupted
-line-135 edge and are excluded from the 258 passes. No arbitrary interrupt,
+Additional neighboring original services 1498/1499 now match the source-owned
+placement completion edge at line-135 dot 270. No arbitrary interrupt,
 other-stunt, full PCM, hardware or final-release acceptance is claimed.
 
 The current Windows build passes the full native suites, three complete
@@ -40,7 +53,8 @@ intervals and 1,332 accepted storage bytes; do not add these counts twice.
 Nine pending-startup boundaries per case match after correcting the four-cycle
 LCD access tail and duplicated first ready-store prefix. No original per-update
 counters, work, idle, worlds, edges or effect requests drive the native replay.
-537 pause/session/pixel assertions, 107 source assertions and 119 Python tests pass.
+Current checks pass 573 pause/session/pixel assertions, 113 source assertions
+and 133 Python tests; the coupled recordings are fully compared again.
 See [candidate scope](AIR_PAUSE_CANDIDATE.md) and [startup limits](AIR_STARTUP.md).
 This is not production Windows scheduling, full PCM/pixels or hardware acceptance.
 
@@ -56,7 +70,8 @@ contains no ROM/assets/reference library. Local and GitHub commit identities
 differ because this host publishes through the GitHub connector. This is a
 development preview, not a final release.
 
-Next concrete work: remaining first-LCD-frame/interrupted owners, wider
+Next concrete work: qualify a pending protected handoff if a valid original
+control reaches one, then remaining first-LCD-frame/interrupted owners, wider
 collision/success/result image comparisons and production clock integration.
 Coupled reproduction:
 `python tools/air_pause_coupled.py run coast` (also easy/hard).
@@ -68,8 +83,9 @@ Selected image measurements are in `local/pause-pixels-{coast,easy,hard}-referen
 and native projections in matching `-native/` folders. See AIR_PIXELS.md for
 the exact selections and reproduction; do not rerun unchanged native campaigns.
 Initial LCD-enable phase, arbitrary IRQ acceptance, pending critical-section
-interrupts and sensitive non-HALT line-135 edges remain unowned and must reject.
-The selected HALT object-disable edge is now source-owned; see AIR_PIXELS.md.
+interrupts and sensitive aggregate non-HALT edges remain unqualified and reject.
+Selected HALT and placement-completion object-disable edges are now source-owned;
+see AIR_PIXELS.md and AIR_IRQ_BOUNDARIES.md.
 Other interrupted entity/resource/row paths, startup/result setup, production
 clock integration and the remaining ACCEPTANCE.md items also stay open.
 The shared renderer's optional cutoff/palette-owner API rebuilt the Windows

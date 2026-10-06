@@ -1,5 +1,12 @@
 # Air Bumper source timing: partial reconstruction
 
+October 6 follow-up: the identified placement completion boundaries match all
+77 original placement interrupt vectors. The three pause controls also match
+all 836 absolute counter-wait vectors; source-only protected pause handoffs
+remain candidates and pending crossings still reject without a witness.
+262 unique complete images agree. See [IRQ evidence and remaining scope](AIR_IRQ_BOUNDARIES.md).
+The production Windows scheduler remains unfinished.
+
 Latest ownership correction: a progress-HUD refresh can overwrite placement's
 shared lower range during an interrupt. The identified scan now runs at its
 native clock phase and reads the resulting range independently. All eleven

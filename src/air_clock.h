@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <algorithm>
 #include <functional>
 #include <stdexcept>
 
@@ -10,6 +11,7 @@ struct DisplayInput {
     int held=0,previous=0,pressed=0;
     void sample(int buttons){previous=held;held=buttons;pressed=held&~previous;}
 };
+enum class AirIrqOwner { Unqualified, SourceBoundary, CounterWait, PendingStartup, ProtectedResume };
 // Semantic Air display clock, measured in original oscillator cycles. It runs
 // no opcodes or CPU state. The callback owns display/audio services and returns
 // source-derived work. Unknown work is a hard boundary, never an allowance.
@@ -21,56 +23,86 @@ struct AirClock {
     int64_t now=4+16,nextStat=StatLine,nextVBlank=VBlankLine;
     unsigned displays=0,statServices=0;
     int lastWaitWork=0;
+    bool servicesHeld=false;
+    int heldFollower=0;
     // Optional bounded image observer. It charges no work and executes no IRQ
-    // instructions; halted distinguishes accepted counter-wait ownership.
-    std::function<void(int64_t,bool)> objectDisable;
-    template<class Display>void vblank(Display&& display,bool ready){
+    // instructions. Ownership distinguishes completed identified source
+    // boundaries from aggregate budgets with unqualified acceptance latency.
+    std::function<void(int64_t,AirIrqOwner)> objectDisable;
+    std::function<void(const char*,int64_t,AirIrqOwner)> interrupt;
+    template<class Display>void vblank(Display&& display,bool ready,AirIrqOwner owner=AirIrqOwner::Unqualified){
+        if(interrupt)interrupt("vblank",now+20,owner);
         int work=display(ready);
         if(work<0)throw std::runtime_error("Unreconstructed Air display/audio work");
         now+=20+work+16;++displays;
     }
-    void stat(bool halted=false){
+    void stat(AirIrqOwner owner=AirIrqOwner::Unqualified){
+        if(interrupt)interrupt("stat",now+20,owner);
         // 0048..254f: source body prefix 228, then LCDC write sample at +8.
         // The pinned DMG bus observer exposes that sample two cycles earlier.
-        if(objectDisable)objectDisable(now+20+228+8-2,halted);
+        if(objectDisable)objectDisable(now+20+228+8-2,owner);
         now+=20+288+16;++statServices;
     }
     template<class Display,class Boundary>void startup(Display&& display,Boundary&& boundary){
         // EI(4) takes effect after LD(8), following the completed access/return.
         // Source IF/IE retain both pending services. The ready store costs 12.
         boundary("enableReturned",now);
-        now+=4+8;boundary("displayEntry",now+20);vblank(display,true);
-        boundary("displayReturned",now);boundary("statEntry",now+20);stat();
+        now+=4+8;boundary("displayEntry",now+20);vblank(display,true,AirIrqOwner::PendingStartup);
+        boundary("displayReturned",now);boundary("statEntry",now+20);stat(AirIrqOwner::PendingStartup);
         boundary("statReturned",now);now+=12;boundary("readyStored",now);
     }
     template<class Display>void startup(Display&& display){
         startup(display,[](const char*,int64_t){});
     }
-    template<class Display>void work(int cost,Display&& display,bool ready){
+    template<class Display>void work(int cost,Display&& display,bool ready,AirIrqOwner owner=AirIrqOwner::Unqualified){
+        if(servicesHeld)throw std::runtime_error("Air work attempted before protected completion");
         if(cost<0)throw std::runtime_error("Unreconstructed Air game work");
         while(cost||(nextStat<nextVBlank?nextStat:nextVBlank)<=now){
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
             if(now+cost<deadline){now+=cost;return;}
             int before=static_cast<int>(deadline-now);
             if(before>0){cost-=before;now=deadline;}
-            if(nextStat<nextVBlank){nextStat+=Frame;stat();}
-            else{nextVBlank+=Frame;vblank(display,ready);}
+            if(nextStat<nextVBlank){nextStat+=Frame;stat(owner);}
+            else{nextVBlank+=Frame;vblank(display,ready,owner);}
         }
     }
     template<class Effect,class Display>void atomicWork(int cost,Effect&& effect,Display&& display,bool ready){
-        if(cost<0)throw std::runtime_error("Unreconstructed Air atomic work");
-        now+=cost;effect();work(0,display,ready);
+        if(servicesHeld)throw std::runtime_error("Air access attempted before protected completion");
+        if(cost<4||cost>24||cost%4)throw std::runtime_error("Unreconstructed Air atomic work");
+        now+=cost;effect();work(0,display,ready,AirIrqOwner::SourceBoundary);
     }
     // One identified graphics access: its bus sample occurs before the end
     // of the access, while a pending interrupt waits until completion. This
     // is a semantic boundary, not an opcode/register execution interface.
     template<class Effect,class Display>void accessWork(int cost,int sampleOffset,Effect&& effect,Display&& display,bool ready){
+        if(servicesHeld)throw std::runtime_error("Air access attempted before protected completion");
         if(cost<=0||sampleOffset<0||sampleOffset>cost)
             throw std::runtime_error("Invalid Air graphics access boundary");
         now+=sampleOffset;effect();now+=cost-sampleOffset;
-        work(0,display,ready);
+        work(0,display,ready,AirIrqOwner::SourceBoundary);
+    }
+    // Identified short source critical sections defer the two periodic
+    // services until the following operation completes. This is a native
+    // service gate, not CPU state or a generic instruction execution API.
+    void holdServices(int cost){
+        if(servicesHeld||(cost!=192&&cost!=140)||std::min(nextStat,nextVBlank)<=now)
+            throw std::runtime_error("Unowned Air protected entry");
+        now+=cost;servicesHeld=true;heldFollower=cost==192?12:16;
+    }
+    template<class Display>void resumeServices(int followerCost,Display&& display,bool ready){
+        if(!servicesHeld||followerCost!=heldFollower)
+            throw std::runtime_error("Unowned Air protected follower");
+        now+=followerCost;servicesHeld=false;heldFollower=0;
+        // Pending VBlank has source priority over STAT, even if STAT's
+        // request was earlier while services were held. Ordinary work uses
+        // chronological deadlines only while both requests are not pending.
+        while(nextStat<=now||nextVBlank<=now){
+            if(nextVBlank<=now){nextVBlank+=Frame;vblank(display,ready,AirIrqOwner::ProtectedResume);}
+            else{nextStat+=Frame;stat(AirIrqOwner::ProtectedResume);}
+        }
     }
     template<class Display>void wait(Display&& display,bool ready=true){
+        if(servicesHeld)throw std::runtime_error("Air wait attempted before protected completion");
         lastWaitWork=60;
         // CALL/PUSH precede the counter read. A display during that prefix
         // must belong to the new snapshot, so the wait needs a later VBlank.
@@ -83,8 +115,8 @@ struct AirClock {
             now+=4;lastWaitWork+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
             if(now<deadline)now=deadline;
-            if(nextStat<nextVBlank){nextStat+=Frame;stat(true);now+=16+4+12;lastWaitWork+=32;}
-            else{nextVBlank+=Frame;vblank(display,ready);now+=16+4+8+12+16;lastWaitWork+=56;}
+            if(nextStat<nextVBlank){nextStat+=Frame;stat(AirIrqOwner::CounterWait);now+=16+4+12;lastWaitWork+=32;}
+            else{nextVBlank+=Frame;vblank(display,ready,AirIrqOwner::CounterWait);now+=16+4+8+12+16;lastWaitWork+=56;}
         }while(displays==counter);
     }
 };

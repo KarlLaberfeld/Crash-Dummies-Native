@@ -1,5 +1,10 @@
 # Interrupted Air placement ownership
 
+October 6 completion follow-up: all 77 placement interrupt vectors now match
+the independent original exactly, including identified access/conditional-return
+completion. The two formerly rejected neighboring image edges are reconstructed.
+See [absolute interrupt evidence and limits](AIR_IRQ_BOUNDARIES.md).
+
 This is experimental native-clock work, not Windows scheduler integration.
 The ordinary Windows wrapper retains its existing placement behavior.
 

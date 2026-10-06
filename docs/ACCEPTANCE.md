@@ -1,13 +1,25 @@
 # Final release acceptance
 
-Latest image checkpoint, October 6: 258 complete matched Air frames,
-5,944,320 pixels, have zero differences. The bounded image probe corrects the
+Latest timing checkpoint, October 6: 77 placement vectors and 836 pause
+counter-wait vectors match their independently qualified absolute source times.
+Protected pause handoffs have source models and synthetic checks; actual
+pending crossings remain unqualified and reject in the diagnostic probe.
+Full coupled comparison now loads large recordings sequentially and passes
+again despite the low Windows commit budget. Latest diagnostic checks pass
+113 source assertions, 573 pause/session/pixel assertions and 133 Python tests.
+Its current serial O0 build passes the original comparisons; the attempted
+optimized diagnostic build failed due to memory exhaustion. The production
+EXE is unchanged. See [IRQ evidence and limits](AIR_IRQ_BOUNDARIES.md).
+
+Latest image checkpoint, October 6: 262 unique complete matched Air frames,
+6,036,480 pixels, have zero differences. The bounded image probe corrects the
 known three final-row sprite pixels and retains the source's separate outgoing
 palette-write boundaries. All 222 exit phases and 96 fade display services
 still agree. No region is masked. Blank/frozen repetitions are included.
 The SameBoy `win`-suffixed outgoing control actually ends in damage and does
-not qualify a successful finish. Two extra neighboring images reject unowned
-interrupt acceptance and are excluded from the passed count. Wider collision/
+not qualify a successful finish. The five consecutive late images include
+one earlier selected image, adding four unique images; the two formerly rejected
+placement edges now have source completion owners. Wider collision/
 success/result cases, other partial visible writes, other stunts, PCM, production
 clock integration and independent hardware/Windows remain required.
 See [pixel scope and alignment](AIR_PIXELS.md).
@@ -29,8 +41,8 @@ slots also agree. This includes the earlier 900 prefix updates, 5,252 bus events
 418 paused services, 857 intervals and 1,332 storage bytes. Nine pending-startup
 boundaries per case match after the LCD-tail/first-store correction; see
 [startup limits](AIR_STARTUP.md). No original poll/work/idle/world/effect allowance
-drives the replay. 537 pause/session/pixel assertions, 107 source assertions and 119
-Python tests pass. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial
+drives the replay. Current checks pass 573 pause/session/pixel assertions, 113
+source assertions and 133 Python tests. See [bounded pause evidence](AIR_PAUSE_CANDIDATE.md). Initial
 LCD frame, arbitrary IRQs, full audio output restoration and production
 integration remain required. The optional renderer API changes the rebuilt
 Windows EXE's hash; production callers still retain default full-row rendering.
