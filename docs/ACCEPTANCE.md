@@ -5,9 +5,11 @@ explicit terminal boundaries, including a genuinely successful control.
 Twenty-three previously hidden sprite/map completion errors are corrected;
 common-prefix truncation is forbidden. The common result prefix through 0462
 also matches 44 absolute boundaries and 8,485 LY reads across four controls.
-Serial O2 diagnostic/source tests pass: 2,085 source assertions, 573 pause/
-session/pixel assertions and 159 Python tests. Existing 262 complete images
-remain exact; partial row pixels in the new successful control still reject.
+Serial O2 diagnostic/source tests pass: 4,200 source assertions, 573 pause/
+session/pixel assertions and 226 Python tests. The new successful control's
+partial row publication now matches 5,114 absolute boundaries / 5,400,384
+staging/map bytes and three complete neighboring images. All prior images
+pass again: 265 / 6,105,600 pixels in total. See [row limits](AIR_MAP_PUBLICATION.md).
 See [scene scope](AIR_SCENE_COMPLETION.md) and [result setup](AIR_RESULT_PREFIX.md).
 Ordinary result setup/music/LCD restart/incoming fade and complete failure
 holds now also agree across four patterns: union 3,225 boundaries / 1,575
@@ -21,8 +23,8 @@ result pixels or physical hardware acceptance. See [accounting limits](AIR_RESUL
 Seven additional post-result input schedules match exactly: early/transfer/final
 success skips, failure action exits and ignored failure directions. These extend
 existing gameplay controls; see [input scope](AIR_RESULT_INPUT.md).
-Current tests: 2,085 source, 573 pause/session/pixel and 4,646 result-clock
-assertions; 211 Python tests. The rebuilt EXE passes three complete campaigns,
+Current tests: 4,200 source, 573 pause/session/pixel and 4,646 result-clock
+assertions; 226 Python tests. The rebuilt EXE passes three complete campaigns,
 34 sprite assertions and normal/failed-audio 13/14 Windows UI checks.
 Remaining Air timing includes subsequent setup, perfect/final-life/reset results,
 earlier UI/LCD entry and unobserved interrupted/protected owners. Production

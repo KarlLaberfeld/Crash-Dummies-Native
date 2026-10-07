@@ -300,6 +300,37 @@ int main(){
         bool rowFlag=false,flagOwned=false,rowReady=true,sawPending=false;
         airMapClock(rowEdge,649,617,rowFlag,[&](bool){sawPending=rowFlag&&flagOwned&&!rowReady;return 0;},&flagOwned,&rowReady);
         require(sawPending&&rowReady,"Interrupted row preparation exposes the completed transfer request before cell readiness");
+        {
+            auto savedCells=assets->levels[0].cells;auto savedQuadrants=assets->quadrants;
+            for(int row=0;row<256;++row)for(int cell=0;cell<16;++cell)assets->levels[0].cells[row*16+cell]=(row+cell)&127;
+            for(int quadrant=0;quadrant<4;++quadrant)for(int cell=0;cell<128;++cell)assets->quadrants[quadrant*128+cell]=(cell+19*quadrant)&127;
+            auto rowGame=std::make_unique<AirGame>(*game);rowGame->difficulty=0;rowGame->cameraY=0xae80;
+            AirMapPublication startup;startup.initialize(*rowGame);
+            require(startup.destination==23,"LCD-off startup's 32 rows retain the original final destination");
+            for(int cell=0;cell<16;++cell)for(int half=0;half<2;++half)
+                require(startup.buffer[2*cell+half]==AirMapPublication::cellTile(*rowGame,0xaf80,0xaf00,cell,half),"Startup retains the last prepared row without using captured storage");
+            for(int byte=0;byte<32;++byte){
+                AirMapPublication partial;partial.buffer.fill(99);partial.tiles.fill(0);partial.destination=7;
+                AirClock edge;edge.now=0;edge.nextStat=1000000;
+                // Identified first store at 588, 104 cycles per metatile, with
+                // 20 cycles between its left and right tile stores.
+                edge.nextVBlank=588+(byte/2)*104+(byte&1)*20-4;
+                bool pending=false;std::array<uint8_t,32> observed{};int destination=-1;
+                airMapClock(edge,649,617,pending,[&](bool){observed=partial.buffer;destination=partial.destination;partial.publish();return 0;},nullptr,nullptr,&partial,rowGame.get());
+                require(destination==29,"Interrupted cell write retains its completed ring-row destination");
+                for(int index=0;index<32;++index){int expected=index<=byte?AirMapPublication::cellTile(*rowGame,649,617,index/2,index&1):99;
+                    if(observed[index]!=expected)throw std::runtime_error("Partial row byte "+std::to_string(byte)+" index "+std::to_string(index)+" expected "+std::to_string(expected)+" observed "+std::to_string(observed[index]));
+                    require(observed[index]==expected,"Each completed tile byte replaces only its own staging position");}
+                for(int index=0;index<32;++index)require(partial.tiles[29*32+index]==observed[index],"Display publication retains the exact partial row while preparation subsequently finishes");
+            }
+            AirMapPublication oldRow;oldRow.destination=7;oldRow.buffer.fill(99);
+            AirClock beforeDestination;beforeDestination.now=0;beforeDestination.nextStat=1000000;beforeDestination.nextVBlank=328;
+            bool pending=false;int seenRow=-1;
+            airMapClock(beforeDestination,649,617,pending,[&](bool){seenRow=oldRow.destination;oldRow.publish();return 0;},nullptr,nullptr,&oldRow,rowGame.get());
+            require(seenRow==7&&oldRow.destination==29,"A request before destination completion publishes the previous row");
+            require(oldRow.tiles[7*32]==99&&oldRow.tiles[29*32]==0,"Later preparation cannot retroactively change the published tile map");
+            assets->levels[0].cells=savedCells;assets->quadrants=savedQuadrants;
+        }
         publishing->entities={};auto& publishActor=publishing->entities[0];publishActor.alive=true;
         publishActor.frame=12;publishActor.x=publishActor.y=80*16;
         assets->frames[12].meta={};assets->frames[12].pieces={{}};assets->frames[12].pieces[0].colors.fill(2);

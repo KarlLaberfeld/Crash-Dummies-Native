@@ -1,5 +1,12 @@
 # Selected complete Air framebuffer comparisons
 
+October 7 follow-up: the successful control's staged/published background now
+has a native completion owner, including its formerly rejected interruption.
+Three consecutive neighboring images match exactly; all 262 prior selections
+pass again. Total: 265 complete images / 6,105,600 pixels. See
+[row publication and bounds](AIR_MAP_PUBLICATION.md). Production scheduling
+remains unchanged. The six-control counts below describe the earlier selection.
+
 The six existing independent SameBoy controls now match **262 unique complete
 160x144 images**, or **6,036,480 compared pixels**, with zero differences.
 The earlier 258-image selection and five consecutive late images overlap once.
@@ -140,7 +147,7 @@ The Windows application retains its existing scheduler and default rendering
 cadence; the optional publication cutoff/owner plane is used by this clock
 probe. Integrating the accepted owners requires the production clock work,
 not copying original measurements into the game. Initial LCD-enable access,
-arbitrary IRQ acceptance, interrupted entity/resource/map owners, pause-entry
+arbitrary IRQ acceptance, interrupted entity/resource owners, pause-entry
 visible changes and result setup remain open. Wider collisions/success cases,
 other stunts, PCM, human play and independent Windows/hardware acceptance
 remain required under ACCEPTANCE.md. This is not a final release.

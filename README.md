@@ -14,6 +14,9 @@ subsequent setup and production timing
 integration remain open. See [scene completion](docs/AIR_SCENE_COMPLETION.md),
 [result setup](docs/AIR_RESULT_PREFIX.md), [result transition limits](docs/AIR_RESULT_TRANSITION.md)
 and [accounting scope](docs/AIR_RESULT_ACCOUNTING.md), plus [result inputs](docs/AIR_RESULT_INPUT.md).
+The successful control's staged background also matches 5,114 boundaries and
+5,400,384 bytes. Three neighboring images extend the complete image selection
+to 265 / 6,105,600 pixels, all exact; see [row publication](docs/AIR_MAP_PUBLICATION.md).
 
 This project aims to faithfully reimplement the Game Boy release as a native
 Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, **Bomb Factory**, and **Cruise Missile**, each with

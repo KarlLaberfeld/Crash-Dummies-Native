@@ -28,9 +28,9 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,resultInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--result-inputs"&&i+1<argc)resultInputPath=argv[++i];
@@ -39,6 +39,7 @@ int main(int argc,char** argv){
             else if(option=="--result-failure-hold"){resultHold=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-accounting"){resultAccounting=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
+            else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--pause-replay")pauseReplay=true;
             else if(option=="--audio-csv"&&i+1<argc)audioPath=argv[++i];
@@ -56,6 +57,7 @@ int main(int argc,char** argv){
         if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
         if(framesPath.empty()!=frameSelection.empty())throw std::runtime_error("Frame output requires a directory and selected services");
         if(!resultInputPath.empty()&&!resultIncoming)throw std::runtime_error("Result input requires incoming/accounting ownership");
+        if(!mapPath.empty()&&!outroFade)throw std::runtime_error("Complete map comparison requires the outgoing result boundary");
         std::set<unsigned> frameServices;
         for(size_t begin=0;begin<frameSelection.size();){
             auto end=frameSelection.find(',',begin);auto value=frameSelection.substr(begin,end-begin);
@@ -81,6 +83,13 @@ int main(int argc,char** argv){
         // Capture header describes the initial clock/timer/random phase after
         // the source pending startup service; it supplies no per-update clocks.
         game->ticks=(initialTick-1)&65535;
+        AirMapPublication mapPublication;mapPublication.initialize(*game);
+        std::ofstream mapLog;
+        if(!mapPath.empty()){mapLog.open(mapPath);if(!mapLog)throw std::runtime_error("Cannot open native map publication output");
+            mapLog<<"boundary,service,cycle,pending,row";for(int i=0;i<32;++i)mapLog<<",buffer"<<i;for(int i=0;i<1024;++i)mapLog<<",tile"<<i;mapLog<<'\n';}
+        auto mapSnapshot=[&](const char* boundary,int64_t time){if(!mapLog.is_open())return;mapLog<<boundary<<','<<clock.displays<<','<<time<<','<<game->mapTransfer<<','<<mapPublication.destination;
+            for(int v:mapPublication.buffer)mapLog<<','<<v;for(int v:mapPublication.tiles)mapLog<<','<<v;mapLog<<'\n';};
+        mapSnapshot("startup",clock.now);
         services<<"service,cycle,ready,tick,display,effects,music,cursor,pending,bar0,bar1,bar2,bar3,bar4,bar5,inputHeld,inputPressed,displaySelector\n";
         std::ofstream pausePhases,pauseBus,pauseStorage;
         std::ofstream audioLog;
@@ -153,12 +162,6 @@ int main(int argc,char** argv){
         };
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
-            // The transfer flag already has a source owner, so scalar display
-            // work can be compared while row data is still being prepared.
-            // A partial row's actual transferred tiles need a separate image
-            // owner; selecting this publication must still reject.
-            if(activeGamePhase==4&&!mapRowReady&&frameServices.count(clock.displays))
-                throw std::runtime_error("Interrupted row pixels need a buffered tile publication owner");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
             if(displayInputs.is_open()){
                 int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
@@ -171,7 +174,11 @@ int main(int argc,char** argv){
                 if(ready||pending!=-1||sound.pendingEffect!=-1||(sampled.held&15)==15)
                     throw std::runtime_error("Unowned paused resource/effect/reset service");
                 game->publishVideo();game->ticks=(game->ticks+1)&65535;game->displayWorkCycles=160;
-            }else game->displayTick(ready);
+            }else{
+                int64_t mapEntry=clock.now+20+180+704+280+116;
+                mapSnapshot("before",mapEntry);if(game->mapTransfer)mapPublication.publish();mapSnapshot("after",mapEntry+24+(game->mapTransfer?736:40));
+                game->displayTick(ready);
+            }
             // 2f4c/16eb divides 48 * the byte-sized collected count. Its
             // overflow scratch FF9C ends at zero and can change later range
             // reads in an interrupted 19a2 scan. FF9E is not changed here.
@@ -180,10 +187,10 @@ int main(int argc,char** argv){
             game->pendingSound=-1;sound.tick();
             selectedProjection=frameServices.count(clock.displays);
             if(selectedProjection){
-                game->render(false,Width,&projectedOwners);projectedScene=paused?renderPausedGame(*frameUi,game->screen):game->screen;
+                mapPublication.render(*game,&projectedOwners);projectedScene=paused?renderPausedGame(*frameUi,game->screen):game->screen;
                 if(paused)std::fill(projectedOwners.begin()+PlayHeight*Width,projectedOwners.end(),0);
                 projectedSprites=game->visibleSprites;projectedScroll=(game->visibleCameraX>>4)&255;
-                game->render(false,0);std::copy_n(game->screen.begin()+135*Width,Width,projectedBackground.begin());
+                for(int x=0;x<Width;++x)projectedBackground[x]=mapPublication.pixel(*game,x,135);
                 projectedService=clock.displays;
                 projectedPalette=projectionPalette>=0?projectionPalette:frameUi->fadePalettes[std::min(game->displayFadeRemaining,7)];
                 // Keep the published scene; apply later source palette writes
@@ -305,7 +312,7 @@ int main(int argc,char** argv){
                     int charged=airSpriteClearClock(game->sprites,clock,display);
                     if(charged!=work)throw std::runtime_error("Sprite clear completion disagrees with native work");
                 }else if(activeGamePhase==4){
-                    int charged=airMapClock(clock,priorMapCamera,game->cameraY,game->mapTransfer,display,&mapBoundarySafe,&mapRowReady);
+                    int charged=airMapClock(clock,priorMapCamera,game->cameraY,game->mapTransfer,display,&mapBoundarySafe,&mapRowReady,&mapPublication,game.get());
                     if(charged!=work||game->mapTransfer!=preparedMap)throw std::runtime_error("Map completion work disagrees with native preparation: "+std::to_string(charged)+" vs "+std::to_string(work));
                 }else clock.work(work,display,false);
                 phases<<updates<<','<<activeGamePhase<<','<<phaseTick<<','<<phaseStart<<','<<clock.now<<','<<work<<'\n';
@@ -386,6 +393,7 @@ int main(int argc,char** argv){
             // the ordinary gameplay IRQ interval still terminates here.
         }
         std::ofstream boundary(std::string(argv[2])+".boundary.csv");
+        if(!mapPath.empty())mapSnapshot("end",clock.now);
         if(!boundary)throw std::runtime_error("Cannot open native replay completion boundary");
         boundary<<"boundary,cycle,updates,result\n"<<(outroFade?"resultSetup":pauseEntryReached?"pauseEntry":game->result?"gameExitTest":"partialUpdates")
                 <<','<<clock.now<<','<<updates<<','<<game->result<<'\n';

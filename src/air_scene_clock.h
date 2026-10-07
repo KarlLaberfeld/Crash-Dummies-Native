@@ -1,6 +1,7 @@
 #pragma once
 #include "air.h"
 #include "air_clock.h"
+#include "air_map_publication.h"
 
 namespace ticd {
 // Identified scene-preparation operations, with source completion boundaries.
@@ -123,7 +124,8 @@ int airSpriteClearClock(SpriteLayer& sprites,AirClock& clock,Display&& display){
 
 template<class Display>
 int airMapClock(AirClock& clock,int oldCamera,int camera,bool& transfer,Display&& display,
-                bool* flagOwned=nullptr,bool* rowReady=nullptr){
+                bool* flagOwned=nullptr,bool* rowReady=nullptr,AirMapPublication* publication=nullptr,const AirGame* game=nullptr){
+    if(bool(publication)!=bool(game))throw std::runtime_error("Incomplete native row publication owner");
     AirSceneSteps<Display> s{clock,display};
     bool changed=((oldCamera^camera)&128)!=0;
     s.steps({12,16,16,4,16,4,4,24,4});
@@ -132,11 +134,17 @@ int airMapClock(AirClock& clock,int oldCamera,int camera,bool& transfer,Display&
     s.step(changed?8:20);
     if(changed){
         s.step(8);s.write(16,[&]{transfer=true;});
-        s.steps({16,8,4,8,8,4,4,4,16,12,4,8,4,4,8,4,4,8,8});
+        s.steps({16,8,4,8,8,4,4,4});
+        s.write(16,[&]{if(publication)publication->destination=AirMapPublication::destinationRow(oldCamera);});
+        s.steps({12,4,8,4,4,8,4,4,8,8});
         bool down=(static_cast<uint16_t>(oldCamera-camera)&0x8000)!=0;
         s.step(down?8:12);if(down)s.step(8);
         s.steps({8,16,8,4,12,8,8,4,12,8});
-        for(int cell=0;cell<16;++cell)s.steps({8,16,4,4,8,4,8,4,8,8,4,12,4,cell==15?8:12});
+        for(int cell=0;cell<16;++cell){s.steps({8,16,4,4,8,4});
+            s.write(8,[&]{if(publication)publication->buffer[2*cell]=AirMapPublication::cellTile(*game,oldCamera,camera,cell,0);});
+            s.steps({4,8});
+            s.write(8,[&]{if(publication)publication->buffer[2*cell+1]=AirMapPublication::cellTile(*game,oldCamera,camera,cell,1);});
+            s.steps({4,12,4,cell==15?8:12});}
         s.step(16);if(rowReady)*rowReady=true;
     }
     s.step(16);return s.total;

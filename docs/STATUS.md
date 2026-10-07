@@ -8,7 +8,8 @@ boundaries. A genuinely successful independent Air control additionally
 matches 2,510 updates, 2,556 services, 102,240 sprite slots, 15,060 phases,
 40,160 entity slots and all 5,112 vectors; seven-control total: 36,548 vectors.
 See [scene completion](AIR_SCENE_COMPLETION.md). The new successful control
-owns interrupted map transfer timing; partial row pixels still reject.
+owns interrupted map transfer timing. Its formerly rejected partial row now
+has a complete native staging/destination owner; see the new evidence below.
 
 The common result setup through 0462 now matches four independently controlled
 originals at all 44 boundaries and 8,485 LY reads. LCD-off waits for equality
@@ -34,16 +35,23 @@ native fresh sampling; original edges/latches remain comparison targets.
 See [input owners and exact coverage](AIR_RESULT_INPUT.md).
 
 **Requested timing point 1 is not complete.** Next: subsequent player/stunt
-setup and remaining partial row ownership. Perfect/final-life/reset results,
+setup and perfect/final-life/reset results,
 earlier UI/LCD entry and unobserved interrupted entity/resource/protected pause
 owners remain open, along with production integration. Do not repeat unchanged
 static checks as a substitute for reconstructing those owners.
 
 The diagnostic now builds serially at O2 and original comparisons pass at O2.
-Latest checks: 2,085 source assertions, 573 pause/session/pixel assertions,
-4,646 result-clock assertions and 211 Python tests. Existing 262 unique complete frames / 6,036,480 pixels and
-222 outgoing phases / 96 fade services still agree; the successful control has
-no full image acceptance yet. The rebuilt Windows EXE is 1,093,632 bytes,
+The successful control's complete staged/published map now matches 5,114
+absolute boundaries and 5,400,384 bytes through 0409. Three neighboring images
+around the interrupted transfer also agree. All prior 262 selections pass
+again: 265 complete images / 6,105,600 pixels in total, no masks.
+See [map publication scope](AIR_MAP_PUBLICATION.md).
+
+Latest checks: 4,200 source assertions, 573 pause/session/pixel assertions,
+4,646 result-clock assertions and 226 Python tests. All 265 complete frames /
+6,105,600 pixels and 222 outgoing phases / 96 fade services still agree. The
+successful control adds three selected images; full successful/result image
+acceptance remains open. The rebuilt Windows EXE is 1,093,632 bytes,
 SHA-256 `e8cf2b18eed34d86220f074b51310dbe3c61923cabe4062defa0bf729d3272d3`.
 Its scheduler is unchanged; this diagnostic checkpoint is not a final release.
 Current build/test evidence is in ignored local/air-scene-windows-build-test.log.

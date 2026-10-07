@@ -46,9 +46,10 @@ counts again. The older `win` directory remains a damage control.
 The successful control interrupts map preparation after its transfer flag
 is set but before the row cells are ready. The native scalar transfer gate
 now has a completed source owner here; world/service/work/IRQ comparisons
-agree. Selecting that interrupted row for image projection explicitly
-rejects: old/partial tile-buffer publication is not yet qualified. This is
-not proof of pixels at that edge.
+agree. The subsequent [row-publication reconstruction](AIR_MAP_PUBLICATION.md)
+now matches the complete buffer/map state, including this interruption, at
+5,114 absolute boundaries. Three consecutive complete neighboring images
+also agree exactly. This supersedes the former partial-row rejection.
 
 ## Validation and reproduction
 
@@ -77,8 +78,10 @@ Missing or shifted events, protected/aggregate owners and overlapping
 inconsistent recordings reject. All measurements/assets stay local.
 
 Remaining scope: initial UI/LCD access, unobserved interrupted entities and
-resource publication, pending protected pause crossings, partial row pixels,
-successful result accounting/celebration and production scheduling. The common
+resource publication, pending protected pause crossings, special results,
+subsequent setup and production scheduling. Successful
+[accounting](AIR_RESULT_ACCOUNTING.md) and [inputs](AIR_RESULT_INPUT.md) now have
+separate bounded evidence. The common
 [result prefix](AIR_RESULT_PREFIX.md) and ordinary
 [result transition/failure hold](AIR_RESULT_TRANSITION.md) are separately qualified. No hardware,
 PCM, other-stunt or final-release timing acceptance follows from these controls.
