@@ -1,5 +1,6 @@
 // Source-shaped native result tests; no ROM or reference emulator.
 #include "air_result_transition.h"
+#include "air_result_accounting.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -13,6 +14,8 @@ int main(){
         require(rectangle.work()-noCarry.work()==8,"Rectangle row carry retains its conditional return cost");
         AirResultLayoutProfile empty;require(empty.work()==360,"Empty script retains entry and terminator work");
         require(airResultMusicStartWork()==14052,"Music start includes fixed reset, song roots and hardware restore");
+        int timer=2;require(airResultCountdownWork(timer)==272&&timer==1,"The penultimate result service stores one");
+        require(airResultCountdownWork(timer)==228&&timer==1,"Result timer's guarded zero decrement retains one and returns early");
         bool invalid=false;rectangle.width=33;try{rectangle.work();}catch(const std::runtime_error&){invalid=true;}
         require(invalid,"Unsupported rectangle size rejects");
         AudioAssets audio;for(int voice=0;voice<4;++voice)audio.commands.emplace(AudioAssets::key(voice,0,false),MusicCommand{MusicOp::Stop,0,{}});
@@ -30,6 +33,21 @@ int main(){
             require(incoming.tick==((65530+expected)&65535),"Result services retain original 16-bit counter wrapping");
             require(kinds.size()==size_t(2*expected)&&kinds[0]=="vblank"&&kinds[1]=="stat","Pending result services retain priority and full vector coverage");
             require(times[2]==incoming.lcdEpoch+143*456+20,"Restarted result STAT belongs to line 143");
+            if(result==3){
+                previous=-1; // The separate accounting interval begins at the shared fade return.
+                AirResultTextAssets texts;for(auto& list:texts.layouts)list={{1,0,15},{0,0,0},{0,3,0},{4,0,0}};
+                int glyphs=0,polls=0,sourceVectors=0;bool sawFrozenCounter=false;
+                auto account=airResultAccount(incoming,3,0,3,4,2,sound,texts,
+                    [&](const char*,int64_t cycle,int,int,int,int,int,int,bool){require(cycle>previous,"Success accounting boundaries increase through counting and final waits");previous=cycle;},
+                    [&](unsigned,int64_t,int,int countdown,int display,int,int,bool){if(display==228)sawFrozenCounter=countdown==1;},
+                    [&](const char*,int64_t,AirIrqOwner owner){require(owner==AirIrqOwner::CounterWait||owner==AirIrqOwner::SourceBoundary,"Every accounting request is owned by a wait or completed native operation");++sourceVectors;},
+                    [&](int64_t,int mode){require(mode>=0&&mode<=3,"Accounting status reads retain native LCD modes");++polls;},
+                    [&](int64_t,int address,int value){require(address>=0x9800&&address<0xa000&&value>=0&&value<=127,"Result glyph formatting retains bounded map destinations and values");++glyphs;});
+                require(account.pay==0&&account.seconds==0&&account.savings==9&&account.stage==2,"Successful accounting transfers pay and time then advances Air's stage");
+                require(account.timing.displays==660&&account.timing.countdown==1&&sawFrozenCounter,"Ordinary result completes its countdown plus the final 60-service hold");
+                require(account.timing.tick==((65530+660)&65535)&&!sound.enabled,"Successful result retains counter wrapping and stops music");
+                require(glyphs>60&&polls>=glyphs&&sourceVectors>1200,"Accounting owns actual glyph readiness accesses and complete periodic requests");
+            }
             if(result==1){
                 int holdServices=0,holdWaits=0,holdTails=0;bool stopped=false;
                 auto held=airResultFailureHold(incoming,result,0,sound,*ui,

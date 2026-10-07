@@ -40,6 +40,13 @@ inline constexpr int airResultMusicStartWork(){
     return audioStopWork()-60-32+76+8*40+60+23*52-4+16+96;
 }
 struct AirResultTransition {int64_t end=0,lcdEpoch=0,nextStat=0,nextVBlank=0;int tick=0,countdown=600,displays=0,stats=0;};
+inline int airResultCountdownWork(int& countdown){
+    if(countdown<1||countdown>720)throw std::runtime_error("Invalid result countdown");
+    // 24cf retains one when decrement would reach zero: the taken conditional
+    // return omits the stores. This is distinct from an expired gameplay timer.
+    if(countdown==1)return 228;
+    --countdown;return 272;
+}
 template<class Boundary,class Service,class Interrupt>
 AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
     const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt){
@@ -72,11 +79,10 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     auto display=[&](bool){
         int before=state.tick;state.tick=(state.tick+1)&65535;
         // 24cf decrements 600, with the source's zero-store guard.
-        if(state.countdown<=1)throw std::runtime_error("Result countdown expiry needs its separate owner");
-        --state.countdown;sound.tick();
+        int displayWork=airResultCountdownWork(state.countdown);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned result audio service");
-        int body=1592+272+sound.effectWorkCycles+sound.musicWorkCycles;
-        service(clock.displays,clock.now+20,before,state.countdown,272,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
+        int body=1592+displayWork+sound.effectWorkCycles+sound.musicWorkCycles;
+        service(clock.displays,clock.now+20,before,state.countdown,displayWork,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
         return body;
     };
     clock.now+=4;point("enableFollower",clock.now);clock.now+=24;
@@ -130,11 +136,10 @@ AirResultTransition airResultFailureHold(AirResultTransition state,int result,in
     int bgp=ui.fadePalettes[0],obp0=bgp&0xcf,obp1=bgp&0xf3;
     auto point=[&](const char* name){boundary(name,clock.now,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
     auto display=[&](bool){
-        if(state.countdown<=1)throw std::runtime_error("Result countdown expiry needs its separate owner");
-        int tick=state.tick;state.tick=(state.tick+1)&65535;--state.countdown;sound.tick();
+        int tick=state.tick;state.tick=(state.tick+1)&65535;int displayWork=airResultCountdownWork(state.countdown);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned result hold audio work");
-        service(clock.displays,clock.now+20,tick,state.countdown,272,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
-        return 1592+272+sound.effectWorkCycles+sound.musicWorkCycles;
+        service(clock.displays,clock.now+20,tick,state.countdown,displayWork,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
+        return 1592+displayWork+sound.effectWorkCycles+sound.musicWorkCycles;
     };
     for(int cost:{8,12,24})clock.atomicWork(cost,[]{},display,false);
     for(int wait=0;wait<480;++wait){

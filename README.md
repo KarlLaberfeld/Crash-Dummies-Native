@@ -7,9 +7,12 @@ match all 36,548 complete interrupt vectors. Source completion corrects 23
 previously hidden sprite/map edges. The common result setup also matches 44
 boundaries and 8,485 LCD-line reads. Ordinary incoming results and full failure
 holds match another 3,225 boundaries and 3,150 vectors across four input patterns.
-The native diagnostic builds at O2; successful accounting, special result cases
-and production timing integration remain open. See [scene completion](docs/AIR_SCENE_COMPLETION.md),
-[result setup](docs/AIR_RESULT_PREFIX.md) and [result transition limits](docs/AIR_RESULT_TRANSITION.md).
+Successful accounting additionally matches 2,753 boundaries, 1,254 vectors,
+17,634 LCD polls and 4,802 intended glyph writes. The native diagnostic builds
+at O2; input skips, special results, subsequent setup and production timing
+integration remain open. See [scene completion](docs/AIR_SCENE_COMPLETION.md),
+[result setup](docs/AIR_RESULT_PREFIX.md), [result transition limits](docs/AIR_RESULT_TRANSITION.md)
+and [accounting scope](docs/AIR_RESULT_ACCOUNTING.md).
 
 This project aims to faithfully reimplement the Game Boy release as a native
 Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, **Bomb Factory**, and **Cruise Missile**, each with

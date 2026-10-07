@@ -22,16 +22,21 @@ Their union with successful incoming result is 3,225 / 1,575 / 3,150, zero
 differences; do not add overlapping incoming failures twice. See
 [result transition](AIR_RESULT_TRANSITION.md).
 
-**Requested timing point 1 is not complete.** Next: successful accounting
-after 047e, including source waits, changing savings/pay/time, LCD-on writes,
-countdown/input exits and next-stunt transition. Perfect/final-life results,
+Successful accounting through 0514 additionally matches all 2,753 boundaries,
+627 services, 1,254 vectors, 17,634 LCD polls and 4,802 intended glyph writes.
+Native pay 335 and five time cents become savings 340; Air's stunt index advances
+1 to 2. The source countdown retains one, with its shorter 228-cycle service.
+See [accounting scope and reproduction](AIR_RESULT_ACCOUNTING.md).
+
+**Requested timing point 1 is not complete.** Next: result input/skip owners
+and subsequent player/stunt setup. Perfect/final-life results,
 earlier UI/LCD entry and unobserved interrupted entity/resource/protected pause
 owners remain open, along with production integration. Do not repeat unchanged
 static checks as a substitute for reconstructing those owners.
 
 The diagnostic now builds serially at O2 and original comparisons pass at O2.
 Latest checks: 2,085 source assertions, 573 pause/session/pixel assertions,
-2,980 result-clock assertions and 182 Python tests. Existing 262 unique complete frames / 6,036,480 pixels and
+4,624 result-clock assertions and 200 Python tests. Existing 262 unique complete frames / 6,036,480 pixels and
 222 outgoing phases / 96 fade services still agree; the successful control has
 no full image acceptance yet. The rebuilt Windows EXE is 1,093,632 bytes,
 SHA-256 `e8cf2b18eed34d86220f074b51310dbe3c61923cabe4062defa0bf729d3272d3`.
@@ -42,7 +47,10 @@ That EXE passes full native suites, all three complete campaign scenarios,
 The source clock/result changes remain diagnostic. Latest result/reference and
 unit logs are listed in AIR_RESULT_TRANSITION.md; main-game regression logs are
 local/air-result-main-regression.log, local/air-result-all-irq-regression.log and
-local/air-success-final-check.log.
+local/air-success-final-check.log. Incoming and full failure comparisons pass
+again after the countdown guard change: local/air-accounting-checkpoint-verification.log.
+The accounting evidence covers one ordinary success and intended writes,
+not complete result image parity, special/skip results or production scheduling.
 
 The October 6 notes below describe the prior checkpoint and its O0 build;
 their diagnostic build limitation is superseded by the current O2 result.

@@ -26,7 +26,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat','result-layouts.dat'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 

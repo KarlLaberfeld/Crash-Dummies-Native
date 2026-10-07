@@ -13,10 +13,15 @@ Ordinary result setup/music/LCD restart/incoming fade and complete failure
 holds now also agree across four patterns: union 3,225 boundaries / 1,575
 services / 3,150 vectors, zero differences. Overlapping incoming failures are
 counted once; see [result transition limits](AIR_RESULT_TRANSITION.md).
-Current tests: 2,085 source, 573 pause/session/pixel and 2,980 result-clock
-assertions; 182 Python tests. The rebuilt EXE passes three complete campaigns,
+Successful ordinary accounting through 0514 also matches 2,753 boundaries,
+627 services, 1,254 vectors, 17,634 LCD polls and 4,802 intended glyph writes.
+It verifies native pay/time/savings and the stunt index; one successful pattern
+with unchanged post-stunt buttons qualifies these scalar accesses, not complete
+result pixels or physical hardware acceptance. See [accounting limits](AIR_RESULT_ACCOUNTING.md).
+Current tests: 2,085 source, 573 pause/session/pixel and 4,624 result-clock
+assertions; 200 Python tests. The rebuilt EXE passes three complete campaigns,
 34 sprite assertions and normal/failed-audio 13/14 Windows UI checks.
-Remaining Air timing includes successful accounting, perfect/final-life results,
+Remaining Air timing includes input skips, subsequent setup, perfect/final-life results,
 earlier UI/LCD entry and unobserved interrupted/protected owners. Production
 scheduling and the full final-release checklist are still required.
 

@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from extract_ui import result_layout_profile
+from extract_ui import result_layout_profile,result_layout_commands
 
 
 class ResultProfiles(unittest.TestCase):
@@ -21,6 +21,11 @@ class ResultProfiles(unittest.TestCase):
     def test_dynamic_menu_operations_reject(self):
         for op in (0x85,0x86,0x89,0x8b,0xff):
             with self.assertRaises(ValueError):self.profile([op,0x80])
+    def test_recognized_layout_commands_are_semantic_data(self):
+        self.assertEqual(result_layout_commands(bytes([0x81,2,15,0,3,0x84,0x82,1,0x80]),0),[(1,2,15),(0,0,0),(0,3,0),(2,0,0),(3,1,0),(4,0,0)])
+    def test_rectangle_and_dynamic_commands_reject_in_lcd_on_list(self):
+        for op in (0x83,0x85,0x86,0x8b,0xff):
+            with self.assertRaises(ValueError):result_layout_commands(bytes([op,0x80]),0)
 
 
 if __name__=='__main__':unittest.main()

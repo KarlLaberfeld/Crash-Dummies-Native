@@ -11,6 +11,7 @@
 #include "air_scene_clock.h"
 #include "air_result_clock.h"
 #include "air_result_transition.h"
+#include "air_result_accounting.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -27,14 +28,15 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--result-prefix"){resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-incoming"){resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-failure-hold"){resultHold=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
+            else if(option=="--result-accounting"){resultAccounting=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--pause-replay")pauseReplay=true;
@@ -409,6 +411,21 @@ int main(int argc,char** argv){
                 if(resultHold)incoming=airResultFailureHold(incoming,game->result,sampled.held,sound,*ui,point,resultDisplay,resultIrq);
                 std::ofstream resultSummary(std::string(argv[2])+".incoming.summary.csv");
                 resultSummary<<"end,lcdEpoch,tick,countdown,displays,stats\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<'\n';
+                if(resultAccounting){
+                    auto texts=AirResultTextAssets::load("build/result-layouts.dat");
+                    std::ofstream accountPoints(std::string(argv[2])+".account.csv"),accountServices(std::string(argv[2])+".account.services.csv"),accountIrqs(std::string(argv[2])+".account.interrupts.csv"),accountPolls(std::string(argv[2])+".account.polls.csv"),accountWrites(std::string(argv[2])+".account.writes.csv");
+                    if(!accountPoints||!accountServices||!accountIrqs||!accountPolls||!accountWrites)throw std::runtime_error("Cannot open result accounting outputs");
+                    accountPoints<<"boundary,cycle,tick,countdown,pay,savings,seconds,stage,musicEnabled\n";
+                    accountServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld\n";
+                    accountIrqs<<"kind,vectorCycle,owner\n";accountPolls<<"cycle,mode\n";accountWrites<<"cycle,address,value\n";
+                    auto account=airResultAccount(incoming,game->result,sampled.held,game->money,0,game->seconds,sound,texts,
+                        [&](const char* name,int64_t cycle,int tick,int countdown,int pay,int savings,int seconds,int stage,bool enabled){accountPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<pay<<','<<savings<<','<<seconds<<','<<stage<<','<<enabled<<'\n';},
+                        [&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){sampled.sample(sampled.held);accountServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<'\n';},
+                        [&](const char* kind,int64_t cycle,AirIrqOwner owner){accountIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
+                        [&](int64_t cycle,int mode){accountPolls<<cycle<<','<<mode<<'\n';},
+                        [&](int64_t cycle,int address,int value){accountWrites<<cycle<<','<<address<<','<<value<<'\n';});
+                    std::ofstream accountSummary(std::string(argv[2])+".account.summary.csv");accountSummary<<"end,tick,countdown,displays,stats,pay,savings,seconds,stage\n"<<account.timing.end<<','<<account.timing.tick<<','<<account.timing.countdown<<','<<account.timing.displays<<','<<account.timing.stats<<','<<account.pay<<','<<account.savings<<','<<account.seconds<<','<<account.stage<<'\n';
+                }
             }
         }
         if(!frameServices.empty()&&*frameServices.rbegin()>=clock.displays)throw std::runtime_error("Selected native frame services exceed replay coverage");
