@@ -20,12 +20,14 @@ struct AirResultLayoutProfile {
     }
 };
 struct AirResultLayoutAssets {
-    std::array<AirResultLayoutProfile,5> profiles{};
+    std::array<AirResultLayoutProfile,6> profiles{};
+    bool perfectProfile=false;
     static AirResultLayoutAssets load(const char* path){
         std::ifstream file(path,std::ios::binary);char magic[8];
-        if(!file.read(magic,8)||std::string(magic,8)!="TICDRT01")throw std::runtime_error("Missing result layout profiles");
+        if(!file.read(magic,8)||(std::string(magic,8)!="TICDRT01"&&std::string(magic,8)!="TICDRT02"))throw std::runtime_error("Missing result layout profiles");
         AirResultLayoutAssets data;
-        for(auto& p:data.profiles){
+        data.perfectProfile=std::string(magic,8)=="TICDRT02";
+        for(int i=0;i<(data.perfectProfile?6:5);++i){auto& p=data.profiles[i];
             int* fields[]={&p.zero,&p.nonzero,&p.anchors,&p.rows,&p.layers,&p.width,&p.height,&p.carries};
             for(int* field:fields){unsigned char bytes[2];if(!file.read(reinterpret_cast<char*>(bytes),2))throw std::runtime_error("Truncated result layout profiles");*field=bytes[0]+256*bytes[1];}
             p.work();
@@ -43,6 +45,9 @@ struct AirResultTransition {
     int64_t end=0,lcdEpoch=0,nextStat=0,nextVBlank=0;
     int tick=0,countdown=600,displays=0,stats=0,skip=0;
     DisplayInput input;
+    bool perfect=false;
+    AirCelebration celebration;
+    std::array<unsigned char,160> celebrationVisible{};
 };
 inline int airResultCountdownWork(int& countdown){
     if(countdown<1||countdown>720)throw std::runtime_error("Invalid result countdown");
@@ -54,20 +59,31 @@ inline int airResultCountdownWork(int& countdown){
 template<class Boundary,class Service,class Interrupt>
 AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
     const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt,
-    std::function<int()> sampleInput={}){
-    if(!(result&1)||result&4||prefix.pendingRequests!=3||prefix.end<=prefix.lcdDisabled||sound.enabled)
+    std::function<int()> sampleInput={},
+    std::function<void(unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int)> celebrationObserver={}){
+    const bool perfect=result&4;
+    if(!(result&1)||prefix.pendingRequests!=3||prefix.end<=prefix.lcdDisabled||sound.enabled||
+       (perfect&&(result!=7||!layouts.perfectProfile||prefix.display!=2||prefix.stat!=4||prefix.countdown!=720)))
         throw std::runtime_error("Unowned Air result transition/celebration/startup");
     if((held&15)==15||(!(result&2)&&lives<=1))
         throw std::runtime_error("Result reset/final-life transition needs its separate owner");
+    if(perfect){
+        if(prefix.celebration.randomState<0||prefix.celebration.randomState>65535)
+            throw std::runtime_error("Invalid perfect-result native seed");
+        for(int i=0;i<4;++i){const auto& e=prefix.celebration.emitters[i];
+            if(e.x<16||e.x>143||e.y!=143||e.velocity!=251||e.radius||e.delay!=i*16)
+                throw std::runtime_error("Incomplete native perfect-result initialization");}
+    }
     AirResultTransition state;state.tick=tick;state.input.held=state.input.previous=held;int64_t now=prefix.end;
+    state.perfect=perfect;state.celebration=prefix.celebration;state.countdown=perfect?720:600;
     const bool success=result&2;int bgp=ui.fadePalettes[7],obp0=bgp&0xcf,obp1=bgp&0xf3;
     auto point=[&](const char* name,int64_t cycle){boundary(name,cycle,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
     point("playerReady",now);
     if(success){
         // 0462 predicates, table dispatch, successful Air text and its RET.
         now+=44+108+layouts.profiles[0].work()+16;point("successTextReady",now);
-        now+=56+68+36+24+(1024*104-4+16)+68+layouts.profiles[3].work()+24;
-        point("portraitReady",now);now+=airResultMusicStartWork();sound.playMusic(4);point("musicReady",now);
+        now+=(perfect?60:56)+68+36+24+(1024*104-4+16)+68+layouts.profiles[perfect?5:3].work()+24;
+        point("portraitReady",now);now+=airResultMusicStartWork();sound.playMusic(perfect?5:4);point("musicReady",now);
     }else{
         now+=48;point("failurePortrait",now);
         now+=16+68+36+24+(1024*104-4+16)+68+layouts.profiles[4].work();point("failurePortraitReady",now);
@@ -79,15 +95,19 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     // deadlines are restarted from the identified last-access epoch.
     now+=56;point("lcdWriteReturned",now);now+=16;point("enable",now);
     state.lcdEpoch=now-20;AirClock clock;clock.now=now;
-    clock.nextStat=state.lcdEpoch+143*456;clock.nextVBlank=state.lcdEpoch+AirClock::VBlankLine;clock.statBody=248;
+    clock.nextStat=state.lcdEpoch+143*456;clock.nextVBlank=state.lcdEpoch+AirClock::VBlankLine;clock.statBody=perfect?288:248;
     clock.interrupt=[&](const char* kind,int64_t time,AirIrqOwner owner){interrupt(kind,time,owner);};
     auto display=[&](bool){
         state.input.sample(sampleInput?sampleInput():state.input.held);
         if(state.input.held<0||state.input.held>255||(state.input.held&15)==15)
             throw std::runtime_error("Unowned result input/reset service");
-        int before=state.tick;state.tick=(state.tick+1)&65535;
-        // 24cf decrements 600, with the source's zero-store guard.
-        int displayWork=airResultCountdownWork(state.countdown);sound.tick();
+        int before=state.tick;int celebrationWork=0;
+        if(perfect){state.celebrationVisible=state.celebration.prepared;celebrationWork=state.celebration.advance(before,ui);
+            if(celebrationObserver)celebrationObserver(clock.displays,before,state.celebration,state.celebrationVisible,celebrationWork);}
+        state.tick=(state.tick+1)&65535;
+        // Countdown bookkeeping follows perfect sprite preparation; the
+        // preparation uses the old display counter and prior list is visible.
+        int displayWork=airResultCountdownWork(state.countdown)+(perfect?80+celebrationWork:0);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned result audio service");
         int body=1592+displayWork+sound.effectWorkCycles+sound.musicWorkCycles;
         service(clock.displays,clock.now+20,before,state.countdown,displayWork,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);

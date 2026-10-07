@@ -6,10 +6,12 @@ Latest follow-up: ordinary result handoff and complete background clear match
 four originals at 44 boundaries, 24 vectors, 14,236 polls and 4,096 intended writes.
 A genuine perfect 14/14 control now also matches main gameplay and 5,032 IRQ
 vectors through 0409. Its native result setup additionally matches 15 boundaries,
-2,121 LY reads and all initialized emitter/random fields. Running celebration
-display and perfect accounting remain the next timing owners;
+2,121 LY reads and all initialized emitter/random fields. All 787 celebration
+services and the complete incoming perfect result also agree, including prepared
+and published sprite bytes. Perfect accounting remains the next timing owner;
 subsequent setup and Windows integration remain open. See
-[handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md).
+[handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
+[celebration scope](docs/AIR_CELEBRATION.md).
 
 Latest Air timing evidence: seven controls, including a successful finish,
 match all 36,548 complete interrupt vectors. Source completion corrects 23

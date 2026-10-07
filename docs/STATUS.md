@@ -1,5 +1,19 @@
 # Project status - October 7, 2026
 
+Latest celebration follow-up: the native perfect component matches all 787
+original services through first handoff, including 125,920 prepared bytes,
+26 emitter resets and all emitter/RNG/work states. Its complete incoming
+result also agrees at 81 boundaries / 33 services / 66 vectors, including
+5,280 prepared and 5,280 published bytes. Those 33 services overlap the
+787-component extent; they are not another independent control. See
+[celebration timing and limits](AIR_CELEBRATION.md).
+The O2 diagnostic and 18,668 ROM-free result assertions / 278 Python tests
+pass. All baseline ordinary incoming/accounting/full-failure controls and
+ordinary successful handoff remain exact. Perfect accounting now needs
+celebration-aware LCD readiness and its separate native transfer rules;
+subsequent perfect handoff and other pending timing owners remain open.
+The production Windows EXE/scheduler is unchanged. Point 1 is incomplete.
+
 Latest perfect-result follow-up: native setup through 0462 now includes the
 four-emitter initialization, the celebration/STAT selectors and the 720-service
 countdown. The genuine 14/14 original agrees at all 15 absolute boundaries and
@@ -9,8 +23,8 @@ completed stunt's random state. All four ordinary prefix controls still agree
 at 44 boundaries / 8,485 reads; combined prefix scope is 59 / 10,606.
 The optimized diagnostic and 18,485 ROM-free result assertions / 251 Python
 tests pass. See [perfect setup and limits](AIR_RESULT_PREFIX.md).
-Running celebration display, perfect portrait/music/accounting and subsequent
-handoff remain separate, guarded owners. The production EXE/scheduler is
+Running celebration/incoming is now qualified above; perfect accounting and
+subsequent handoff remain separate, guarded owners. The production EXE/scheduler is
 unchanged; timing point 1 and final-release acceptance remain incomplete.
 
 Latest follow-up: ordinary result handoff through live-player selection and
@@ -25,8 +39,8 @@ A genuine perfect input-only original control now collects 14/14, including
 the crash-only collectible. Native main gameplay agrees through 0409 at all
 2,477 updates, 2,516 services, 14,862 phases, 39,632 pre-update entity slots,
 inputs/final wait and 5,032 IRQ vectors. Eight complete-vector controls now
-total 41,580. Perfect setup is now qualified above; running celebration/result
-display is the next concrete owner. The following instruction/setup and other pending owners,
+total 41,580. Perfect setup and incoming are now qualified above; perfect
+accounting is the next concrete owner. The following instruction/setup and other pending owners,
 including production integration, keep timing point 1 open.
 
 Latest timing checkpoint: full IRQ coverage exposed and corrected 23 early

@@ -4,7 +4,8 @@ October 7, 2026. The native diagnostic now reconstructs the common result
 setup from `0409` through `0462`, including the separately measured perfect
 four-emitter initialization. Ordinary text/portraits, accounting, music, LCD
 enable and incoming fade are qualified by the result documents linked below.
-Running perfect celebration, its portrait/music/accounting remain open.
+Running perfect celebration and its incoming portrait/music/fade are qualified
+in [celebration evidence](AIR_CELEBRATION.md); perfect accounting remains open.
 The production UI still uses its previous frame-based schedule.
 
 ## Source ownership
@@ -72,8 +73,9 @@ Perfect capture uses schema 2 and requires the additional ordered boundaries
 and complete initialized state. Older ordinary schema-1 captures remain valid;
 a perfect result cannot borrow that schema or ordinary work. Missing native
 seed/state, changed countdown, truncated emitters and wrong tail-call work
-reject. The incoming result owner still rejects perfect results until running
-celebration and its display/STAT/LCD interactions are reconstructed separately.
+reject. The incoming result owner now accepts perfect results with the qualified
+celebration/native initialization and its own portrait profile; see
+[incoming evidence and limits](AIR_CELEBRATION.md).
 
 Reproduction, in addition to the main perfect gameplay qualification:
 
@@ -126,5 +128,5 @@ The subsequent ordinary layout/portrait, music, LCD restart and incoming fade,
 plus complete ordinary failure holds, are now qualified separately in
 [result transition evidence](AIR_RESULT_TRANSITION.md). Ordinary successful
 accounting is qualified in [accounting evidence](AIR_RESULT_ACCOUNTING.md).
-Running perfect/final-life results and remaining initial/interrupted owners stay open.
+Perfect accounting/handoff, final-life results and remaining initial/interrupted owners stay open.
 Windows scheduling, result pixels/PCM and final acceptance are separate.

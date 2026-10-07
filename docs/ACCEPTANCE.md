@@ -1,13 +1,23 @@
 # Final release acceptance
 
+Latest October 7 celebration follow-up: all 787 native perfect celebration
+services match emitter/RNG/body work and 125,920 prepared bytes. The complete
+incoming perfect result matches 81 boundaries / 33 services / 66 vectors and
+5,280 prepared plus 5,280 published bytes. The 33 incoming services overlap
+the component extent. Current checks: 18,668 ROM-free result assertions and
+278 Python tests; baseline ordinary result and successful handoff regressions
+remain exact. Perfect accounting/handoff, other pending timing owners and
+production integration remain required. See [exact scope](AIR_CELEBRATION.md).
+The production EXE is unchanged and there is no final-release acceptance.
+
 Latest October 7 perfect-result follow-up: the native LCD-off prefix now
 initializes four celebration emitters, selectors and the 720-service countdown
 from native gameplay random state. A genuine 14/14 original matches all 15
 absolute boundaries / 2,121 LY reads plus final random/emitter state. The four
 ordinary prefix controls remain exact; combined prefix coverage is 59
 boundaries / 10,606 reads. Current result assertions: 18,485; Python tests: 251.
-This qualifies initialization only. Running celebration display, perfect
-portrait/music/accounting, later setup, other pending timing owners and
+This paragraph qualifies initialization only; incoming celebration is qualified
+above. Perfect accounting/handoff, later setup, other pending timing owners and
 production integration remain open. The Windows EXE is unchanged. See
 [prefix evidence limits](AIR_RESULT_PREFIX.md); no final-release label.
 

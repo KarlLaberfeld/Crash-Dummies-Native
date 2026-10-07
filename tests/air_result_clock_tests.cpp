@@ -42,8 +42,51 @@ int main(){
         require(invalid,"Unsupported rectangle size rejects");
         AudioAssets audio;for(int voice=0;voice<4;++voice)audio.commands.emplace(AudioAssets::key(voice,0,false),MusicCommand{MusicOp::Stop,0,{}});
         auto ui=std::make_unique<UiAssets>();ui->fadePalettes={0xe4,0xe4,0xe4,0xa4,0x90,0x50,0x50,0};
+        {
+            AirCelebration state;state.randomState=65535;
+            for(int i=0;i<4;++i){state.reset(i);state.emitters[i].delay=2;}
+            state.prepared.fill(77);
+            require(state.advance(65535,*ui)==2084&&state.spriteCount==0&&std::all_of(state.prepared.begin(),state.prepared.end(),[](int b){return b==0;}),"Delayed emitters clear every old sprite byte before preparing an empty list");
+            for(auto& e:state.emitters){e.delay=0;e.y=192;}
+            require(state.advance(0,*ui)==4212&&state.spriteCount==0,"Completed particles reset their emitters without drawing in the same service");
+            require((state.randomState&255)==255&&state.emitters[3].delay==48,"Celebration restarts retain low-byte RNG and staggered delays");
+            for(auto& e:state.emitters){e.delay=0;e.y=143;e.radius=128;}
+            require(state.advance(0,*ui)>2000&&state.spriteCount==40,"Four active emitters prepare the full sprite list at counter wrap");
+            for(int i=0;i<40;++i)require(state.prepared[i*4+3]==128,"Prepared celebration keeps its original priority flag");
+            struct WaveFixture {std::array<unsigned char,128> celebrationWave{};std::array<unsigned char,256> celebrationProducts{};} wave;
+            wave.celebrationWave.fill(64);for(int i=0;i<256;++i)wave.celebrationProducts[i]=static_cast<unsigned char>(i*i/2);
+            int work=0;int positive=state.offset(0,5,wave,work),negative=state.offset(128,5,wave,work);
+            require(positive!=0&&negative==((-positive)&255),"Signed wave quadrants retain byte-wrapped symmetry for a nonzero displacement");
+        }
         AirResultLayoutAssets layouts;NativeAudio sound(audio);sound.measureWork=true;
+        for(int variant=0;variant<4;++variant){
+            const char* path="local/air-result-profile-fixture.dat";
+            {std::ofstream file(path,std::ios::binary);file.write(variant%2?"TICDRT02":"TICDRT01",8);
+                std::array<char,16> zero{};int count=variant==0?5:variant==1?6:variant==2?6:5;
+                for(int i=0;i<count;++i)file.write(zero.data(),zero.size());}
+            bool rejected=false;AirResultLayoutAssets loaded;
+            try{loaded=AirResultLayoutAssets::load(path);}catch(const std::runtime_error&){rejected=true;}
+            std::remove(path);
+            require(variant<2?(!rejected&&loaded.perfectProfile==bool(variant)):rejected,"Layout assets preserve legacy ordinary profiles and reject missing/trailing perfect profile data");
+        }
         AirResultPrefix prefix;prefix.end=800000;prefix.lcdDisabled=prefix.end-727820;prefix.pendingRequests=3;
+        {
+            auto perfectPrefix=prefix;perfectPrefix.display=2;perfectPrefix.stat=4;perfectPrefix.countdown=720;
+            perfectPrefix.celebration.randomState=0;
+            for(int i=0;i<4;++i)perfectPrefix.celebration.reset(i);
+            auto perfectLayouts=layouts;perfectLayouts.perfectProfile=true;
+            std::array<unsigned char,160> previous{};int prepared=0,services=0,stats=0;
+            auto incoming=airResultIncoming(perfectPrefix,7,65530,5,0,sound,perfectLayouts,*ui,
+                [](const char*,int64_t,int,int,int,int,int,bool){},
+                [&](unsigned index,int64_t,int tick,int countdown,int display,int,int,bool){
+                    require(index==unsigned(services)&&tick==((65530+services)&65535)&&countdown==719-services&&display>272,"Perfect services retain the old counter and their own celebration/countdown work");++services;},
+                [&](const char* kind,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Perfect pending/fade IRQs have explicit ownership");stats+=std::string(kind)=="stat";},{},
+                [&](unsigned index,int tick,const AirCelebration& state,const std::array<unsigned char,160>& visible,int work){
+                    require(index==unsigned(prepared)&&tick==((65530+prepared)&65535)&&work>0&&visible==previous,"Perfect publication retains the preceding prepared list while advancing the current one");previous=state.prepared;++prepared;});
+            require(incoming.perfect&&services==33&&prepared==33&&stats==33&&incoming.countdown==687,"Perfect incoming fade completes 33 services from its longer countdown");
+            require(incoming.celebration.emitters[3].delay==15&&sound.enabled,"Perfect incoming carries ongoing emitter and music state into subsequent accounting");
+            sound.stop();
+        }
         for(int result:{1,3,17}){
             sound.stop();int services=0;int64_t previous=-1;std::vector<std::string> kinds;std::vector<int64_t> times;
             auto incoming=airResultIncoming(prefix,result,65530,5,0,sound,layouts,*ui,

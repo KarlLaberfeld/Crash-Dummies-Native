@@ -1,5 +1,12 @@
 # Bounded Air result transition and failure hold
 
+October 7 perfect extension: separately qualified celebration, perfect portrait,
+music startup, pending services and complete incoming fade now agree at
+81 boundaries / 33 services / 66 vectors, including both prepared/published
+sprite lists. See [perfect evidence and overlap limits](AIR_CELEBRATION.md).
+The ordinary evidence below retains its own counts. Perfect accounting/handoff
+and Windows integration remain open.
+
 The native source clock now continues the ordinary result setup from 0462
 through the complete incoming fade. Three ordinary failure controls additionally
 continue through all 480 post-fade waits, music stop and the return at 0514.

@@ -28,12 +28,29 @@
 #include <string>
 
 using namespace ticd;
+static void celebrationHeader(std::ostream& out,bool publication=false){
+    out<<"service,tick,work,random,spriteCount";
+    for(int i=0;i<4;++i)for(const char* field:{"x","y","velocity","radius","delay"})out<<",emitter"<<i<<field;
+    for(int i=0;i<160;++i)out<<",prepared"<<i;
+    if(publication)for(int i=0;i<160;++i)out<<",visible"<<i;
+    out<<'\n';
+}
+static void celebrationRow(std::ostream& out,unsigned service,int tick,const AirCelebration& state,int work,
+    const std::array<unsigned char,160>* visible=nullptr){
+    out<<service<<','<<tick<<','<<work<<','<<state.randomState<<','<<state.spriteCount;
+    for(const auto& e:state.emitters)out<<','<<e.x<<','<<e.y<<','<<e.velocity<<','<<e.radius<<','<<e.delay;
+    for(auto byte:state.prepared)out<<','<<int(byte);
+    if(visible)for(auto byte:*visible)out<<','<<int(byte);
+    out<<'\n';
+}
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option=="--perfect-celebration"&&i+1<argc){celebrationServices=std::stoi(argv[++i]);
+                if(celebrationServices<1||celebrationServices>2000)throw std::runtime_error("Invalid perfect celebration extent");resultPrefix=outroFade=finalWait=true;}
             else if(option=="--result-inputs"&&i+1<argc)resultInputPath=argv[++i];
             else if(option=="--result-prefix"){resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-incoming"){resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
@@ -56,6 +73,7 @@ int main(int argc,char** argv){
             else throw std::runtime_error("Too many clock probe arguments");
         }
         if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
+        if(celebrationServices<0||celebrationServices>2000||(celebrationServices&&resultIncoming))throw std::runtime_error("Invalid isolated perfect celebration scope");
         if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
         if(framesPath.empty()!=frameSelection.empty())throw std::runtime_error("Frame output requires a directory and selected services");
         if(!resultInputPath.empty()&&!resultIncoming)throw std::runtime_error("Result input requires incoming/accounting ownership");
@@ -411,6 +429,16 @@ int main(int argc,char** argv){
             summary<<'\n'<<prefix.end<<','<<prefix.lcdDisabled<<','<<prefix.pollReads<<','<<prefix.pendingRequests<<','<<prefix.display<<','<<prefix.stat<<','<<prefix.countdown<<','<<prefix.celebration.randomState;
             for(const auto& emitter:prefix.celebration.emitters)summary<<','<<emitter.x<<','<<emitter.y<<','<<emitter.velocity<<','<<emitter.radius<<','<<emitter.delay;
             summary<<'\n';
+            if(celebrationServices){
+                if(game->result!=7)throw std::runtime_error("Perfect celebration replay requires native perfect gameplay");
+                auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));auto celebration=prefix.celebration;
+                std::ofstream frames(std::string(argv[2])+".celebration.csv");if(!frames)throw std::runtime_error("Cannot open native celebration component output");
+                celebrationHeader(frames);
+                int tick=game->ticks;
+                for(int i=0;i<celebrationServices;++i){int work=celebration.advance(tick,*ui);
+                    celebrationRow(frames,i,tick,celebration,work);tick=(tick+1)&65535;
+                }
+            }
             if(resultIncoming){
                 auto layouts=AirResultLayoutAssets::load("build/result-timing.dat");auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
                 std::ofstream resultPoints(std::string(argv[2])+".incoming.csv"),resultServices(std::string(argv[2])+".incoming.services.csv"),resultIrqs(std::string(argv[2])+".incoming.interrupts.csv");
@@ -427,7 +455,11 @@ int main(int argc,char** argv){
                     sampled.sample(held);return held;};
                 auto resultDisplay=[&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){resultServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';};
                 auto resultIrq=[&](const char* kind,int64_t cycle,AirIrqOwner owner){resultIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';};
-                auto incoming=airResultIncoming(prefix,game->result,game->ticks,5,sampled.held,sound,layouts,*ui,point,resultDisplay,resultIrq,nextResultInput);
+                std::ofstream celebrationFrames;
+                if(game->result&4){celebrationFrames.open(std::string(argv[2])+".incoming.celebration.csv");
+                    if(!celebrationFrames)throw std::runtime_error("Cannot open incoming celebration output");celebrationHeader(celebrationFrames,true);}
+                auto incoming=airResultIncoming(prefix,game->result,game->ticks,5,sampled.held,sound,layouts,*ui,point,resultDisplay,resultIrq,nextResultInput,
+                    [&](unsigned service,int tick,const AirCelebration& state,const std::array<unsigned char,160>& visible,int work){celebrationRow(celebrationFrames,service,tick,state,work,&visible);});
                 if(resultHold||(resultHandoff&&!(game->result&2)))incoming=airResultFailureHold(incoming,game->result,sampled.held,sound,*ui,point,resultDisplay,resultIrq,nextResultInput);
                 std::ofstream resultSummary(std::string(argv[2])+".incoming.summary.csv");
                 resultSummary<<"end,lcdEpoch,tick,countdown,displays,stats\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<'\n';

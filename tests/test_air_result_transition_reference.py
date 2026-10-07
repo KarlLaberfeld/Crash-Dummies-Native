@@ -5,22 +5,29 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from air_result_transition_reference import analyze,compare_transition
 
 
-def synthetic_transition(failure=False,short_hold=False):
+def synthetic_transition(failure=False,short_hold=False,perfect=False):
     """Small source-shaped fixture; no cartridge bytes/reference capture."""
-    points=[];irqs=[];tick=1000;countdown=600;bgp=0
+    points=[];irqs=[];tick=1000;countdown=720 if perfect else 600;bgp=0
+    celebration=dict(random=257,emitters=[[30+i,143,251,0,100] for i in range(4)])
     def point(name,cycle,lcd=128):
-        points.append(dict(name=name,cycles=cycle,tick=tick,countdown=countdown,result=1 if failure else 3,display=10,
+        points.append(dict(name=name,cycles=cycle,tick=tick,countdown=countdown,result=7 if perfect else 1 if failure else 3,display=2 if perfect else 10,
             bgp=bgp,obp0=bgp&0xcf,obp1=bgp&0xf3,musicEnabled=1,interruptFlags=3,inputHeld=held,inputPressed=pressed,lcd=dict(lcdc=lcd)))
     def vb(cycle,address):
         nonlocal tick,countdown
-        costs=[180,704,280,272,240,64,68,60,120];names=['dma','joypad','display','bookkeeping','effects','audioBank','music','restore']
+        costs=[180,704,280,2436 if perfect else 272,240,64,68,60,120];names=['dma','joypad','display','bookkeeping','effects','audioBank','music','restore']
         time=cycle;phases={}
         for name,cost in zip(names,costs):time+=cost;phases[name]=time
         time+=costs[-1]
         irqs.append(dict(kind='vblank',start=cycle,end=time,selector=0,returnAddress=address,tick=tick,
             countdown=countdown,phases=phases,held=held,pressed=pressed,musicEnabled=1,effectRequest=-1,resetEnabled=1,resetLatched=0))
+        if perfect:
+            import copy
+            before=copy.deepcopy(celebration)
+            for e in celebration['emitters']:e[4]-=1
+            irqs[-1].update(visible=[0]*160,celebration=dict(start=phases['display']+80,end=phases['display']+2164,
+                tick=tick,before=before,after=copy.deepcopy(celebration),prepared=[0]*160))
         tick+=1;countdown-=1
-    def stat(cycle,address):irqs.append(dict(kind='stat',start=cycle,end=cycle+248,selector=0,returnAddress=address))
+    def stat(cycle,address):irqs.append(dict(kind='stat',start=cycle,end=cycle+(288 if perfect else 248),selector=4 if perfect else 0,returnAddress=address))
     held=pressed=0
     for name,cycle in zip(['playerReady','failurePortrait','failurePortraitReady','failureTextReady'] if failure else
                           ['playerReady','successTextReady','portraitReady','musicReady'],[100,200,300,400]):point(name,cycle,0)
@@ -45,9 +52,9 @@ def synthetic_transition(failure=False,short_hold=False):
             point('holdTail',now);now+=36 if index else 52
         point('holdReturned',now);now+=12384;point('musicStopped',now);points[-1]['musicEnabled']=0
         now+=16;point('failureResultReturned',now);points[-1]['musicEnabled']=0
-    data=dict(version=2 if short_hold else 1,failureHold=short_hold,points=points,interrupts=irqs)
+    data=dict(version=3 if perfect else 2 if short_hold else 1,failureHold=short_hold,points=points,interrupts=irqs)
     native=[dict(boundary=p['name'],cycle=p['cycles']-100,**{k:p[k] for k in ('tick','countdown','bgp','obp0','obp1','musicEnabled','inputHeld','inputPressed')}) for p in points]
-    services=[dict(service=i,cycle=r['start']-100,tick=r['tick'],countdown=r['countdown']-1,display=272,effects=64,music=60,musicEnabled=1,inputHeld=r['held'],inputPressed=r['pressed'])
+    services=[dict(service=i,cycle=r['start']-100,tick=r['tick'],countdown=r['countdown']-1,display=2436 if perfect else 272,effects=64,music=60,musicEnabled=1,inputHeld=r['held'],inputPressed=r['pressed'])
         for i,r in enumerate(r for r in irqs if r['kind']=='vblank')]
     native_irqs=[dict(kind=r['kind'],vectorCycle=r['start']-100,owner=3 if i<2 else 2) for i,r in enumerate(irqs)]
     summary=[dict(end=now-100,lcdEpoch=880,tick=tick,countdown=countdown,displays=len(services),stats=len(services))]
@@ -117,6 +124,43 @@ class ResultTransitionEvidence(unittest.TestCase):
         with self.assertRaises(ValueError):analyze(self.data)
     def test_shortened_hold_native_fresh_edge_is_compared(self):
         self.shortened_hold();self.services[-1]['inputPressed']=0;self.assertIn('service',self.compare()[0])
+
+class PerfectIncomingEvidence(unittest.TestCase):
+    def setUp(self):
+        self.data,self.native,self.services,self.irqs,self.summary=synthetic_transition(perfect=True)
+        self.celebrations=[]
+        for index,r in enumerate(r for r in self.data['interrupts'] if r['kind']=='vblank'):
+            c=r['celebration'];row=dict(service=index,tick=c['tick'],work=c['end']-c['start'],random=c['after']['random'],spriteCount=0)
+            for i,e in enumerate(c['after']['emitters']):
+                row.update({f'emitter{i}{key}':v for key,v in zip(('x','y','velocity','radius','delay'),e)})
+            row.update({f'prepared{i}':0 for i in range(160)});row.update({f'visible{i}':0 for i in range(160)})
+            self.celebrations.append(row)
+    def compare(self):return compare_transition(self.data,self.native,self.services,self.irqs,self.summary,100,self.celebrations)
+    def test_complete_perfect_incoming(self):self.assertEqual(self.compare(),[])
+    def test_missing_component(self):
+        del self.data['interrupts'][0]['celebration']
+        with self.assertRaises(ValueError):self.compare()
+    def test_ordinary_stat_is_not_perfect(self):
+        self.data['interrupts'][1]['selector']=0
+        with self.assertRaises(ValueError):self.compare()
+    def test_missing_publication(self):
+        self.data['interrupts'][0]['visible']=[]
+        with self.assertRaises(ValueError):self.compare()
+    def test_stale_first_publication_rejects(self):
+        self.data['interrupts'][0]['visible'][1]=30
+        with self.assertRaises(ValueError):self.compare()
+    def test_native_publication_delay_reported(self):
+        self.celebrations[0]['visible1']=30;self.assertIn('publication',self.compare()[0])
+    def test_native_component_work_reported(self):
+        self.celebrations[0]['work']+=4;self.assertIn('celebration',self.compare()[0])
+    def test_native_emitter_state_reported(self):
+        self.celebrations[0]['emitter3delay']=0;self.assertIn('celebration',self.compare()[0])
+    def test_native_publication_required(self):
+        del self.celebrations[0]['visible159']
+        with self.assertRaises(ValueError):self.compare()
+    def test_missing_native_component_scope(self):
+        self.celebrations.pop()
+        with self.assertRaises(ValueError):self.compare()
 
 
 if __name__=='__main__':unittest.main()
