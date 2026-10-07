@@ -8,6 +8,9 @@
 #include "air.h"
 #include "air_clock.h"
 #include "air_placement_clock.h"
+#include "air_scene_clock.h"
+#include "air_result_clock.h"
+#include "air_result_transition.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -24,11 +27,14 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option=="--result-prefix"){resultPrefix=true;outroFade=true;finalWait=true;}
+            else if(option=="--result-incoming"){resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
+            else if(option=="--result-failure-hold"){resultHold=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
             else if(option=="--pause-replay")pauseReplay=true;
@@ -107,6 +113,7 @@ int main(int argc,char** argv){
         };
         bool spriteBoundarySafe=false;
         bool mapBoundarySafe=false;
+        bool mapRowReady=true;
         bool loopBoundarySafe=false;
         AirPlacementRange placementRange;
         int projectionPalette=-1; // Only the native outgoing palette owner overrides gameplay fade.
@@ -142,6 +149,12 @@ int main(int argc,char** argv){
         };
         auto display=[&](bool ready){
             if(!ready&&!loopBoundarySafe&&activeGamePhase!=3&&activeGamePhase!=5&&!(activeGamePhase==2&&spriteBoundarySafe)&&!(activeGamePhase==4&&mapBoundarySafe))throw std::runtime_error("Display interrupted unsupported gameplay phase "+std::to_string(activeGamePhase)+" at tick "+std::to_string(game->ticks)+" (service "+std::to_string(clock.displays)+"); finer ownership is required");
+            // The transfer flag already has a source owner, so scalar display
+            // work can be compared while row data is still being prepared.
+            // A partial row's actual transferred tiles need a separate image
+            // owner; selecting this publication must still reject.
+            if(activeGamePhase==4&&!mapRowReady&&frameServices.count(clock.displays))
+                throw std::runtime_error("Interrupted row pixels need a buffered tile publication owner");
             if(spriteLog.is_open())for(int i=0;i<40;++i){const auto& s=game->sprites.slots[i];spriteLog<<clock.displays<<','<<i<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}
             if(displayInputs.is_open()){
                 int held;if(!(displayInputs>>held)||held<0||held>255)throw std::runtime_error("Missing/invalid display button sample");
@@ -244,12 +257,14 @@ int main(int argc,char** argv){
             int buttons=decode(displayInputs.is_open()?sampled.held:held);
             if(displayInputs.is_open())game->previous=decode(sampled.previous);
             bool priorMap=game->mapTransfer;
+            int priorMapCamera=game->lastMapCamera;
             auto priorSprites=game->sprites.slots;
             game->updateGame(buttons,true,true);
             game->sprites.slots=priorSprites;
             bool preparedMap=game->mapTransfer;
             game->mapTransfer=priorMap;
             mapBoundarySafe=!priorMap&&!preparedMap;
+            mapRowReady=!preparedMap;
             // Entity updates are not interrupted in these accepted reference
             // cases. STAT affects only LCD object visibility. A
             // placement's spawn does not change callback-owned player/HUD,
@@ -262,12 +277,15 @@ int main(int argc,char** argv){
                 if(work<0){fprintf(stderr,"Unknown source work at update %d; replay stops before certification.\n",updates);return 3;}
                 if(activeGamePhase==5){
                     work=airPlacementClock(*game,clock,placementRange,display);
+                }else if(activeGamePhase==1){
+                    int charged=0;for(int cost:game->resourceCompletionCosts){charged+=cost;clock.atomicWork(cost,[]{},display,false);}
+                    if(charged!=work)throw std::runtime_error("Resource completion work disagrees with native queue: "+std::to_string(charged)+" vs "+std::to_string(work));
                 }else if(activeGamePhase==2){
                     int sum=112;
                     for(int n:game->spriteEntityWorkCycles)sum+=n;
                     if(sum!=work)throw std::runtime_error("Incomplete per-entity sprite work");
                     game->sprites=SpriteLayer(game->reverseSprites);game->sprites.slots=priorSprites;
-                    spriteBoundarySafe=true;clock.work(112,display,false);
+                    spriteBoundarySafe=true;
                     auto preparation=std::make_unique<AirGame>(*game);
                     preparation->entities=game->spriteInputEntities;
                     // airSpriteWork chooses the next allocation direction.
@@ -275,55 +293,17 @@ int main(int argc,char** argv){
                     std::array<AirSpriteEntityWork,16> publication{};
                     auto planned=airSpriteWork(*preparation,nullptr,&publication);
                     if(planned.prepare!=work)throw std::runtime_error("Sprite publication work disagrees with preparation");
-                    for(int i=0;i<16;++i){
-                        int cost=game->spriteEntityWorkCycles[i];if(!cost)break;
-                        clock.work(76,display,false);
-                        const auto& plan=publication[i];
-                        if(!plan.geometry){clock.work(cost-76,display,false);continue;}
-                        int accounted=76+plan.geometry+plan.tail;
-                        for(const auto& piece:plan.pieces)accounted+=piece.before+(piece.writes?156:0);
-                        if(accounted!=cost)throw std::runtime_error("Incomplete piece-publication work");
-                        clock.work(plan.geometry,display,false);
-                        const auto& e=game->spriteInputEntities[i];const auto& frame=assets->frames[e.frame];
-                        auto relative=[](int p,int c){return static_cast<int16_t>((p&65520)-(c&65520))/16;};
-                        int x=relative(e.x,game->cameraX)+static_cast<int8_t>(frame.meta[0])+frame.meta[6]+8;
-                        int y=relative(e.y,game->cameraY)+static_cast<int8_t>(frame.meta[1])+frame.meta[7]+16;
-                        for(size_t n=0;n<plan.pieces.size();++n){
-                            const auto& piece=frame.pieces[n];const auto& charge=plan.pieces[n];
-                            clock.work(charge.before,display,false);
-                            if(!charge.writes)continue;
-                            int slot=game->sprites.preparedSlot();
-                            auto* entry=slot>=0&&slot<40?&game->sprites.slots[slot]:nullptr;
-                            // 1d24..1d3b writes Y, X, tile and flags in order.
-                            // Decode/rendered colors stand in for tile data;
-                            // this probe makes no tile/pixel parity claim.
-                            clock.work(12,display,false);
-                            clock.atomicWork(8,[&]{if(entry){entry->y=(y+((e.flags&64)?-piece.y-16:piece.y))&255;entry->present=entry->y!=0;}},display,false);
-                            clock.work(16,display,false);
-                            clock.atomicWork(8,[&]{if(entry)entry->x=(x+((e.flags&32)?-piece.x-8:piece.x))&255;},display,false);
-                            clock.work(24,display,false);
-                            clock.atomicWork(8,[&]{if(entry)entry->colors=e.frame<12&&piece.chunk>=0?game->spriteResources.colors(piece.chunk):piece.colors;},display,false);
-                            clock.work(32,display,false);
-                            clock.atomicWork(8,[&]{if(entry)entry->flags=(e.flags&0xe0)^piece.flags;},display,false);
-                            clock.work(40,display,false);game->sprites.advancePreparedPiece();
-                        }
-                        game->sprites.finishPreparedEntity();
-                        clock.work(plan.tail,display,false);
-                    }
+                    int charged=airSpriteClock(*game,clock,display);
+                    if(charged!=work)throw std::runtime_error("Sprite completion work disagrees with native preparation: "+std::to_string(charged)+" vs "+std::to_string(work));
                     // The replay accounts for geometry/culling in updateGame;
                     // publication uses this independently rebuilt partial list.
                 }else if(activeGamePhase==3){
-                    int first=game->sprites.unusedFirst(),bytes=4*game->sprites.unusedCount();
-                    if(!bytes)clock.work(work,display,false);
-                    else{
-                        int prefix=game->sprites.descending()?196:184;
-                        if(work!=prefix+8*bytes+88)throw std::runtime_error("Incomplete sprite-clear source decomposition");
-                        clock.work(prefix,display,false);
-                        for(int byte=0;byte<bytes;++byte)clock.atomicWork(8,[&]{if(!(byte&3))game->sprites.slots[first+byte/4].present=false;},display,false);
-                        clock.work(88,display,false);
-                    }
+                    int charged=airSpriteClearClock(game->sprites,clock,display);
+                    if(charged!=work)throw std::runtime_error("Sprite clear completion disagrees with native work");
+                }else if(activeGamePhase==4){
+                    int charged=airMapClock(clock,priorMapCamera,game->cameraY,game->mapTransfer,display,&mapBoundarySafe,&mapRowReady);
+                    if(charged!=work||game->mapTransfer!=preparedMap)throw std::runtime_error("Map completion work disagrees with native preparation: "+std::to_string(charged)+" vs "+std::to_string(work));
                 }else clock.work(work,display,false);
-                if(activeGamePhase==4)game->mapTransfer=preparedMap;
                 phases<<updates<<','<<activeGamePhase<<','<<phaseTick<<','<<phaseStart<<','<<clock.now<<','<<work<<'\n';
                 ++activeGamePhase;
             }
@@ -338,8 +318,9 @@ int main(int argc,char** argv){
             // gameplay phases. A display here sees the complete prepared
             // state while FFAE stays busy; it does not interrupt an entity.
             loopBoundarySafe=true;
-            if(!game->result)clock.work(32,display,false); // Result test + taken back-edge.
-            else clock.work(28,display,false); // Exit result test before 0400's optional final wait.
+            clock.atomicWork(16,[]{},display,false);
+            clock.atomicWork(4,[]{},display,false);
+            clock.atomicWork(game->result?8:12,[]{},display,false);
             loopBoundarySafe=false;
         }
         if(!pauseEntryPath.empty()&&!pauseEntryReached)throw std::runtime_error("Native prefix did not reach a fresh Start request");
@@ -397,8 +378,38 @@ int main(int argc,char** argv){
                 }
             }
             loopBoundarySafe=false;
-            // 0409 starts DI/setup of the result screen. Its work, pixels and
-            // original audio software-state reset are outside this probe.
+            // 0409 starts DI/setup. Optional separate result owners follow;
+            // the ordinary gameplay IRQ interval still terminates here.
+        }
+        std::ofstream boundary(std::string(argv[2])+".boundary.csv");
+        if(!boundary)throw std::runtime_error("Cannot open native replay completion boundary");
+        boundary<<"boundary,cycle,updates,result\n"<<(outroFade?"resultSetup":pauseEntryReached?"pauseEntry":game->result?"gameExitTest":"partialUpdates")
+                <<','<<clock.now<<','<<updates<<','<<game->result<<'\n';
+        if(resultPrefix){
+            std::ofstream points(std::string(argv[2])+".result.csv"),polls(std::string(argv[2])+".result.polls.csv");
+            if(!points||!polls)throw std::runtime_error("Cannot open result-prefix boundaries");
+            points<<"boundary,cycle\n";polls<<"cycle,ly\n";
+            auto prefix=airResultSetupPrefix(clock,game->result,[&](const char* name,int64_t cycle){points<<name<<','<<cycle<<'\n';},
+                [&](int64_t cycle,int line){polls<<cycle<<','<<line<<'\n';});
+            std::ofstream summary(std::string(argv[2])+".result.summary.csv");
+            summary<<"end,lcdDisabled,pollReads,pendingRequests\n"<<prefix.end<<','<<prefix.lcdDisabled<<','<<prefix.pollReads<<','<<prefix.pendingRequests<<'\n';
+            if(resultIncoming){
+                auto layouts=AirResultLayoutAssets::load("build/result-timing.dat");auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
+                std::ofstream resultPoints(std::string(argv[2])+".incoming.csv"),resultServices(std::string(argv[2])+".incoming.services.csv"),resultIrqs(std::string(argv[2])+".incoming.interrupts.csv");
+                if(!resultPoints||!resultServices||!resultIrqs)throw std::runtime_error("Cannot open result incoming outputs");
+                resultPoints<<"boundary,cycle,tick,countdown,bgp,obp0,obp1,musicEnabled\n";
+                resultServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld\n";
+                resultIrqs<<"kind,vectorCycle,owner\n";
+                // These standalone controls begin with the native campaign's
+                // five lives. Final-life and reset ownership explicitly reject.
+                auto point=[&](const char* name,int64_t cycle,int tick,int countdown,int bgp,int obp0,int obp1,bool enabled){resultPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<'\n';};
+                auto resultDisplay=[&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){sampled.sample(sampled.held);resultServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<'\n';};
+                auto resultIrq=[&](const char* kind,int64_t cycle,AirIrqOwner owner){resultIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';};
+                auto incoming=airResultIncoming(prefix,game->result,game->ticks,5,sampled.held,sound,layouts,*ui,point,resultDisplay,resultIrq);
+                if(resultHold)incoming=airResultFailureHold(incoming,game->result,sampled.held,sound,*ui,point,resultDisplay,resultIrq);
+                std::ofstream resultSummary(std::string(argv[2])+".incoming.summary.csv");
+                resultSummary<<"end,lcdEpoch,tick,countdown,displays,stats\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<'\n';
+            }
         }
         if(!frameServices.empty()&&*frameServices.rbegin()>=clock.displays)throw std::runtime_error("Selected native frame services exceed replay coverage");
         fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");

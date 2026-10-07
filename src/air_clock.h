@@ -24,6 +24,7 @@ struct AirClock {
     unsigned displays=0,statServices=0;
     int lastWaitWork=0;
     bool servicesHeld=false;
+    int statBody=288; // Air objects (288), or the identified result pop-only callback (248).
     int heldFollower=0;
     // Optional bounded image observer. It charges no work and executes no IRQ
     // instructions. Ownership distinguishes completed identified source
@@ -37,11 +38,12 @@ struct AirClock {
         now+=20+work+16;++displays;
     }
     void stat(AirIrqOwner owner=AirIrqOwner::Unqualified){
+        if(statBody!=288&&statBody!=248)throw std::runtime_error("Unowned display STAT callback");
         if(interrupt)interrupt("stat",now+20,owner);
         // 0048..254f: source body prefix 228, then LCDC write sample at +8.
         // The pinned DMG bus observer exposes that sample two cycles earlier.
-        if(objectDisable)objectDisable(now+20+228+8-2,owner);
-        now+=20+288+16;++statServices;
+        if(objectDisable&&statBody==288)objectDisable(now+20+228+8-2,owner);
+        now+=20+statBody+16;++statServices;
     }
     template<class Display,class Boundary>void startup(Display&& display,Boundary&& boundary){
         // EI(4) takes effect after LD(8), following the completed access/return.
@@ -107,10 +109,11 @@ struct AirClock {
         // CALL/PUSH precede the counter read. A display during that prefix
         // must belong to the new snapshot, so the wait needs a later VBlank.
         // The 16-cycle read commits before a pending service; LD B costs 4.
-        work(40,display,ready);
+        atomicWork(24,[]{},display,ready);
+        atomicWork(16,[]{},display,ready);
         unsigned counter=displays;
         atomicWork(16,[&]{counter=displays;},display,ready);
-        work(4,display,ready);
+        atomicWork(4,[]{},display,ready);
         do{
             now+=4;lastWaitWork+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;

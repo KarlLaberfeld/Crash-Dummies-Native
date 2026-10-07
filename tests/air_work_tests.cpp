@@ -3,6 +3,8 @@
 #include "air_video_work.h"
 #include "air_clock.h"
 #include "air_placement_clock.h"
+#include "air_scene_clock.h"
+#include "air_result_clock.h"
 #include "audio_work.h"
 #include <cstdio>
 #include <memory>
@@ -47,6 +49,12 @@ int main(){
         require(airResourceWork(g,0)==384,"Empty new descriptor skips copying");
         p.frame=12;
         require(airResourceWork(g,0)==212,"Static sprites skip dynamic-resource comparisons");
+        for(int frame:{0,1,11,12})for(int state:{0,1,2})for(int queued:{0,1,11})for(int oldFrame:{0,1,12})for(int chunks:{0,4}){
+            p.frame=frame;g.transferState=state;g.transferFrame=queued;
+            if(frame<12)assets->transferChunks[frame]=chunks;
+            int charged=0;for(int cost:airResourceBoundaries(g,oldFrame))charged+=cost;
+            require(charged==airResourceWork(g,oldFrame),"Resource completion covers acknowledgement, unchanged/static frames, queued/replaced and empty descriptors");
+        }
 
         AirEntity before;before.alive=true;before.handler=AirHandler::DebrisLeft;
         before.x=32;before.y=64;before.params[0]=1;auto after=before;after.alive=false;g.ticks=8;
@@ -252,6 +260,87 @@ int main(){
         int pieceSum=76+publication[0].geometry+publication[0].tail;
         for(const auto& piece:publication[0].pieces)pieceSum+=piece.before+(piece.writes?156:0);
         require(pieceSum==perEntity[0],"Piece writes and actor tails cover the full source preparation interval");
+        // Exercise both allocation directions, camera wrap, culling/eviction,
+        // mirroring, static/dynamic layouts and last-slot returns. Compare the
+        // clock's native publication with the existing renderer and workload.
+        for(bool reverse:{false,true})for(int frame:{0,12})for(int flags:{0,8,16,20,32,64,96})
+        for(int x:{-40,-16,0,80,176,190})for(int y:{-40,-16,80,152,170}){
+            publishing->entities={};auto& actor=publishing->entities[15];actor.alive=true;
+            actor.frame=frame;actor.flags=flags;actor.x=(x*16)&65535;actor.y=(y*16)&65535;
+            assets->frames[frame].meta={255,1,0,0,0,0,4,4};assets->frames[frame].pieces={{},{127,0},{0,127}};
+            publishing->reverseSprites=!reverse;auto expected=airSpriteWork(*publishing);
+            publishing->spriteInputEntities=publishing->entities;publishing->reverseSprites=reverse;
+            publishing->sprites=SpriteLayer(reverse);
+            AirClock scene;scene.now=0;scene.nextStat=scene.nextVBlank=1000000;
+            int charged=airSpriteClock(*publishing,scene,[](bool){return 0;});
+            require(charged==expected.prepare&&scene.now==charged,"Scene completion preserves native work across geometry/branch variants");
+            SpriteLayer expectedSprites(reverse);
+            if(!(flags&8))expectedSprites.add(assets->frames[frame],x,y,flags);
+            bool same=true;for(int slot=0;slot<40;++slot){const auto& a=publishing->sprites.slots[slot];const auto& b=expectedSprites.slots[slot];
+                same&=a.present==b.present&&a.x==b.x&&a.y==b.y&&a.flags==b.flags;}
+            require(same,"Scene completion publishes the same native sprite list without interrupts");
+        }
+        for(int oldY:{0,128,65535})for(int newY:{0,64,128,192,65535}){
+            AirClock scene;scene.now=0;scene.nextStat=scene.nextVBlank=1000000;bool transfer=true;
+            int charged=airMapClock(scene,oldY,newY,transfer,[](bool){return 0;});
+            bool changed=((oldY^newY)&128)!=0;
+            require(charged==(changed?2228+((static_cast<uint16_t>(oldY-newY)&32768)?4:0):304)&&transfer==changed,"Row completion retains source costs for both directions, unchanged rows and wrap");
+        }
+        // The pending vector must follow completion of the map flag store,
+        // not its request deadline; the callback observes the completed clear.
+        AirClock mapEdge;mapEdge.now=0;mapEdge.nextVBlank=108;mapEdge.nextStat=1000000;
+        bool pendingMap=true,sawClear=false;int64_t mapVector=0;
+        mapEdge.interrupt=[&](const char*,int64_t time,AirIrqOwner owner){mapVector=time;require(owner==AirIrqOwner::SourceBoundary,"Row IRQ has a source completion owner");};
+        airMapClock(mapEdge,0,0,pendingMap,[&](bool){sawClear=!pendingMap;return 0;});
+        require(sawClear&&mapVector==136,"Pending row IRQ observes the completed native flag store at cycle 116");
+        // A real successful control interrupts after the pending flag is set,
+        // before row cells are filled. Scalar transfer work is owned here;
+        // this deliberately does not certify the still incomplete tile data.
+        AirClock rowEdge;rowEdge.now=0;rowEdge.nextVBlank=328;rowEdge.nextStat=1000000;
+        bool rowFlag=false,flagOwned=false,rowReady=true,sawPending=false;
+        airMapClock(rowEdge,649,617,rowFlag,[&](bool){sawPending=rowFlag&&flagOwned&&!rowReady;return 0;},&flagOwned,&rowReady);
+        require(sawPending&&rowReady,"Interrupted row preparation exposes the completed transfer request before cell readiness");
+        publishing->entities={};auto& publishActor=publishing->entities[0];publishActor.alive=true;
+        publishActor.frame=12;publishActor.x=publishActor.y=80*16;
+        assets->frames[12].meta={};assets->frames[12].pieces={{}};assets->frames[12].pieces[0].colors.fill(2);
+        publishing->reverseSprites=true;airSpriteWork(*publishing,nullptr,&publication);
+        int firstWrite=112+76+publication[0].geometry+publication[0].pieces[0].before+12;
+        for(int part=0;part<4;++part){
+            publishing->spriteInputEntities=publishing->entities;publishing->reverseSprites=false;publishing->sprites=SpriteLayer(false);
+            auto& old=publishing->sprites.slots[0];old={true,44,24,64,{}};old.colors.fill(1);
+            const int offsets[]={0,24,56,96};
+            AirClock edge;edge.now=0;edge.nextVBlank=firstWrite+offsets[part]+4;edge.nextStat=1000000;
+            int64_t vector=-1;edge.interrupt=[&](const char*,int64_t time,AirIrqOwner owner){vector=time;require(owner==AirIrqOwner::SourceBoundary,"Partial piece IRQ retains completion ownership");};
+            SpriteLayer::Entry observed;
+            airSpriteClock(*publishing,edge,[&](bool ready){require(!ready,"Partial piece publication keeps the resource gate closed");observed=publishing->sprites.slots[0];return 0;});
+            require(vector==firstWrite+offsets[part]+8+20,"Pending piece IRQ waits for its eight-cycle write to complete");
+            require(observed.y==96&&observed.x==(part>=1?88:44)&&observed.colors[0]==(part>=2?2:1)&&observed.flags==(part>=3?0:64),"Partial publication retains unwritten X/tile/flags while exposing each completed write");
+        }
+        for(bool reverse:{false,true})for(int count:{0,1,39,40}){
+            SpriteLayer clearing(reverse);for(int i=0;i<40;++i)clearing.slots[i].present=true;
+            for(int i=0;i<count;++i)clearing.advancePreparedPiece();clearing.finishPreparedEntity();
+            int first=clearing.unusedFirst(),unused=clearing.unusedCount();
+            AirClock scene;scene.now=0;scene.nextStat=scene.nextVBlank=1000000;
+            int charged=airSpriteClearClock(clearing,scene,[](bool){return 0;});
+            require(charged==(unused?(reverse?196:184)+32*unused+88:reverse?172:168),"Sprite clear retains both direction and exhausted-list source costs");
+            bool same=true;for(int slot=0;slot<40;++slot)same&=clearing.slots[slot].present==!(slot>=first&&slot<first+unused);
+            require(same,"Native sprite clear changes exactly the unprepared portion");
+        }
+        for(int offset:{0,4,100,144*456,145*456,146*456,153*456,AirClock::Frame-4}){
+            AirClock endClock;endClock.now=2*AirClock::Frame+offset;
+            while(endClock.nextStat<=endClock.now)endClock.nextStat+=AirClock::Frame;
+            while(endClock.nextVBlank<=endClock.now)endClock.nextVBlank+=AirClock::Frame;
+            int reads=0,lastLine=-1;std::vector<int64_t> boundaries;
+            auto prefix=airResultSetupPrefix(endClock,3,[&](const char*,int64_t cycle){boundaries.push_back(cycle);},
+                [&](int64_t,int line){++reads;lastLine=line;});
+            require(reads==prefix.pollReads&&lastLine==145&&reads<=2200,"Result LCD-off waits for line equality even when setup starts later in VBlank");
+            require(prefix.end-boundaries[1]==727820,"Common LCD-off result operations retain the full object/map/tile copy work");
+            require(endClock.displays==0&&endClock.now==2*AirClock::Frame+offset,"Result setup records masked requests without running gameplay/display services");
+        }
+        int64_t lastLine=2*AirClock::Frame+153*456-8;
+        require(airResultScanline(lastLine+0)==152&&airResultScanline(lastLine+4)==153&&airResultScanline(lastLine+8)==0,"Result polling includes the short line-153 readback and early zero reset");
+        bool perfectRejected=false;try{airResultSetupPrefix(clock,7,[](const char*,int64_t){},[](int64_t,int){});}catch(const std::runtime_error&){perfectRejected=true;}
+        require(perfectRejected,"Perfect-result celebration cannot borrow the ordinary result prefix");
         SpriteLayer staged(false);staged.advancePreparedPiece();staged.finishPreparedEntity();
         require(staged.preparedSlot()==1&&!staged.exhausted(),"Staged source publication advances capacity after piece writes");
         int savedCamera=g.cameraY,savedY=p.y;g.cameraY=0xae80;p.y=g.cameraY+8*g.cameraLead;

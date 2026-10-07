@@ -59,6 +59,33 @@ RESULT_SCRIPTS=[0x0756,0x0a88,0x0d08,0x0f79,0x1190,
                 0x07a9,0x0806,0x0847,0x087e,0x0ad0,0x0b0f,
                 0x0d3c,0x0da1,0x0f93,0x11d6,0x1203]
 
+
+def result_layout_profile(rom,script):
+    """Structural layout counts, not instructions or captured work allowances.
+
+    The bounded LCD-off result clock needs character classes and rectangle
+    dimensions. Only the identified static menu language is read here.
+    """
+    zero=nonzero=anchors=rows=layers=width=height=carries=0
+    column=row=0
+    for _ in range(4096):
+        op=rom[script];script+=1
+        if op==0x80:return (zero,nonzero,anchors,rows,layers,width,height,carries)
+        if op<128:
+            if op:nonzero+=1
+            else:zero+=1
+        elif op==0x81:
+            column,row=rom[script:script+2];script+=2;anchors+=1
+        elif op==0x84:row+=1;rows+=1
+        elif op==0x82:script+=1;layers+=1
+        elif op==0x83:
+            if width:raise ValueError('Multiple result rectangles require a separate profile')
+            width,height,_,_=struct.unpack_from('<BBBH',rom,script);script+=5
+            if not width or not height:raise ValueError('Empty result rectangle')
+            carries=sum(((row*32+column+32*y)&255)+32>255 for y in range(height))
+        else:raise ValueError(f'Unqualified result layout operation {op:02x}')
+    raise ValueError('Unterminated result layout profile')
+
 def text_stream(rom,start):
     """Copy only the recognized instruction text language, never machine code."""
     p=start
@@ -146,6 +173,8 @@ def extract_ui(rom,output):
         for x in range(160):payload.append(pause_tiles[pause_map[x//8]*64+y*8+x%8])
     payload+=rom[address(7,0x4000):address(7,0x4180)]+rom[0x15d0:0x15d8]+rom[0x16e3:0x16eb]
     (output/'ui.dat').write_bytes(payload)
+    profiles=[result_layout_profile(rom,p) for p in (0x0a88,0x0ad0,0x0b0f,0x0548,0x0589)]
+    (output/'result-timing.dat').write_bytes(b'TICDRT01'+b''.join(struct.pack('<8H',*p) for p in profiles))
     # Separate bounded pause-copy inputs for the native graphics candidate.
     # Keeping the established UI07 payload unchanged preserves existing builds.
     pause_payload=(b'TICDPA01'+rom[address(3,0x5850):address(3,0x58d0)]+

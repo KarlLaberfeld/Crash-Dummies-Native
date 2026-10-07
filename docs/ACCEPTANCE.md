@@ -1,5 +1,25 @@
 # Final release acceptance
 
+October 7: all 36,548 complete IRQ vectors in seven Air controls match through
+explicit terminal boundaries, including a genuinely successful control.
+Twenty-three previously hidden sprite/map completion errors are corrected;
+common-prefix truncation is forbidden. The common result prefix through 0462
+also matches 44 absolute boundaries and 8,485 LY reads across four controls.
+Serial O2 diagnostic/source tests pass: 2,085 source assertions, 573 pause/
+session/pixel assertions and 159 Python tests. Existing 262 complete images
+remain exact; partial row pixels in the new successful control still reject.
+See [scene scope](AIR_SCENE_COMPLETION.md) and [result setup](AIR_RESULT_PREFIX.md).
+Ordinary result setup/music/LCD restart/incoming fade and complete failure
+holds now also agree across four patterns: union 3,225 boundaries / 1,575
+services / 3,150 vectors, zero differences. Overlapping incoming failures are
+counted once; see [result transition limits](AIR_RESULT_TRANSITION.md).
+Current tests: 2,085 source, 573 pause/session/pixel and 2,980 result-clock
+assertions; 182 Python tests. The rebuilt EXE passes three complete campaigns,
+34 sprite assertions and normal/failed-audio 13/14 Windows UI checks.
+Remaining Air timing includes successful accounting, perfect/final-life results,
+earlier UI/LCD entry and unobserved interrupted/protected owners. Production
+scheduling and the full final-release checklist are still required.
+
 Latest timing checkpoint, October 6: 77 placement vectors and 836 pause
 counter-wait vectors match their independently qualified absolute source times.
 Protected pause handoffs have source models and synthetic checks; actual

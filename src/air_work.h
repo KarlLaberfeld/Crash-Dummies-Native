@@ -6,6 +6,32 @@ struct AirSpriteWork {int prepare=0,clear=0;};
 struct AirSpritePieceWork {int before=0;bool writes=false;};
 struct AirSpriteEntityWork {int geometry=0,tail=0;std::vector<AirSpritePieceWork> pieces;};
 
+// 03de..03e4 resource queue. Only source completion durations are retained;
+// branch selection comes from the native frame/queue state before preparation.
+inline std::vector<int> airResourceBoundaries(const AirGame& game,int oldFrame){
+    std::vector<int> costs;
+    auto steps=[&](std::initializer_list<int> values){costs.insert(costs.end(),values);};
+    auto bank=[&]{steps({8,16,12,16,16});};
+    int state=game.transferState,frame=game.entities[0].frame;
+    steps({24,24,12,8,state==2?8:20});
+    if(state==2){steps({12,16});state=0;}
+    steps({12,4,16,4,frame>=12?20:8});
+    if(frame>=12){bank();return costs;}
+    steps({12,12,8,frame==oldFrame?20:8});
+    if(frame==oldFrame){bank();return costs;}
+    steps({12,4,state?12:8});
+    if(state){
+        steps({12,12,8,frame==game.transferFrame?12:8});
+        if(frame==game.transferFrame){steps({12,16,12,16,16});bank();return costs;}
+        steps({8,4,4,12,16});
+    }else steps({4,12,8,4,4,12,16});
+    // Descriptor table at dd00; dynamic frames 0..11 use bounded offsets.
+    steps({4,4,20,8,4,game.assets.transferChunks[frame]?8:20});
+    if(!game.assets.transferChunks[frame]){bank();return costs;}
+    steps({12,8,12,8,12,8,12,16,12,16,12,12,4,12,4,8,16,8,12,12,8,8,12});
+    steps({12,16,12,16,16});bank();return costs;
+}
+
 inline int airResourceWork(const AirGame& game,int oldFrame){
     int state=game.transferState,frame=game.entities[0].frame;
     int cost=24+68+24+(state==2?56:40);

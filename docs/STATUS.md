@@ -1,4 +1,51 @@
-# Project status - October 6, 2026
+# Project status - October 7, 2026
+
+Latest timing checkpoint: full IRQ coverage exposed and corrected 23 early
+sprite/map vectors previously hidden by counter waits. Scene/resource/clear/
+result-test completion now uses native source boundaries. The six existing
+controls match all 31,436 complete IRQ vectors through explicit terminal
+boundaries. A genuinely successful independent Air control additionally
+matches 2,510 updates, 2,556 services, 102,240 sprite slots, 15,060 phases,
+40,160 entity slots and all 5,112 vectors; seven-control total: 36,548 vectors.
+See [scene completion](AIR_SCENE_COMPLETION.md). The new successful control
+owns interrupted map transfer timing; partial row pixels still reject.
+
+The common result setup through 0462 now matches four independently controlled
+originals at all 44 boundaries and 8,485 LY reads. LCD-off waits for equality
+with line 145, then charges 727,820 cycles of fixed setup while display counters
+are stopped. See [result prefix](AIR_RESULT_PREFIX.md). Ordinary result text,
+portrait, music reset/start, LCD restart and the full incoming fade now match
+336 boundaries / 135 services / 270 vectors in four patterns. Three extended
+failure controls additionally match the entire 480-service hold and music stop:
+3,144 boundaries / 1,542 services / 3,084 vectors, including their incoming fades.
+Their union with successful incoming result is 3,225 / 1,575 / 3,150, zero
+differences; do not add overlapping incoming failures twice. See
+[result transition](AIR_RESULT_TRANSITION.md).
+
+**Requested timing point 1 is not complete.** Next: successful accounting
+after 047e, including source waits, changing savings/pay/time, LCD-on writes,
+countdown/input exits and next-stunt transition. Perfect/final-life results,
+earlier UI/LCD entry and unobserved interrupted entity/resource/protected pause
+owners remain open, along with production integration. Do not repeat unchanged
+static checks as a substitute for reconstructing those owners.
+
+The diagnostic now builds serially at O2 and original comparisons pass at O2.
+Latest checks: 2,085 source assertions, 573 pause/session/pixel assertions,
+2,980 result-clock assertions and 182 Python tests. Existing 262 unique complete frames / 6,036,480 pixels and
+222 outgoing phases / 96 fade services still agree; the successful control has
+no full image acceptance yet. The rebuilt Windows EXE is 1,093,632 bytes,
+SHA-256 `e8cf2b18eed34d86220f074b51310dbe3c61923cabe4062defa0bf729d3272d3`.
+Its scheduler is unchanged; this diagnostic checkpoint is not a final release.
+Current build/test evidence is in ignored local/air-scene-windows-build-test.log.
+That EXE passes full native suites, all three complete campaign scenarios,
+34 sprite assertions and newly rerun normal/failed-audio 13/14 Windows UI checks.
+The source clock/result changes remain diagnostic. Latest result/reference and
+unit logs are listed in AIR_RESULT_TRANSITION.md; main-game regression logs are
+local/air-result-main-regression.log, local/air-result-all-irq-regression.log and
+local/air-success-final-check.log.
+
+The October 6 notes below describe the prior checkpoint and its O0 build;
+their diagnostic build limitation is superseded by the current O2 result.
 
 Latest timing follow-up: all 77 placement interrupt vectors match the original
 exactly after reconstructing source access/conditional-return completion.
@@ -70,7 +117,7 @@ contains no ROM/assets/reference library. Local and GitHub commit identities
 differ because this host publishes through the GitHub connector. This is a
 development preview, not a final release.
 
-Next concrete work: qualify a pending protected handoff if a valid original
+Previous checkpoint's next work: qualify a pending protected handoff if a valid original
 control reaches one, then remaining first-LCD-frame/interrupted owners, wider
 collision/success/result image comparisons and production clock integration.
 Coupled reproduction:

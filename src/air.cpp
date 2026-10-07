@@ -82,6 +82,7 @@ void AirGame::start(int level,int player){
     lastMapCamera=(cameraY+128)&65535;mapTransfer=true;
     mapWorkCycles=placementWorkCycles=spriteWorkCycles=clearWorkCycles=0;
     spriteEntityWorkCycles.fill(0);spriteInputEntities={};
+    resourceCompletionCosts.clear();
     resourceWorkCycles=animationWorkCycles=0;
     starterWorkCycles=cameraWorkCycles=0;animationWorkComplete=true;
     collisionScanWorkCycles=collisionCallbackWorkCycles=0;
@@ -534,7 +535,10 @@ void AirGame::updateGame(int buttons,bool deferSpriteClear,bool deferPlacements)
             if(work>=0)entityWorkCycles+=60+work;
         }
     }
-    if(measureWork)resourceWorkCycles=airResourceWork(*this,oldFrame);
+    if(measureWork){
+        resourceWorkCycles=airResourceWork(*this,oldFrame);
+        resourceCompletionCosts=airResourceBoundaries(*this,oldFrame);
+    }
     finishVideoTick(oldFrame,oldFlags);
     if(measureWork){const auto spriteWork=airSpriteWork(*this,deferSpriteClear?&spriteEntityWorkCycles:nullptr);
         spriteWorkCycles=spriteWork.prepare;clearWorkCycles=spriteWork.clear;}

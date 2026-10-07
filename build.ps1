@@ -42,6 +42,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Air pause access test compilation failed.' }
     & ./build/air-pause-clock-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Air pause access tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_result_clock_tests.cpp src/audio.cpp -o build/air-result-clock-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Air result-clock test compilation failed.' }
+    & ./build/air-result-clock-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Air result-clock tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

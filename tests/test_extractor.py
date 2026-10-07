@@ -26,7 +26,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -226,6 +226,10 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual(pause[136:264],self.rom[0xc030:0xc0b0])
             self.assertEqual(pause[264:],self.rom[0xd3:0xe7])
             self.assertEqual(pack[:8],b'TICDUI07')
+            profiles=(Path(directory)/'result-timing.dat').read_bytes()
+            self.assertEqual(profiles[:8],b'TICDRT01')
+            self.assertEqual(len(profiles),88)
+            self.assertEqual(struct.unpack_from('<8H',profiles,8), (9,48,1,2,0,0,0,0))
             self.assertEqual(pack[-400:-16],self.rom[0x1c000:0x1c180])
             self.assertEqual(pack[-16:-8],self.rom[0x15d0:0x15d8])
             self.assertEqual(pack[-8:],self.rom[0x16e3:0x16eb])

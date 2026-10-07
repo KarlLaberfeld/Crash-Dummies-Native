@@ -1,5 +1,12 @@
 # Bounded Air interrupt completion and pause vectors
 
+October 7 extension: [scene completion](AIR_SCENE_COMPLETION.md) corrects 23
+additional sprite/map vectors. All 36,548 vectors in seven complete controls
+now agree, including a genuinely successful ordinary finish. Coverage checks
+require explicit terminal boundaries, not a matching common prefix. The
+diagnostic builds at O2 again; the older O0 limitation below is superseded.
+The [common result prefix](AIR_RESULT_PREFIX.md) is separately qualified.
+
 October 6, 2026: this extends the native diagnostic clock. It is not production
 Windows scheduling, a CPU interpreter or final timing acceptance.
 
