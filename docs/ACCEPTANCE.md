@@ -1,5 +1,16 @@
 # Final release acceptance
 
+Latest October 7 perfect-result follow-up: the native LCD-off prefix now
+initializes four celebration emitters, selectors and the 720-service countdown
+from native gameplay random state. A genuine 14/14 original matches all 15
+absolute boundaries / 2,121 LY reads plus final random/emitter state. The four
+ordinary prefix controls remain exact; combined prefix coverage is 59
+boundaries / 10,606 reads. Current result assertions: 18,485; Python tests: 251.
+This qualifies initialization only. Running celebration display, perfect
+portrait/music/accounting, later setup, other pending timing owners and
+production integration remain open. The Windows EXE is unchanged. See
+[prefix evidence limits](AIR_RESULT_PREFIX.md); no final-release label.
+
 October 7 follow-up: ordinary result-to-player selection and complete background
 clear through 02ce match 44 boundaries / 12 services / 24 vectors / 14,236 polls /
 4,096 intended writes across four existing controls. Three coupled pause cases
@@ -7,7 +18,7 @@ and baseline result regressions pass after the first-line status correction.
 Current validation: 18,437 result, 574 pause/session/pixel, 4,200 source assertions
 and 242 Python tests. A genuine perfect 14/14 original control additionally
 matches main gameplay and all 5,032 IRQ vectors through 0409; eight-vector-control
-total 41,580. Perfect result/celebration, subsequent instruction/gameplay setup,
+total 41,580. Running perfect result/celebration, subsequent instruction/gameplay setup,
 other pending timing owners and production integration remain open. See
 [handoff limits](AIR_RESULT_HANDOFF.md). No final-release acceptance is claimed.
 

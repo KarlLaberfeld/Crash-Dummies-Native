@@ -1,8 +1,10 @@
 # Air common result setup timing
 
 October 7, 2026. The native diagnostic now reconstructs the common result
-setup from `0409` through `0462`. Result-specific text/portraits, accounting,
-music, LCD enable, incoming fade and perfect celebration remain open.
+setup from `0409` through `0462`, including the separately measured perfect
+four-emitter initialization. Ordinary text/portraits, accounting, music, LCD
+enable and incoming fade are qualified by the result documents linked below.
+Running perfect celebration, its portrait/music/accounting remain open.
 The production UI still uses its previous frame-based schedule.
 
 ## Source ownership
@@ -39,6 +41,55 @@ though the display counter is stopped. Modeling one UI frame does not qualify
 this delay. The diagnostic models source work and boundaries; it does not
 perform a new hardware tile/map copy or replace the native result renderer.
 
+## Perfect initialization
+
+The genuine perfect Air control collects all 14 objects using ordinary buttons,
+including the crash-only collectible, and reaches result 7. `044a` then calls
+`14f2`: display selector 2, STAT selector 4 and countdown 720 replace the ordinary
+selectors/countdown. The four `157f` resets derive horizontal positions from the
+shared native random state, set Y 143, velocity 251 and radius zero, and stagger
+the emitters by 0/16/32/48 services. Their field/random algorithm is implemented
+in `air_celebration.h`. No recorded random state or initialized emitter is used
+as a native input; the probe passes the state left by native gameplay.
+
+Each reset costs 328 source cycles: 172 for the identified random calculation
+and 156 for its caller/field initialization. The first three pointer/call prefixes
+cost 36; the final tail-call prefix costs 28. The taken conditional call and four
+selector/countdown stores add 108 relative to ordinary flags work. This makes
+the flags interval 1,700 rather than 144 cycles and adds **1,556 cycles**, for
+729,376 fixed cycles after LCD-off returns. Explicit initialization boundaries
+distinguish these operations; the final emitter shares the flags-ready boundary.
+
+The independently controlled perfect recording matches all **15 absolute
+boundaries / 2,121 LY reads**, final selector/countdown/random state and all 20
+initialized emitter fields. Earlier controls are retained and still match
+44 / 8,485, giving **59 / 10,606** prefix checks across five controls. These are
+observed comparison counts, never runtime delays. The instrumented perfect
+capture retains its original uninstrumented 32,768-byte end-state hash.
+The final state comparison does not certify each intermediate field-store time.
+
+Perfect capture uses schema 2 and requires the additional ordered boundaries
+and complete initialized state. Older ordinary schema-1 captures remain valid;
+a perfect result cannot borrow that schema or ordinary work. Missing native
+seed/state, changed countdown, truncated emitters and wrong tail-call work
+reject. The incoming result owner still rejects perfect results until running
+celebration and its display/STAT/LCD interactions are reconstructed separately.
+
+Reproduction, in addition to the main perfect gameplay qualification:
+
+```powershell
+python tools/air_result_prefix_reference.py capture 'path/to/original.gb' --capture local/sameboy-air-perfect --out local/air-perfect-result-prefix-reference
+local/air-clock-probe.exe local/sameboy-air-perfect/inputs.txt local/air-perfect-prefix-services.csv 0 --display-inputs local/air-perfect-buttons.txt --result-prefix
+python tools/air_result_prefix_reference.py compare local/air-perfect-prefix-services.csv.result.csv --capture local/sameboy-air-perfect --out local/air-perfect-result-prefix-reference --startup local/air-perfect-startup
+```
+
+Local logs: `air-perfect-prefix-capture.log`, `air-perfect-prefix-comparison.log`,
+`air-perfect-prefix-ordinary-regression.log`, `air-perfect-prefix-result-tests.log`
+and `air-perfect-prefix-all-python-tests.log`, all under ignored `local/`.
+The O2 diagnostic passes 18,485 ROM-free result assertions and all 251 Python
+tests. The production Windows executable and scheduler are unchanged; no
+unchanged full campaigns are repeated for this diagnostic-only preparation.
+
 ## Independent controls
 
 Four controls agree at all **44 absolute boundaries** and **8,485 LY reads**,
@@ -68,11 +119,12 @@ python tools/air_result_prefix_reference.py compare local/air-success-finish-nat
 Its ordinary IRQ terminal file remains at `0409`; result-prefix boundaries,
 polls and deferred requests are separate outputs. The comparator requires
 complete point/poll coverage and checks the actual native outputs. Unknown
-perfect-result paths, source/capture mismatches, missing reads, changed
+perfect-result paths without their separate schema/state, source/capture mismatches, missing reads, changed
 pending requests and incorrect copy work reject.
 
 The subsequent ordinary layout/portrait, music, LCD restart and incoming fade,
 plus complete ordinary failure holds, are now qualified separately in
-[result transition evidence](AIR_RESULT_TRANSITION.md). Successful accounting,
-perfect/final-life results and remaining initial/interrupted owners stay open.
+[result transition evidence](AIR_RESULT_TRANSITION.md). Ordinary successful
+accounting is qualified in [accounting evidence](AIR_RESULT_ACCOUNTING.md).
+Running perfect/final-life results and remaining initial/interrupted owners stay open.
 Windows scheduling, result pixels/PCM and final acceptance are separate.

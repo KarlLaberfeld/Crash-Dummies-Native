@@ -1,11 +1,17 @@
 #pragma once
 #include "air_clock.h"
+#include "air_celebration.h"
 
 namespace ticd {
-struct AirResultPrefix {int64_t end=0,lcdDisabled=0;int pollReads=0,pendingRequests=0;};
+struct AirResultPrefix {
+    int64_t end=0,lcdDisabled=0;
+    int pollReads=0,pendingRequests=0,display=10,stat=0,countdown=600;
+    AirCelebration celebration;
+};
 // The identified common result setup, 0409..0462. Native fixed-size graphics
 // operations run with the LCD/services disabled. Neither source instructions
-// nor observed clocks are executed. Result-specific UI/celebration is separate.
+// nor observed clocks are executed. The perfect branch initializes native
+// emitters while services are masked; later celebration display is separate.
 inline int airResultScanline(int64_t sampleTime){
     int position=static_cast<int>((sampleTime+8)%AirClock::Frame),line=position/456,dot=position%456;
     // Pinned DMG source: LY changes two dots into a line; on line 153 it
@@ -15,10 +21,12 @@ inline int airResultScanline(int64_t sampleTime){
     return dot<=2&&line?line-1:line;
 }
 template<class Boundary,class Poll>
-AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Boundary&& boundary,Poll&& poll){
-    if(gameClock.servicesHeld||gameClock.now<AirClock::Frame||!(result&1)||result&4)
+AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Boundary&& boundary,Poll&& poll,int randomState=-1){
+    if(gameClock.servicesHeld||gameClock.now<AirClock::Frame||!(result&1)||
+       ((result&4)&&(result!=7||randomState<0||randomState>65535)))
         throw std::runtime_error("Unowned Air result/celebration prefix");
     AirResultPrefix prefix;int64_t now=gameClock.now;
+    if(randomState>=0&&randomState<=65535)prefix.celebration.randomState=randomState;
     boundary("begin",now);
     // DI, caller, LCD-on test and saved IE / VBlank mask before the LY poll.
     now+=4+100;
@@ -37,7 +45,18 @@ AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Bounda
     // Each map: caller/setup 84, 1024 identified blank stores through 2120
     // (144 each at LCD-off), last branch -4, return 16.
     now+=2*(84+1024*144-4+16);boundary("mapsCleared",now);
-    now+=144;boundary("flagsReady",now);
+    now+=144;
+    if(result&4){
+        // Taken conditional call adds 12; four selector/countdown stores cost
+        // 96. Calls for emitters 0..2 have a 36-cycle pointer/call prefix;
+        // emitter 3 is a tail call with a 28-cycle prefix.
+        now+=12+96;prefix.display=2;prefix.stat=4;prefix.countdown=720;
+        boundary("celebrationSelected",now);
+        static constexpr const char* names[]={"emitter0Ready","emitter1Ready","emitter2Ready"};
+        for(int i=0;i<4;++i){prefix.celebration.reset(i);now+=(i==3?28:36)+AirCelebration::ResetWork;
+            if(i<3)boundary(names[i],now);}
+    }
+    boundary("flagsReady",now);
     now+=68;boundary("tilesBank",now);
     // Fixed 4096-byte copy to 8000..8fff, with the LCD-off access test. The
     // destination does not reach 9800's wrap branch in this copy.

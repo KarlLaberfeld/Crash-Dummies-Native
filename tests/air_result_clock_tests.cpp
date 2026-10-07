@@ -8,6 +8,27 @@ using namespace ticd;
 int main(){
     int checks=0;auto require=[&](bool value,const char* message){++checks;if(!value)throw std::runtime_error(message);};
     try{
+        {
+            AirClock clock;clock.now=10*AirClock::Frame+100;
+            clock.nextStat=10*AirClock::Frame+AirClock::StatLine;clock.nextVBlank=10*AirClock::Frame+AirClock::VBlankLine;
+            auto ordinary=airResultSetupPrefix(clock,3,[](const char*,int64_t){},[](int64_t,int){});
+            for(int seed:{0,65535,65280,255,2056}){
+                std::vector<std::string> names;std::vector<int64_t> cycles;
+                auto perfect=airResultSetupPrefix(clock,7,[&](const char* name,int64_t cycle){names.push_back(name);cycles.push_back(cycle);},[](int64_t,int){},seed);
+                require(perfect.end-ordinary.end==1556&&perfect.lcdDisabled==ordinary.lcdDisabled&&perfect.pollReads==ordinary.pollReads,"Perfect initialization adds its own work without changing the LCD-off wait");
+                require(perfect.display==2&&perfect.stat==4&&perfect.countdown==720,"Perfect setup selects celebration, object-disable STAT and the longer countdown");
+                require((perfect.celebration.randomState&255)==(seed&255),"Four emitter seeds retain the native shared random low byte");
+                require(names[5]=="celebrationSelected"&&names[6]=="emitter0Ready"&&names[9]=="flagsReady","Perfect prefix exposes each completed initialization without duplicate terminal boundaries");
+                require(cycles[6]-cycles[5]==364&&cycles[8]-cycles[7]==364&&cycles[9]-cycles[8]==356,"The final emitter tail call retains its shorter preparation cost");
+                for(int i=0;i<4;++i){const auto& e=perfect.celebration.emitters[i];
+                    require(e.x>=16&&e.x<=143&&e.y==143&&e.velocity==251&&e.radius==0&&e.delay==i*16,"Perfect emitters start at bounded positions with staggered delays");}
+            }
+            for(int seed:{-1,65536}){
+                bool rejected=false;try{airResultSetupPrefix(clock,7,[](const char*,int64_t){},[](int64_t,int){},seed);}catch(const std::runtime_error&){rejected=true;}
+                require(rejected,"Perfect prefix requires a valid native gameplay random seed");
+            }
+            require(ordinary.display==10&&ordinary.stat==0&&ordinary.countdown==600,"Ordinary result initialization remains separate");
+        }
         AirResultLayoutProfile glyphs;glyphs.zero=2;glyphs.nonzero=3;glyphs.anchors=1;glyphs.rows=1;
         require(glyphs.work()==2112,"Static layout work distinguishes zero glyphs, text and row movement");
         AirResultLayoutProfile rectangle;rectangle.width=10;rectangle.height=9;rectangle.carries=1;

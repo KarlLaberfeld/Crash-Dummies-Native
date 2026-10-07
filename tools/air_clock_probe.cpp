@@ -404,9 +404,13 @@ int main(int argc,char** argv){
             if(!points||!polls)throw std::runtime_error("Cannot open result-prefix boundaries");
             points<<"boundary,cycle\n";polls<<"cycle,ly\n";
             auto prefix=airResultSetupPrefix(clock,game->result,[&](const char* name,int64_t cycle){points<<name<<','<<cycle<<'\n';},
-                [&](int64_t cycle,int line){polls<<cycle<<','<<line<<'\n';});
+                [&](int64_t cycle,int line){polls<<cycle<<','<<line<<'\n';},game->randomState);
             std::ofstream summary(std::string(argv[2])+".result.summary.csv");
-            summary<<"end,lcdDisabled,pollReads,pendingRequests\n"<<prefix.end<<','<<prefix.lcdDisabled<<','<<prefix.pollReads<<','<<prefix.pendingRequests<<'\n';
+            summary<<"end,lcdDisabled,pollReads,pendingRequests,display,stat,countdown,random";
+            for(int i=0;i<4;++i)for(const char* field:{"x","y","velocity","radius","delay"})summary<<",emitter"<<i<<field;
+            summary<<'\n'<<prefix.end<<','<<prefix.lcdDisabled<<','<<prefix.pollReads<<','<<prefix.pendingRequests<<','<<prefix.display<<','<<prefix.stat<<','<<prefix.countdown<<','<<prefix.celebration.randomState;
+            for(const auto& emitter:prefix.celebration.emitters)summary<<','<<emitter.x<<','<<emitter.y<<','<<emitter.velocity<<','<<emitter.radius<<','<<emitter.delay;
+            summary<<'\n';
             if(resultIncoming){
                 auto layouts=AirResultLayoutAssets::load("build/result-timing.dat");auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
                 std::ofstream resultPoints(std::string(argv[2])+".incoming.csv"),resultServices(std::string(argv[2])+".incoming.services.csv"),resultIrqs(std::string(argv[2])+".incoming.interrupts.csv");
