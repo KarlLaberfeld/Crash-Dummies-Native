@@ -1,5 +1,17 @@
 # Project status - October 8, 2026
 
+Latest picture follow-up: native instruction music startup, complete tile copy
+and picture rectangle through 268b match five existing originals: 45 boundaries /
+20 services / 40 vectors / 26,365 LCD polls / 5,570 intended writes, zero
+differences. Every control includes 1,024 tile bytes and 90 map glyphs. Source
+timing/IRQ/input/audio work and native timer agree. Interrupted music reset
+remains guarded; intended writes do not certify physical bus/picture/PCM parity.
+Checks: optimized diagnostic, 31,103 result assertions and 320 Python tests.
+See [picture scope](AIR_INSTRUCTION_PICTURE.md). Next concrete owner: the
+64-step background-map transition, then timed text/input/exit fade and next
+LCD/gameplay entry. Final-life/reset, earlier UI/LCD, unobserved owners and
+production integration still keep point 1 incomplete. Windows EXE unchanged.
+
 Latest header follow-up: native 02ce..031c player/lives/stunt/difficulty text
 and first counter wait now match five existing originals: 60 boundaries / five
 services / ten vectors / 1,391 LCD polls / 197 intended glyph writes, zero

@@ -14,6 +14,7 @@
 #include "air_result_accounting.h"
 #include "air_result_handoff.h"
 #include "air_instruction_header.h"
+#include "air_instruction_picture.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -47,7 +48,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header]\n");return 2;}
     try{
-        int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--perfect-celebration"&&i+1<argc){celebrationServices=std::stoi(argv[++i]);
@@ -59,6 +60,7 @@ int main(int argc,char** argv){
             else if(option=="--result-accounting"){resultAccounting=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-handoff"){resultHandoff=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--instruction-header"){instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--instruction-picture"){instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
@@ -523,6 +525,21 @@ int main(int argc,char** argv){
                             [&](int64_t cycle,int mode){polls<<cycle<<','<<mode<<'\n';},
                             [&](int64_t cycle,int address,int value){writes<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
                         std::ofstream summary(std::string(argv[2])+".header.summary.csv");summary<<"end,tick,countdown,displays,stats\n"<<header.timing.end<<','<<header.timing.tick<<','<<header.timing.countdown<<','<<header.timing.displays<<','<<header.timing.stats<<'\n';
+                        if(instructionPicture){
+                            std::ofstream points(std::string(argv[2])+".picture.csv"),services(std::string(argv[2])+".picture.services.csv"),
+                                irqs(std::string(argv[2])+".picture.interrupts.csv"),polls(std::string(argv[2])+".picture.polls.csv"),writes(std::string(argv[2])+".picture.writes.csv");
+                            if(!points||!services||!irqs||!polls||!writes)throw std::runtime_error("Cannot open instruction picture outputs");
+                            points<<"boundary,cycle,tick,countdown,musicEnabled,inputHeld,inputPressed\n";
+                            services<<"service,cycle,tick,countdown,display,effects,music,inputHeld,inputPressed\n";
+                            irqs<<"kind,vectorCycle,owner\n";polls<<"cycle,mode\n";writes<<"kind,cycle,address,value\n";
+                            auto picture=airInstructionPicture(header,nextStage,sound,*ui,
+                                [&](const char* name,int64_t cycle,int tick,int countdown,bool enabled,const DisplayInput& input){points<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<enabled<<','<<input.held<<','<<input.pressed<<'\n';},
+                                [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
+                                [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
+                                [&](int64_t cycle,int mode){polls<<cycle<<','<<mode<<'\n';},
+                                [&](const char* kind,int64_t cycle,int address,int value){writes<<kind<<','<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
+                            std::ofstream summary(std::string(argv[2])+".picture.summary.csv");summary<<"end,tick,countdown,displays,stats\n"<<picture.timing.end<<','<<picture.timing.tick<<','<<picture.timing.countdown<<','<<picture.timing.displays<<','<<picture.timing.stats<<'\n';
+                        }
                     }
                 }
                 if(resultInputs.is_open()){int spare;if(resultInputs>>spare)throw std::runtime_error("Result button input extends beyond replay completion");if(!resultInputs.eof())throw std::runtime_error("Malformed trailing result input");}

@@ -3,6 +3,7 @@
 #include "air_result_accounting.h"
 #include "air_result_handoff.h"
 #include "air_instruction_header.h"
+#include "air_instruction_picture.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -242,6 +243,38 @@ int main(){
                 require(glyphs==std::vector<int>({header.playerNames[player][0],header.playerNames[player][1],header.playerNames[player][2],std::min(lives,9)+1}),"Header name substitution and life clamp own their glyph values");
                 require(services==1&&finished.timing.tick==1&&finished.timing.countdown==99&&finished.lives==state.lives,"Header retains campaign lives and completes its own counter wait");
             }
+        }
+        for(int stage:{1,2}){
+            sound.stop();AirResultHandoff state;state.lives={5,0};
+            state.timing.end=2*AirClock::Frame+AirClock::VBlankLine+3000;
+            state.timing.nextStat=3*AirClock::Frame+120*456;state.timing.nextVBlank=3*AirClock::Frame+AirClock::VBlankLine;
+            state.timing.countdown=100;
+            for(int tile=52;tile<116;++tile)for(int row=0;row<8;++row)for(int column=0;column<8;++column)
+                ui->instructions[stage].tiles[tile*64+row*8+column]=(row+column)&3;
+            for(auto& value:ui->instructions[stage].map)value=37;
+            int tiles=0,maps=0,services=0,polls=0;
+            auto picture=airInstructionPicture(state,stage,sound,*ui,
+                [](const char*,int64_t,int,int,bool,const DisplayInput&){},
+                [&](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){++services;},
+                [](const char*,int64_t,AirIrqOwner owner){if(owner!=AirIrqOwner::SourceBoundary)throw std::runtime_error("Unowned picture fixture vector");},
+                [&](int64_t,int mode){require(mode>=0&&mode<=3,"Picture polls native steady LCD readiness");++polls;},
+                [&](const char* kind,int64_t,int address,int value){
+                    if(std::string(kind)=="tile"){
+                        require(address==0x8340+tiles&&value==std::array<int,8>{0x55,0x33,0xaa,0x66,0x55,0xcc,0xaa,0x99}[tiles%8],"Instruction tile bytes retain plane order and pixel positions");++tiles;
+                    }else{require(address==0x9800+(3+maps/10)*32+5+maps%10&&value==37,"Picture rows retain their ten-column width and 32-column map pitch");++maps;}
+                });
+            require(tiles==1024&&maps==90&&polls>=1114&&services>0,"Picture prefix owns every tile and map destination and its intervening services");
+            require(sound.enabled&&picture.timing.tick==services&&picture.timing.countdown==100-services,"Instruction song and timer retain their native continuing state");
+        }
+        {
+            sound.stop();AirResultHandoff state;state.timing.end=2*AirClock::Frame;
+            state.timing.nextStat=state.timing.end+100;state.timing.nextVBlank=state.timing.end+1000;
+            bool rejected=false;int writes=0;
+            try{airInstructionPicture(state,1,sound,*ui,[](const char*,int64_t,int,int,bool,const DisplayInput&){},
+                [](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){},[](const char*,int64_t,AirIrqOwner){},
+                [](int64_t,int){},[&](const char*,int64_t,int,int){++writes;});}
+            catch(const std::runtime_error&){rejected=true;}
+            require(rejected&&!sound.enabled&&!writes,"An unowned interrupt during song reset cannot receive an aggregate timing allowance");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

@@ -1,5 +1,14 @@
 # Final release acceptance
 
+October 8 picture follow-up: instruction music, 1,024 tile bytes and 90 picture
+glyphs through 268b match five existing originals at 45 boundaries / 20 displays /
+40 vectors / 26,365 polls / 5,570 intended writes. Checks: 31,103 result
+assertions and 320 Python tests. See [exact scope](AIR_INSTRUCTION_PICTURE.md).
+The 64-step map transition, timed text/input/exit and next LCD/gameplay setup
+remain required, together with final-life/reset, earlier UI/LCD, unobserved
+owners, production scheduling and remaining final-release requirements.
+No final-release acceptance; production Windows EXE unchanged.
+
 October 8 header follow-up: player/lives/stunt/difficulty text and its first
 wait through 031c match five existing originals at 60 boundaries / five services /
 ten vectors / 1,391 LCD polls / 197 intended glyph writes. Checks: 18,720 result
