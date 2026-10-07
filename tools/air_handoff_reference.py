@@ -25,8 +25,8 @@ def capture(args):
     def hook(pc):
         nonlocal active,complete,opened
         if complete:return
-        if pc==0x2436 and p.memory[0xc098]==10:buttons.append(p.memory[0xff8a])
-        if pc==0x0514 and p.memory[0xc098]==10:active=True
+        if pc==0x2436 and p.memory[0xc098] in (2,10):buttons.append(p.memory[0xff8a])
+        if pc==0x0514 and p.memory[0xc098] in (2,10):active=True
         if not active:return
         now=p._cycles()
         if pc in POINTS:
@@ -38,13 +38,22 @@ def capture(args):
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested handoff interrupt')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],
-                returnAddress=word(p.register_file.SP),tick=word(0xc00a),countdown=word(0xc0b7),phases={})
+                returnAddress=word(p.register_file.SP),tick=word(0xc00a),countdown=word(0xc0b7),result=p.memory[0xc095],phases={})
         elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now
-            if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
+            if name=='display':
+                opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
+                if p.memory[0xc098]==2:opened['visible']=list(p.memory[0xfe00:0xfea0])
             if name=='bookkeeping':opened.update(resetEnabled=p.memory[0xc005],resetLatched=p.memory[0xc004])
             if name=='effects':opened['effectRequest']=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6]
             if name=='music':opened['musicEnabled']=p.memory[0xffcf]
+        elif pc in (0x151e,0x249b) and opened and opened['kind']=='vblank' and p.memory[0xc098]==2:
+            state=dict(random=word(0xc09e),emitters=[list(p.memory[0xc200+16*i:0xc205+16*i]) for i in range(4)])
+            if pc==0x151e:opened['celebration']=dict(start=now,tick=word(0xc00a),before=state)
+            elif p.memory[0xc095]&4:
+                if 'celebration' not in opened:raise ValueError('Missing handoff celebration entry')
+                opened['celebration'].update(end=now,after=state,prepared=list(p.memory[0xc100:0xc1a0]))
+            else:opened['celebration']=dict(start=now,end=now,tick=word(0xc00a),before=state,after=state,prepared=list(p.memory[0xc100:0xc1a0]))
         elif pc in (0x2484,0x2555) and opened:
             if opened['kind']!=('vblank' if pc==0x2484 else 'stat'):raise ValueError('Mismatched handoff IRQ return')
             opened['end']=now;irqs.append(opened);opened=None
@@ -52,7 +61,7 @@ def capture(args):
         elif pc==0x2128:writes.append(dict(cycles=now,address=256*p.register_file.D+p.register_file.E,value=p.register_file.A))
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128):p.hook_register(0,pc,hook,pc)
+        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x151e,0x249b):p.hook_register(0,pc,hook,pc)
         for e in json.loads((args.capture/'events.json').read_text()):
             if e[0]=='tick':p.tick(e[1],e[2])
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
@@ -60,7 +69,7 @@ def capture(args):
         digest=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete handoff or changed original control')
-    data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
+    data=dict(version=2 if points[0]['result']&4 else 1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
         points=points,interrupts=irqs,polls=polls,writes=writes)
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'handoff.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
@@ -68,18 +77,19 @@ def capture(args):
         begin=points[0],end=points[-1],controlDifferences=0),indent=2))
 
 def analyze(data):
-    if data.get('version')!=1:raise ValueError('Recapture handoff reference')
+    if data.get('version') not in (1,2):raise ValueError('Recapture handoff reference')
     points=data.get('points',[]);irqs=data.get('interrupts',[]);polls=data.get('polls',[]);writes=data.get('writes',[])
     if not points or points[0]['name']!='begin' or points[-1]['name']!='instructionEntry':raise ValueError('Incomplete handoff terminal coverage')
     groups=(len(points)-3)//4
     expected=[name for _ in range(groups) for name in ('begin','switchEntry','selectionEntry','livesTest')]+['backgroundClear','backgroundCleared','instructionEntry']
     if groups not in (1,2) or [p['name'] for p in points]!=expected:raise ValueError('Missing/reordered handoff selection')
     first=points[0];lives=[first['lives0'],first['lives1']];result=first['result'];player=first['player']
-    if player not in (0,1) or any(not 0<=v<=255 for v in lives) or not any(lives) or not result&1 or result&4:
+    perfect=bool(result&4)
+    if player not in (0,1) or any(not 0<=v<=255 for v in lives) or not any(lives) or not result&1 or (perfect and (result!=7 or data['version']!=2)):
         raise ValueError('Separate eliminated/special-result owner required')
     for index,p in enumerate(points):
         if index and p['cycles']<=points[index-1]['cycles']:raise ValueError('Handoff boundaries do not increase')
-        if p['display']!=10 or p['musicEnabled'] or (p['inputHeld']&15)==15 or not p['lcd']['lcdc']&128:
+        if p['display']!=(2 if perfect else 10) or p['musicEnabled'] or (p['inputHeld']&15)==15 or not p['lcd']['lcdc']&128:
             raise ValueError('Unowned handoff display/music/reset/LCD state')
         if [p['lives0'],p['lives1']]!=lives or p['result']!=(0 if index==len(points)-1 else result):raise ValueError('Unexpected campaign/result mutation')
     for group in range(groups):
@@ -94,15 +104,27 @@ def analyze(data):
         if not last<=r['start']<r['end'] or r['end']+16>points[-1]['cycles']:raise ValueError('Incomplete/overlapping handoff IRQ')
         last=r['end']+16
         if r['kind']=='stat':
-            if r['selector']!=0 or r['end']-r['start']!=stat_cycles(0):raise ValueError('Unowned handoff STAT')
+            selector=4 if perfect else 0
+            if r['selector']!=selector or r['end']-r['start']!=stat_cycles(selector):raise ValueError('Unowned handoff STAT')
         elif r['kind']=='vblank':
             c=vblank_work(r);display=228 if r['countdown']==1 else 272
+            if perfect:
+                celebration=r.get('celebration',{})
+                if not celebration or len(r.get('visible',[]))!=160:raise ValueError('Missing handoff celebration/publication')
+                active=bool(r['result']&4)
+                if not r['phases']['display']<celebration['start']<=celebration.get('end',0)<r['phases']['bookkeeping'] or active!=(celebration['end']>celebration['start']):raise ValueError('Incorrect handoff celebration branch')
+                display+=(80+celebration['end']-celebration['start']) if active else 68
             fixed={**VBLANK_FIXED,'display':display,'bookkeeping':vblank_bookkeeping_work(r['resetEnabled'],r['held'],r['resetLatched']),'effects':64,'music':60}
             if r['countdown']<1 or any(c[k]!=v for k,v in fixed.items()) or r['effectRequest']!=-1 or r['musicEnabled']:
                 raise ValueError('Unowned handoff display/audio service')
             if (r['held']&15)==15 or r['pressed']!=r['held']&~previous:raise ValueError('Handoff fresh input/reset differs')
             previous=r['held'];services.append(r)
         else:raise ValueError('Unknown handoff IRQ')
+    if perfect:
+        from air_celebration_reference import analyze as analyze_component
+        analyze_component(dict(version=1,terminal='handoff',services=[r['celebration'] for r in services]))
+        for a,b in zip(services,services[1:]):
+            if b['visible']!=a['celebration']['prepared']:raise ValueError('Handoff publication continuity differs')
     for p,q in zip(points,points[1:]):
         if p['name']=='backgroundClear':continue
         work=elapsed_work(p['cycles'],q['cycles'],irqs)
@@ -126,7 +148,7 @@ def analyze(data):
     if poll_index!=len(polls):raise ValueError('Trailing readiness reads after map clear')
     return services
 
-def compare_handoff(data,points,services,irqs,polls,writes,summary,epoch):
+def compare_handoff(data,points,services,irqs,polls,writes,summary,epoch,celebrations=None):
     original_services=analyze(data)
     if (len(points),len(services),len(irqs),len(polls),len(writes),len(summary))!=(len(data['points']),len(original_services),len(data['interrupts']),len(data['polls']),1024,1):
         raise ValueError('Native handoff coverage is incomplete')
@@ -153,6 +175,14 @@ def compare_handoff(data,points,services,irqs,polls,writes,summary,epoch):
     delta('summary',expected,summary[0])
     if services and int(summary[0]['displays'])!=int(services[-1]['service'])+1:
         raise ValueError('Native handoff display terminal differs')
+    if data['points'][0]['result']&4:
+        from air_celebration_reference import compare_component
+        if celebrations is None:raise ValueError('Missing native perfect handoff celebration')
+        component=dict(version=1,terminal='handoff',services=[r['celebration'] for r in original_services])
+        differences.extend(dict(celebration=d) for d in compare_component(component,celebrations,int(services[0]['service'])))
+        for i,(p,q) in enumerate(zip(original_services,celebrations)):
+            if any(f'visible{j}' not in q for j in range(160)):raise ValueError('Missing native handoff published list')
+            delta('publication '+str(i),{f'visible{j}':v for j,v in enumerate(p['visible'])},q)
     return differences
 
 def compare(args):
@@ -168,10 +198,12 @@ def compare(args):
         with path.open(encoding='utf-8-sig',newline='') as f:return list(csv.DictReader(f))
     path=args.native_csv
     values=[rows(path)]+[rows(path.with_suffix('.'+kind+'.csv')) for kind in ('services','interrupts','polls','writes','summary')]
-    differences=compare_handoff(data,*values,epoch)
+    celebrations=rows(path.with_suffix('.celebration.csv')) if data['points'][0]['result']&4 else None
+    differences=compare_handoff(data,*values,epoch,celebrations)
     report=dict(comparedBoundaries=len(data['points']),comparedServices=len(values[1]),comparedInterrupts=len(values[2]),
         comparedPolls=len(values[3]),comparedWrites=len(values[4]),differences=len(differences),firstDifference=differences[:1],
-        productionSchedulerAccepted=False,evidenceLimit='Native live-player selection and full LCD-safe background clear through 02ce; subsequent labels, instructions, gameplay entry and all-eliminated/title paths remain separate owners.')
+        productionSchedulerAccepted=False,perfectHandoffAccepted=bool(data['points'][0]['result']&4),
+        evidenceLimit='Native live-player selection and full LCD-safe background clear through 02ce; perfect version 2 additionally requires ongoing celebration work/state and prepared/published lists. Subsequent labels, instructions, gameplay entry and all-eliminated/title paths remain separate owners.')
     write_json(path.with_suffix('.comparison.json'),report);print(json.dumps(report,indent=2))
     if differences:raise ValueError('Native handoff differs from independently controlled original')
 

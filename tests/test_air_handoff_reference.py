@@ -69,4 +69,46 @@ class HandoffIntegrity(unittest.TestCase):
     def test_native_wrong_glyph_is_reported(self):
         rows=native(self.data);rows[4][13]['value']=1
         self.assertEqual(len(compare_handoff(self.data,*rows,1000)),1)
+class PerfectHandoffIntegrity(unittest.TestCase):
+    def setUp(self):
+        self.data=fixture();self.data['version']=2
+        for p in self.data['points']:p.update(result=0 if p['name']=='instructionEntry' else 7,display=2)
+        r=dict(kind='vblank',start=1250,tick=5,countdown=86,result=7,held=0,pressed=0,
+            resetEnabled=1,resetLatched=0,effectRequest=-1,musicEnabled=0,phases={},visible=[0]*160)
+        time=r['start']
+        for name,work in zip(('dma','joypad','display','bookkeeping','effects','audioBank','music','restore'),(180,704,280,2436,240,64,68,60)):
+            time+=work;r['phases'][name]=time
+        r['end']=time+120
+        state=dict(random=257,emitters=[[30+i,143,251,0,1] for i in range(4)])
+        r['celebration']=dict(start=r['phases']['display']+20,end=r['phases']['display']+2104,tick=5,
+            before=copy.deepcopy(state),after=copy.deepcopy(state),prepared=[0]*160)
+        self.data['interrupts']=[r];shift=r['end']-r['start']+36
+        for p in self.data['points'][-2:]:p.update(cycles=p['cycles']+shift,tick=6,countdown=85)
+        for key in ('polls','writes'):
+            for p in self.data[key]:p['cycles']+=shift
+        self.rows=native(self.data)
+        self.rows[1]=[dict(service=780,cycle=250,tick=5,countdown=85,display=2436,effects=64,music=60,inputHeld=0,inputPressed=0)]
+        self.rows[2]=[dict(kind='vblank',vectorCycle=250,owner=1)];self.rows[-1][0]['displays']=781
+        row=dict(service=780,tick=5,work=2084,random=257,spriteCount=0)
+        for i,e in enumerate(state['emitters']):row.update({f'emitter{i}{k}':v for k,v in zip(('x','y','velocity','radius','delay'),e)})
+        row.update({f'{name}{i}':0 for name in ('prepared','visible') for i in range(160)})
+        self.celebrations=[row]
+    def compare(self):return compare_handoff(self.data,*self.rows,1000,self.celebrations)
+    def test_complete_schema_two_storage_fixture(self):self.assertEqual(self.compare(),[])
+    def test_missing_component_rejects(self):
+        with self.assertRaises(ValueError):compare_handoff(self.data,*self.rows,1000)
+    def test_truncated_component_rejects(self):
+        self.celebrations.clear()
+        with self.assertRaises(ValueError):self.compare()
+    def test_wrong_component_work_reported(self):
+        self.celebrations[0]['work']+=4;self.assertIn('celebration',self.compare()[0])
+    def test_wrong_published_byte_reported(self):
+        self.celebrations[0]['visible159']=2;self.assertEqual(self.compare()[0]['at'],'publication 0')
+    def test_missing_published_tail_rejects(self):
+        del self.celebrations[0]['visible159']
+        with self.assertRaises(ValueError):self.compare()
+    def test_cleared_result_cannot_keep_advancing_emitters(self):
+        self.data['interrupts'][0]['result']=0
+        with self.assertRaises(ValueError):self.compare()
+
 if __name__=='__main__':unittest.main()

@@ -5,12 +5,14 @@
 namespace ticd {
 struct AirResultTextCommand {int kind=0,a=0,b=0;};
 struct AirResultTextAssets {
-    std::array<std::vector<AirResultTextCommand>,3> layouts;
+    std::array<std::vector<AirResultTextCommand>,5> layouts;
+    bool perfectLabels=false;
     static AirResultTextAssets load(const char* path){
         std::ifstream file(path,std::ios::binary);char magic[8];
-        if(!file.read(magic,8)||std::string(magic,8)!="TICDRL01")throw std::runtime_error("Missing result text layouts");
+        if(!file.read(magic,8)||(std::string(magic,8)!="TICDRL01"&&std::string(magic,8)!="TICDRL02"))throw std::runtime_error("Missing result text layouts");
         AirResultTextAssets data;
-        for(auto& list:data.layouts){unsigned char bytes[2];if(!file.read(reinterpret_cast<char*>(bytes),2))throw std::runtime_error("Truncated result text count");
+        data.perfectLabels=std::string(magic,8)=="TICDRL02";
+        for(int i=0;i<(data.perfectLabels?5:3);++i){auto& list=data.layouts[i];unsigned char bytes[2];if(!file.read(reinterpret_cast<char*>(bytes),2))throw std::runtime_error("Truncated result text count");
             int size=bytes[0]+256*bytes[1];if(size<1||size>4096)throw std::runtime_error("Invalid result text count");
             for(int i=0;i<size;++i){unsigned char args[3];if(!file.read(reinterpret_cast<char*>(args),3))throw std::runtime_error("Truncated result text");
                 if(args[0]>4||(args[0]==4)!=(i==size-1)||(args[0]==0&&args[1]>127)||
@@ -34,8 +36,8 @@ struct AirResultWriter {
         work({16}); // Safe store's saved glyph.
         for(int attempt=0;;++attempt){
             if(attempt>32)throw std::runtime_error("Result glyph readiness did not terminate");
-            int mode=-1;clock.accessWork(12,8,[&]{mode=lcd.mode(clock.now-epoch);},display,false);
-            if(mode<0)throw std::runtime_error("Unowned first-frame result graphics readiness");
+            int mode=-1;int64_t sampleTime=-1;clock.accessWork(12,8,[&]{sampleTime=clock.now-epoch;mode=lcd.mode(sampleTime);},display,false);
+            if(mode<0)throw std::runtime_error("Unowned result graphics readiness at relative sample "+std::to_string(sampleTime));
             poll(clock.now,mode);work({8,mode&2?12:8});if(!(mode&2))break;
         }
         work({12});write(clock.now,cursor,value);
@@ -90,21 +92,32 @@ struct AirResultAccounting {AirResultTransition timing;int pay=0,savings=0,secon
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirResultAccounting airResultAccount(AirResultTransition state,int result,int held,int pay,int savings,int seconds,
     NativeAudio& sound,const AirResultTextAssets& texts,Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,
-    std::function<int()> sampleInput={}){
-    if(result!=3||(held&15)==15||state.displays!=33||state.countdown!=567||pay<0||savings<0||seconds<0)
+    std::function<int()> sampleInput={},const UiAssets* ui=nullptr,
+    std::function<void(unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int)> celebrationObserver={}){
+    const bool perfect=result==7;
+    if((result!=3&&!perfect)||(held&15)==15||state.displays!=33||state.countdown!=(perfect?687:567)||
+       (perfect&&(!state.perfect||!ui||!texts.perfectLabels))||pay<0||savings<0||seconds<0)
         throw std::runtime_error("Unowned successful result/accounting input");
     AirResultAccounting account;account.pay=pay;account.savings=savings;account.seconds=seconds;
     AirClock clock;clock.now=state.end;clock.nextStat=state.nextStat;clock.nextVBlank=state.nextVBlank;
-    clock.displays=state.displays;clock.statServices=state.stats;clock.statBody=248;
+    clock.displays=state.displays;clock.statServices=state.stats;clock.statBody=perfect?288:248;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    AirPauseLcd* graphics=nullptr;
+    auto updateGraphics=[&]{if(!graphics||!perfect)return;
+        graphics->objectsEnabled=true;graphics->objectHeight=8;graphics->objectDisableLine=120;
+        for(int i=0;i<40;++i)graphics->objects[i]={state.celebrationVisible[i*4+1],state.celebrationVisible[i*4]};};
     auto display=[&](bool){
         state.input.sample(sampleInput?sampleInput():state.input.held);
         if(state.input.held<0||state.input.held>255||(state.input.held&15)==15)throw std::runtime_error("Unowned accounting input/reset service");
-        int tick=state.tick;state.tick=(state.tick+1)&65535;int work=airResultCountdownWork(state.countdown);sound.tick();
+        int tick=state.tick;int celebrationWork=0;
+        if(perfect){state.celebrationVisible=state.celebration.prepared;celebrationWork=state.celebration.advance(tick,*ui);updateGraphics();
+            if(celebrationObserver)celebrationObserver(clock.displays,tick,state.celebration,state.celebrationVisible,celebrationWork);}
+        state.tick=(state.tick+1)&65535;int work=airResultCountdownWork(state.countdown)+(perfect?80+celebrationWork:0);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned accounting audio service");
         service(clock.displays,clock.now+20,tick,state.countdown,work,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
         return 1592+work+sound.effectWorkCycles+sound.musicWorkCycles;};
     AirResultWriter writer(clock,state.lcdEpoch,display,poll,write);
+    graphics=&writer.lcd;updateGraphics();
     auto point=[&](const char* name){boundary(name,clock.now,state.tick,state.countdown,account.pay,account.savings,account.seconds,account.stage,sound.enabled,state.skip);};
     auto works=[&](std::initializer_list<int> costs){writer.work(costs);};
     auto delay=[&](int count,bool ready){
@@ -124,24 +137,27 @@ AirResultAccounting airResultAccount(AirResultTransition state,int result,int he
     },display,false);point("detailSetup");works({24,16,4,4,4,8,4,8,16});point("dayReady");
     works({8,8,12});point("savingsLabel");writer.text(texts.layouts[0]);point("savingsNumber");writer.money(account.savings,true);
     point("savingsNumberReady");works({12});point("savingsDelay");delay(20,false);
-    point("payLabel");works({24});writer.text(texts.layouts[1]);works({16,8,20});point("payNumber");writer.money(account.pay,false);
+    point("payLabel");works({24});writer.text(texts.layouts[1]);works({16,8,perfect?8:20});
+    if(perfect){writer.text(texts.layouts[3]);works({16});}
+    point("payNumber");writer.money(account.pay,false);
     point("payLoop");works({24});
     for(int iterations=0;;++iterations){
         if(iterations>1000000)throw std::runtime_error("Result pay accounting did not terminate");
         point("payTest");works({12,8,8,4,8,account.pay?8:20});if(!account.pay)break;
         works({16});point("savingsIncrement");savingsIncrement();point("payDecrement");
         works({24,12,8,8,4,8,8,8,4,8,8,8,4,8,16});--account.pay;point("payUpdated");
-        works({16,8,12,16,4,state.skip?12:8});
+        works({16,8});if(perfect)savingsIncrement();else works({12});works({16,4,state.skip?12:8});
         if(!state.skip){point("payWait");buttonWait();point("savingsRefresh");writer.money(account.savings,true);
             point("payRefresh");writer.money(account.pay,false);}
         point("payTail");works({12,12});
     }
     point("payDone");writer.money(account.savings,true);point("payTotal");writer.money(account.pay,false);point("payShowEnded");
-    works({16,8,8,12});delay(15,false);point("timeLabel");works({24});writer.text(texts.layouts[2]);works({16,8,20});
+    works({16,8,8,12});delay(15,false);point("timeLabel");works({24});writer.text(texts.layouts[2]);works({16,8,perfect?8:20});
+    if(perfect){writer.text(texts.layouts[4]);works({16});}
     point("timeNumber");writer.time(account.seconds);point("timeLoop");works({24});
     for(;;){point("timeTest");works({16,4,account.seconds?8:20});if(!account.seconds)break;
         point("timeUnit");works({16});point("timeSavingsIncrement");savingsIncrement();point("timeDecrement");
-        works({24,16,8,4,8,16,16});--account.seconds;point("timeResult");works({16,8,12,16,4,state.skip?12:8});
+        works({24,16,8,4,8,16,16});--account.seconds;point("timeResult");works({16,8});if(perfect)savingsIncrement();else works({12});works({16,4,state.skip?12:8});
         if(!state.skip){point("timeWait");buttonWait();point("timeSavingsRefresh");writer.money(account.savings,true);point("timeRefresh");writer.time(account.seconds);}
         point("timeTail");works({12,12});}
     point("timeDone");writer.money(account.savings,true);point("finalSavings");writer.time(account.seconds);point("accountingComplete");

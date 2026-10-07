@@ -471,12 +471,16 @@ int main(int argc,char** argv){
                     accountPoints<<"boundary,cycle,tick,countdown,pay,savings,seconds,stage,musicEnabled,skip,inputHeld,inputPressed\n";
                     accountServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld,inputPressed\n";
                     accountIrqs<<"kind,vectorCycle,owner\n";accountPolls<<"cycle,mode\n";accountWrites<<"cycle,address,value\n";
+                    std::ofstream accountCelebration;
+                    if(game->result&4){accountCelebration.open(std::string(argv[2])+".account.celebration.csv");
+                        if(!accountCelebration)throw std::runtime_error("Cannot open accounting celebration output");celebrationHeader(accountCelebration,true);}
                     auto account=airResultAccount(incoming,game->result,sampled.held,game->money,0,game->seconds,sound,texts,
                         [&](const char* name,int64_t cycle,int tick,int countdown,int pay,int savings,int seconds,int stage,bool enabled,int skip){accountPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<pay<<','<<savings<<','<<seconds<<','<<stage<<','<<enabled<<','<<skip<<','<<sampled.held<<','<<sampled.pressed<<'\n';},
                         [&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){accountServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';},
                         [&](const char* kind,int64_t cycle,AirIrqOwner owner){accountIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
                         [&](int64_t cycle,int mode){accountPolls<<cycle<<','<<mode<<'\n';},
-                        [&](int64_t cycle,int address,int value){accountWrites<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
+                        [&](int64_t cycle,int address,int value){accountWrites<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput,ui.get(),
+                        [&](unsigned service,int tick,const AirCelebration& state,const std::array<unsigned char,160>& visible,int work){celebrationRow(accountCelebration,service,tick,state,work,&visible);});
                     std::ofstream accountSummary(std::string(argv[2])+".account.summary.csv");accountSummary<<"end,tick,countdown,displays,stats,pay,savings,seconds,stage\n"<<account.timing.end<<','<<account.timing.tick<<','<<account.timing.countdown<<','<<account.timing.displays<<','<<account.timing.stats<<','<<account.pay<<','<<account.savings<<','<<account.seconds<<','<<account.stage<<'\n';
                     handoffTiming=account.timing;
                 }
@@ -486,6 +490,9 @@ int main(int argc,char** argv){
                     handPoints<<"boundary,cycle,tick,countdown,player,lives0,lives1,result,inputHeld,inputPressed\n";
                     handServices<<"service,cycle,tick,countdown,display,effects,music,inputHeld,inputPressed\n";
                     handIrqs<<"kind,vectorCycle,owner\n";handPolls<<"cycle,mode\n";handWrites<<"cycle,address,value\n";
+                    std::ofstream handCelebration;
+                    if(game->result&4){handCelebration.open(std::string(argv[2])+".handoff.celebration.csv");
+                        if(!handCelebration)throw std::runtime_error("Cannot open handoff celebration output");celebrationHeader(handCelebration,true);}
                     // Native initial solo campaign: five lives, then the failure
                     // result consumes one. No recorded player/life state enters.
                     auto handoff=airResultHandoff(handoffTiming,0,{(game->result&2)?5:4,0},game->result,sound,
@@ -493,7 +500,8 @@ int main(int argc,char** argv){
                         [&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){handServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
                         [&](const char* kind,int64_t cycle,AirIrqOwner owner){handIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
                         [&](int64_t cycle,int mode){handPolls<<cycle<<','<<mode<<'\n';},
-                        [&](int64_t cycle,int address,int value){handWrites<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
+                        [&](int64_t cycle,int address,int value){handWrites<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput,ui.get(),
+                        [&](unsigned service,int tick,const AirCelebration& state,const std::array<unsigned char,160>& visible,int work){celebrationRow(handCelebration,service,tick,state,work,&visible);});
                     std::ofstream handSummary(std::string(argv[2])+".handoff.summary.csv");
                     handSummary<<"end,tick,countdown,displays,stats,player,lives0,lives1,result\n"<<handoff.timing.end<<','<<handoff.timing.tick<<','<<handoff.timing.countdown<<','<<handoff.timing.displays<<','<<handoff.timing.stats<<','<<handoff.player<<','<<handoff.lives[0]<<','<<handoff.lives[1]<<','<<handoff.result<<'\n';
                 }

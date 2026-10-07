@@ -56,11 +56,12 @@ def capture(args):
 
 def analyze(data):
     rows=data.get('services',[])
-    if data.get('version')!=1 or data.get('terminal') not in ('nextInstruction','incomingFade') or not rows:
+    if data.get('version')!=1 or data.get('terminal') not in ('nextInstruction','incomingFade','accounting','handoff') or not rows:
         raise ValueError('Missing complete celebration component extent')
     previous=None
     for row in rows:
-        if not 0<row['end']-row['start']<70224 or not 0<=row['tick']<=65535:
+        work=row['end']-row['start']
+        if not 0<=work<70224 or (not work and (data['terminal']!='handoff' or row['before']!=row['after'])) or not 0<=row['tick']<=65535:
             raise ValueError('Invalid celebration work/counter')
         if previous and (row['start']<=previous['end'] or row['tick']!=((previous['tick']+1)&65535) or row['before']!=previous['after']):
             raise ValueError('Missing/reordered celebration state continuity')
@@ -79,12 +80,12 @@ def analyze(data):
     return rows
 
 
-def compare_component(data,native):
+def compare_component(data,native,service_offset=0):
     rows=analyze(data)
     if len(native)!=len(rows):raise ValueError('Truncated native celebration extent')
     differences=[]
     for index,(target,row) in enumerate(zip(rows,native)):
-        expected=dict(service=index,tick=target['tick'],work=target['end']-target['start'],random=target['after']['random'],
+        expected=dict(service=service_offset+index,tick=target['tick'],work=target['end']-target['start'],random=target['after']['random'],
             spriteCount=sum(target['prepared'][i+3]==128 for i in range(0,160,4)))
         for i,emitter in enumerate(target['after']['emitters']):
             expected.update({f'emitter{i}{key}':value for key,value in zip(('x','y','velocity','radius','delay'),emitter)})

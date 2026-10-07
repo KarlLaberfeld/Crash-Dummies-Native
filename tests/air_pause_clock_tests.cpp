@@ -117,6 +117,17 @@ int main(){
         require(lcd.transferEnd(136)==-1,"Unsupported special window edge cannot provide readiness");
         lcd.windowX=7;lcd.objects[0]={40,144};
         require(lcd.mode(AirClock::Frame+135*456+100)==-1,"Line-135 object cancellation requires its own fetch boundary");
+        require(lcd.mode(AirClock::Frame+135*456+270)==0&&lcd.readable(AirClock::Frame+135*456+270),"Late horizontal blank remains available beyond the uninterrupted object-fetch upper bound");
+        lcd.windowEnabled=false;lcd.scrollX=0;lcd.objectHeight=8;lcd.objectDisableLine=135;
+        lcd.objects={};lcd.objects[0]={40,136};
+        require(lcd.transferEnd(119)==256&&lcd.transferEnd(127)==267&&lcd.transferEnd(128)==256,"Eight-pixel result objects select their eight actual rows");
+        lcd.objectDisableLine=120;
+        require(lcd.transferEnd(120)==-1&&lcd.mode(AirClock::Frame+120*456+259)==-1,"Cancellation's inclusive conservative bound cannot claim a transfer completion");
+        require(lcd.mode(AirClock::Frame+120*456+260)==0&&lcd.readable(AirClock::Frame+120*456+260)&&lcd.writable(AirClock::Frame+120*456+260),"A strictly later result sample owns readiness without a guessed cancellation dot");
+        for(auto& object:lcd.objects)object={40,136};
+        require(lcd.mode(AirClock::Frame+120*456+358)==-1&&lcd.mode(AirClock::Frame+120*456+359)==0,"Ten selected objects bound the worst uninterrupted result transfer independently of tile sharing");
+        lcd.objects[0].x=-1;
+        require(lcd.mode(AirClock::Frame+120*456+436)==-1,"Invalid geometry cannot acquire readiness from the late bound");
         lcd.enabled=false;
         require(lcd.mode(0)==0&&lcd.readable(0)&&lcd.writable(0),"LCD off grants immediate access without a guessed first-frame phase");
         AirClock sessionClock;sessionClock.now=AirClock::Frame+44;

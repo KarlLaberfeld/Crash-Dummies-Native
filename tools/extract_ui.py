@@ -189,8 +189,8 @@ def extract_ui(rom,output):
     (output/'ui.dat').write_bytes(payload)
     profiles=[result_layout_profile(rom,p) for p in (0x0a88,0x0ad0,0x0b0f,0x0548,0x0589,0x0568)]
     (output/'result-timing.dat').write_bytes(b'TICDRT02'+b''.join(struct.pack('<8H',*p) for p in profiles))
-    layouts=[result_layout_commands(rom,p) for p in (0x04aa,0x13b3,0x13d3)]
-    (output/'result-layouts.dat').write_bytes(b'TICDRL01'+b''.join(struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in layouts))
+    layouts=[result_layout_commands(rom,p) for p in (0x04aa,0x13b3,0x13d3,0x13cb,0x13e8)]
+    (output/'result-layouts.dat').write_bytes(b'TICDRL02'+b''.join(struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in layouts))
     # Separate bounded pause-copy inputs for the native graphics candidate.
     # Keeping the established UI07 payload unchanged preserves existing builds.
     pause_payload=(b'TICDPA01'+rom[address(3,0x5850):address(3,0x58d0)]+

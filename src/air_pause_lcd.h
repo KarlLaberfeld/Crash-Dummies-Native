@@ -14,21 +14,32 @@ struct AirPauseLcd {
     struct Object {int x=0,y=0;};
     std::array<Object,40> objects{};
     int scrollX=0,windowX=7,windowY=136;
+    int objectHeight=16,objectDisableLine=135;
     bool enabled=true,objectsEnabled=true,windowEnabled=true;
-    int transferEnd(int line) const {
+    int transferEnd(int line) const {return transferEndForGeometry(line,false);}
+private:
+    int transferEndForGeometry(int line,bool cancellationUpperBound) const {
         if(line<0||line>=144)return -1;
         bool window=windowEnabled&&line>=windowY;
         if(window&&(windowX<7||windowX>165))return -1; // Special WX edges.
         int end=256+(scrollX&7)+(window?6:0);
-        if(!objectsEnabled||line>=136)return end;
+        if(objectHeight!=8&&objectHeight!=16)return -1;
+        if(!objectsEnabled||line>objectDisableLine)return end;
         std::array<int,10> selected{};int count=0;
         for(int i=0;i<40&&count<10;++i){
             int top=objects[i].y-16;
-            if(line>=top&&line<top+16)selected[count++]=i;
+            if(line>=top&&line<top+objectHeight)selected[count++]=i;
         }
-        // The line-135 STAT handler disables objects mid-transfer. That write
-        // needs a fetch owner when objects overlap; a whole-line guess rejects.
-        if(line==135&&count)return -1;
+        for(int n=0;n<count;++n){
+            int x=objects[selected[n]].x;if(x<0||x>255)return -1;
+        }
+        // The STAT handler can cancel an in-progress object fetch. Its exact
+        // shortened transfer remains unowned. A late sample is nevertheless
+        // readable after the uninterrupted worst case: each of at most ten
+        // selected objects adds at most five alignment dots and six fetch dots.
+        // DMG cancellation drops the remaining fetch; it adds no extra work.
+        if(line==objectDisableLine&&count)
+            return cancellationUpperBound?end+11*count:-1;
         std::sort(selected.begin(),selected.begin()+count,[&](int a,int b){
             return objects[a].x==objects[b].x?a<b:objects[a].x<objects[b].x;
         });
@@ -48,6 +59,7 @@ struct AirPauseLcd {
         }
         return end;
     }
+public:
     int mode(int64_t time) const {
         if(!enabled)return 0;
         if(time<AirClock::Frame)return -1; // LCD-enable/first-line owner pending.
@@ -59,7 +71,11 @@ struct AirPauseLcd {
         // not be generalized to arbitrary instruction/IRQ acceptance.
         int position=static_cast<int>((time+5+3)%AirClock::Frame),line=position/456,dot=position%456;
         if(line>=144)return 1;
-        int end=transferEnd(line);if(end<0)return -1;
+        int end=transferEnd(line);
+        if(end<0){
+            int bound=transferEndForGeometry(line,true);
+            return bound>=0&&dot>bound?0:-1;
+        }
         // The pinned independent observer exposes the completed edge before
         // advancing its graphics state (its sleep boundary is inclusive).
         // This reference-edge convention still needs hardware qualification.
@@ -78,7 +94,12 @@ private:
         if(time<AirClock::Frame)throw std::runtime_error("Unreconstructed first-frame LCD access");
         int position=static_cast<int>((time+5+3)%AirClock::Frame),line=position/456,dot=position%456;
         if(line>=144)return true;
-        int end=transferEnd(line);if(end<0)throw std::runtime_error("Unreconstructed pause graphics transfer");
+        int end=transferEnd(line);
+        if(end<0){
+            int bound=transferEndForGeometry(line,true);
+            if(bound>=0&&dot>bound)return true;
+            throw std::runtime_error("Unreconstructed pause graphics transfer");
+        }
         return dot<=blockStart||dot>end;
     }
 };

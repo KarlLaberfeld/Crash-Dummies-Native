@@ -1,5 +1,20 @@
 # Final release acceptance
 
+Latest October 7 perfect accounting/handoff: all four native result intervals
+match one genuine 14/14 control through 02ce. Accounting agrees at 2,338
+boundaries / 747 services / 1,494 vectors / 19,961 polls / 4,073 intended writes;
+handoff at 11 / seven / 14 / 3,670 / 1,024. Pay 282 + time six yield savings 576.
+Full emitter/RNG/work and prepared/published lists agree. Including incoming,
+these are the same 787 services already counted by the isolated component.
+Readiness uses native published geometry; only late samples beyond the
+conservative uninterrupted fetch bound qualify a cancellation line. Ambiguous
+earlier samples still reject. Checks: 18,680 result and 580 pause/session/pixel
+assertions; 295 Python tests. Ordinary result/handoff and three coupled pause
+regressions pass. Subsequent header/instruction/gameplay entry, final-life/reset,
+earlier UI/LCD, unobserved owners and production integration still block timing
+point 1. Complete pixels/PCM, physical/human/independent Windows checks and
+packaging remain final-release requirements. No final-release acceptance.
+
 Latest October 7 celebration follow-up: all 787 native perfect celebration
 services match emitter/RNG/body work and 125,920 prepared bytes. The complete
 incoming perfect result matches 81 boundaries / 33 services / 66 vectors and

@@ -8,8 +8,11 @@ A genuine perfect 14/14 control now also matches main gameplay and 5,032 IRQ
 vectors through 0409. Its native result setup additionally matches 15 boundaries,
 2,121 LY reads and all initialized emitter/random fields. All 787 celebration
 services and the complete incoming perfect result also agree, including prepared
-and published sprite bytes. Perfect accounting remains the next timing owner;
-subsequent setup and Windows integration remain open. See
+and published sprite bytes. Complete perfect accounting and handoff now also
+agree: 747 + seven services, 1,508 vectors, 23,631 LCD polls and 5,097 intended
+writes. Its 282 pay + six time cents correctly yield 576 savings cents.
+These extend the same 787-service control; counts overlap the isolated animation.
+Subsequent setup, final-life/reset and Windows integration remain open. See
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).
 

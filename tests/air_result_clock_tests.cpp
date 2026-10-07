@@ -70,6 +70,16 @@ int main(){
             require(variant<2?(!rejected&&loaded.perfectProfile==bool(variant)):rejected,"Layout assets preserve legacy ordinary profiles and reject missing/trailing perfect profile data");
         }
         AirResultPrefix prefix;prefix.end=800000;prefix.lcdDisabled=prefix.end-727820;prefix.pendingRequests=3;
+        for(int variant=0;variant<4;++variant){
+            const char* path="local/air-result-label-fixture.dat";
+            {std::ofstream file(path,std::ios::binary);file.write(variant%2?"TICDRL02":"TICDRL01",8);
+                const char terminal[5]={1,0,4,0,0};int count=variant==0?3:variant==1?5:variant==2?5:3;
+                for(int i=0;i<count;++i)file.write(terminal,5);}
+            bool rejected=false;AirResultTextAssets loaded;
+            try{loaded=AirResultTextAssets::load(path);}catch(const std::runtime_error&){rejected=true;}
+            std::remove(path);
+            require(variant<2?(!rejected&&loaded.perfectLabels==bool(variant)):rejected,"Result labels retain ordinary format compatibility and reject truncated/trailing perfect labels");
+        }
         {
             auto perfectPrefix=prefix;perfectPrefix.display=2;perfectPrefix.stat=4;perfectPrefix.countdown=720;
             perfectPrefix.celebration.randomState=0;
@@ -85,6 +95,31 @@ int main(){
                     require(index==unsigned(prepared)&&tick==((65530+prepared)&65535)&&work>0&&visible==previous,"Perfect publication retains the preceding prepared list while advancing the current one");previous=state.prepared;++prepared;});
             require(incoming.perfect&&services==33&&prepared==33&&stats==33&&incoming.countdown==687,"Perfect incoming fade completes 33 services from its longer countdown");
             require(incoming.celebration.emitters[3].delay==15&&sound.enabled,"Perfect incoming carries ongoing emitter and music state into subsequent accounting");
+            AirResultTextAssets texts;texts.perfectLabels=true;
+            for(auto& list:texts.layouts)list={{1,0,15},{0,0,0},{0,3,0},{4,0,0}};
+            int publications=0;
+            auto account=airResultAccount(incoming,7,0,3,4,2,sound,texts,
+                [](const char*,int64_t,int,int,int,int,int,int,bool,int){},
+                [](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){},
+                [](int64_t,int){},[](int64_t,int,int){},{},ui.get(),
+                [&](unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int){++publications;});
+            require(account.savings==14&&account.pay==0&&account.seconds==0&&account.stage==2,"Perfect accounting pays each original unit twice without doubling its decrement");
+            require(account.timing.perfect&&account.timing.countdown==1&&account.timing.displays==780&&publications==747,"Perfect accounting retains animation through its longer timer and final hold");
+            for(int branch=0;branch<3;++branch){
+                NativeAudio skipSound(audio);skipSound.measureWork=true;skipSound.playMusic(5);
+                int sample=0,payWaits=0,timeWaits=0;std::string phase;
+                auto skipped=airResultAccount(incoming,7,0,3,4,2,skipSound,texts,
+                    [&](const char* name,int64_t,int,int,int,int,int,int,bool,int){phase=name;payWaits+=phase=="payWait";timeWaits+=phase=="timeWait";},
+                    [](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){},
+                    [](int64_t,int){},[](int64_t,int,int){},[&]{++sample;
+                        if(branch==0&&sample==1)return 2;
+                        if(branch==1&&phase=="payWait"&&payWaits==1)return 2;
+                        if(branch==2&&phase=="timeWait"&&timeWaits==1)return 2;
+                        if(phase=="timerWait"&&sample%2==0)return 2;
+                        return 0;},ui.get());
+                require(skipped.savings==14&&skipped.pay==0&&skipped.seconds==0&&skipped.stage==2,"Perfect input skips preserve the complete doubled pay/time ledger");
+                require(skipped.timing.displays<780&&skipped.timing.countdown>1&&!skipSound.enabled,"Perfect final-hold action skips retain animation state and stop music");
+            }
             sound.stop();
         }
         for(int result:{1,3,17}){

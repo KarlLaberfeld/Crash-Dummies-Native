@@ -93,7 +93,14 @@ All baseline ordinary incoming/accounting/full-failure comparisons and the
 ordinary successful handoff remain exact. The production EXE/scheduler is
 unchanged; unchanged full campaigns are not repeated for this diagnostic work.
 
-Next: perfect money/time accounting with celebration-aware LCD readiness and
-subsequent handoff; final-life/reset results, later instruction/setup and other
+The perfect accounting and handoff are now also qualified: 747 and seven
+additional services, all emitter/work/prepared/published fields, source IRQ
+times, LCD polls and intended writes agree. They complete the same 787-service
+result extent; the counts overlap this component recording. See
+[accounting](AIR_RESULT_ACCOUNTING.md) and [handoff](AIR_RESULT_HANDOFF.md).
+Latest checks: 18,680 result, 580 pause/session/pixel assertions and 295 Python
+tests; ordinary result/handoff and three coupled pause controls pass.
+
+Next: final-life/reset results, later instruction/setup and other
 pending owners remain required. Point 1 and [final acceptance](ACCEPTANCE.md)
 are not complete.

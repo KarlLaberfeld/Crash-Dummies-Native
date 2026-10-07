@@ -63,6 +63,16 @@ class CelebrationEvidence(unittest.TestCase):
     def test_overlapping_component(self):
         self.second();self.data['services'][1]['start']=100
         with self.assertRaises(ValueError):analyze(self.data)
+    def test_handoff_can_publish_without_advancing_after_result_clear(self):
+        self.data['terminal']='handoff';row=self.data['services'][0]
+        row.update(end=row['start'],after=copy.deepcopy(row['before']));self.assertEqual(len(analyze(self.data)),1)
+    def test_accounting_cannot_silently_stop_celebration(self):
+        self.data['terminal']='accounting';row=self.data['services'][0]
+        row.update(end=row['start'],after=copy.deepcopy(row['before']))
+        with self.assertRaises(ValueError):analyze(self.data)
+    def test_zero_work_cannot_change_state(self):
+        self.data['terminal']='handoff';self.data['services'][0]['end']=100
+        with self.assertRaises(ValueError):analyze(self.data)
 
 
 if __name__=='__main__':unittest.main()

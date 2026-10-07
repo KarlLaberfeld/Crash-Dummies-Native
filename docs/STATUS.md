@@ -1,5 +1,23 @@
 # Project status - October 7, 2026
 
+Latest perfect-accounting/handoff follow-up: the complete native result now
+matches the same genuine 14/14 original through 02ce. Accounting: 2,338
+boundaries / 747 displays / 1,494 vectors / 19,961 polls / 4,073 intended writes;
+handoff: 11 / seven / 14 / 3,670 / 1,024. All emitter/RNG/work fields and full
+prepared/published lists agree; 282 pay plus six time cents transfer twice to
+576 savings cents. The 33 incoming + 747 accounting + seven handoff services
+are the same 787-service extent as the isolated celebration, not another
+independent control. All four comparisons pass on one complete native replay.
+Eight-pixel geometry and a conservative late-horizontal-blank upper bound
+qualify the observed LCD access; ambiguous in-flight cancellation still rejects.
+See [accounting](AIR_RESULT_ACCOUNTING.md) and [handoff](AIR_RESULT_HANDOFF.md).
+Checks: optimized diagnostic, 18,680 result / 580 pause/session/pixel assertions
+and 295 Python tests; baseline ordinary result/handoff and three coupled pause
+controls pass. The production EXE/scheduler is unchanged. Next concrete owner:
+header/instruction screen and following gameplay setup. Final-life/reset,
+earlier UI/LCD entry, unobserved interrupted owners and production integration
+also remain open. Timing point 1 is incomplete; no final release is claimed.
+
 Latest celebration follow-up: the native perfect component matches all 787
 original services through first handoff, including 125,920 prepared bytes,
 26 emitter resets and all emitter/RNG/work states. Its complete incoming
@@ -9,9 +27,8 @@ result also agrees at 81 boundaries / 33 services / 66 vectors, including
 [celebration timing and limits](AIR_CELEBRATION.md).
 The O2 diagnostic and 18,668 ROM-free result assertions / 278 Python tests
 pass. All baseline ordinary incoming/accounting/full-failure controls and
-ordinary successful handoff remain exact. Perfect accounting now needs
-celebration-aware LCD readiness and its separate native transfer rules;
-subsequent perfect handoff and other pending timing owners remain open.
+ordinary successful handoff remain exact. Perfect accounting/handoff are now
+qualified above; other pending timing owners remain open.
 The production Windows EXE/scheduler is unchanged. Point 1 is incomplete.
 
 Latest perfect-result follow-up: native setup through 0462 now includes the

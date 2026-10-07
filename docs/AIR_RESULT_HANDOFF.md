@@ -1,5 +1,39 @@
 # Source-owned Air result handoff
 
+## Perfect handoff extension, October 7
+
+The genuine 14/14 control now also matches the full native 0514..02ce handoff:
+**11 boundaries, seven display services, 14 vectors, 3,670 LCD polls and all
+1,024 intended blank writes**, with zero differences. The continuing emitter/
+RNG/work state and 1,120 prepared plus 1,120 published bytes also agree.
+Together with incoming/accounting, the same native control has 787 result
+services. These are the same services as the isolated celebration recording;
+do not add the two counts. Its native ledger reaches 576 cents before this
+interval, selects the living first player and clears the result at its actual
+store boundary.
+
+The owner keeps publishing the preceding prepared list. Once result bit four
+is cleared, it omits emitter advancement and charges the shorter 68-cycle
+selector branch; synthetic integrity tests check this distinction. Display
+readiness follows the published eight-pixel geometry. An overlapping line-120
+disable can grant late horizontal blank only beyond a conservative uninterrupted
+fetch bound; earlier ambiguous samples still reject. See
+[the bound and accounting evidence](AIR_RESULT_ACCOUNTING.md).
+
+Local evidence: `local/air-perfect-handoff-reference/`,
+`local/air-perfect-handoff-services.csv.handoff*`,
+`local/air-perfect-complete-{result,incoming,account,handoff}-comparison.log`.
+The full replay passes all four original comparisons without a truncated common
+prefix. Current checks: 18,680 result, 580 pause/session/pixel assertions and
+295 Python tests. Baseline ordinary result/handoff and all three coupled pause
+controls still pass. The production EXE/scheduler is unchanged.
+
+The following header, instruction waits and next gameplay entry are separate
+owners. Final-life/reset, complete result pixels/PCM, unobserved interruptions
+and production integration remain open. Timing point 1 is not complete.
+
+## Earlier ordinary-result checkpoint
+
 The native diagnostic now continues from the completed ordinary success/failure
 result at 0514 through live-player selection and the complete LCD-safe background
 clear, ending explicitly at 02ce before the next instruction/header text.
@@ -64,13 +98,13 @@ python tools/air_handoff_reference.py compare local/air-success-handoff-native/s
 The Windows runtime requires no reference emulator. All recordings, ROM and
 extracted data remain ignored/local. This bounded checkpoint does not certify
 the following day/stunt labels, instruction waits, subsequent LCD/gameplay
-setup, all-player elimination/title return, perfect/final-life/reset results,
+setup, all-player elimination/title return, final-life/reset results,
 complete result pixels, PCM, physical hardware or Windows scheduling. Timing
 point 1 and the full release checklist remain open.
 
 A newly found perfect original control legitimately collects 14/14, including
 the crash-only object. Its 2,477 updates, 2,516 displays, 14,862 phases, 39,632
 pre-update entity slots, inputs/final wait and all 5,032 IRQ vectors match through
-0409. It supplies the next result witness; its perfect result setup/celebration
-is still guarded at this checkpoint. See `local/sameboy-air-perfect/` and
+0409. Its perfect result is now qualified through the handoff above.
+See `local/sameboy-air-perfect/` and
 `local/air-perfect-{main,all-irq}-comparison.log` for the bounded main-game proof.

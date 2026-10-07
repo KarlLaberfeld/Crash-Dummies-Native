@@ -1,5 +1,43 @@
 # Bounded successful Air result accounting
 
+## Perfect result extension, October 7
+
+The genuine 14/14 control now matches its complete native accounting through
+0514: **2,338 boundaries, 747 display services, 1,494 IRQ vectors, 19,961 LCD
+polls and 4,073 intended glyph writes**, with zero differences. Its 282 pay
+cents and six time cents become 576 savings cents. Each original unit decrements
+once and increments savings twice at separate source operations; the perfect
+labels include the two locally decoded multiplier scripts. TICDRL02 adds those
+scripts while the loader retains ordinary TICDRL01 compatibility.
+
+The longer timer, 288-cycle STAT body, continuing celebration, held/fresh inputs,
+source branch work and all 119,520 prepared plus 119,520 published sprite bytes
+agree. The 747 services extend the same control's 33-service incoming fade,
+bringing its result total to 780; these overlap the isolated 787-service
+celebration recording. Native state comes from gameplay and setup, not recorded
+emitter, ledger, clock or readiness values. Perfect input skips additionally
+have synthetic coverage; no perfect skip is claimed as an original witness.
+
+Result readiness uses eight-pixel published objects and the line-120 disable.
+Cancellation during a fetch still rejects at ambiguous dots. Late horizontal
+blank is certified only after a conservative uninterrupted upper bound:
+256 + scroll + window + 11 dots per selected object (at most ten). The pinned
+independent DMG source skips disabled objects and aborts an active fetch without
+adding work (`Core/display.c` 1943-2038; `Core/memory.c` 1540-1547). This is a
+one-sided readiness bound, not an inferred cancellation time or hardware proof.
+
+All four perfect intervals now compare from one complete native handoff replay.
+Evidence: `local/air-perfect-accounting-reference/`,
+`local/air-perfect-handoff-services.csv.account*` and
+`local/air-perfect-complete-account-comparison.log`. See
+[perfect handoff](AIR_RESULT_HANDOFF.md) for the subsequent bounded extension.
+Current validation: 18,680 native result assertions, 580 pause/session/pixel
+assertions and 295 Python tests. Ordinary result and three coupled pause
+regressions pass. Complete result pixels/PCM, final-life/reset, later setup,
+unobserved interruptions and production integration remain required.
+
+## Earlier ordinary-result checkpoint
+
 The native diagnostic continues ordinary successful Air results from 047e
 through the next-stunt index update and return at 0514. It reconstructs source
 operations, not CPU instructions. The Windows scheduler is still unchanged.
@@ -38,7 +76,7 @@ establish readiness, intended bytes/destinations and timing; they do not prove
 complete result image parity or physical hardware write acceptance. Evidence
 covers one ordinary success with unchanged post-stunt buttons. Seven button
 extensions are now qualified separately; see [result input owners](AIR_RESULT_INPUT.md).
-Perfect/reset and final-life results, the subsequent player/stunt setup,
+Reset and final-life results, the subsequent player/stunt setup,
 unobserved interrupted owners and production integration remain open.
 
 Local evidence: `local/sameboy-air-success-accounting/`,

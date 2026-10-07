@@ -38,9 +38,9 @@ def capture(args):
     def hook(pc):
      nonlocal active,complete,opened,result_seen
      if complete:return
-     if pc==0x2436 and p.memory[0xc098]==10:
+     if pc==0x2436 and p.memory[0xc098] in (2,10):
       result_seen=True;result_buttons.append(p.memory[0xff8a])
-     if pc==0x047e and p.memory[0xc098]==10:active=True
+     if pc==0x047e and p.memory[0xc098] in (2,10):active=True
      if not active:return
      now=p._cycles()
      if pc in POINTS:
@@ -55,18 +55,26 @@ def capture(args):
        tick=word(0xc00a),countdown=word(0xc0b7),phases={})
      elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
       name=IRQ_PHASES[pc];opened['phases'][name]=now
-      if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
+      if name=='display':
+       opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
+       if p.memory[0xc095]&4:opened['visible']=list(p.memory[0xfe00:0xfea0])
       if name=='bookkeeping':opened.update(resetEnabled=p.memory[0xc005],resetLatched=p.memory[0xc004])
       if name=='effects':opened['effectRequest']=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6]
       if name=='music':opened['musicEnabled']=p.memory[0xffcf]
+     elif pc in (0x151e,0x249b) and opened and opened['kind']=='vblank' and p.memory[0xc095]&4:
+      state=dict(random=word(0xc09e),emitters=[list(p.memory[0xc200+16*i:0xc205+16*i]) for i in range(4)])
+      if pc==0x151e:opened['celebration']=dict(start=now,tick=word(0xc00a),before=state)
+      else:
+       if 'celebration' not in opened:raise ValueError('Missing accounting celebration entry')
+       opened['celebration'].update(end=now,after=state,prepared=list(p.memory[0xc100:0xc1a0]))
      elif pc in (0x2484,0x2555) and opened:
       if opened['kind']!=('vblank' if pc==0x2484 else 'stat'):raise ValueError('Accounting interrupt return mismatch')
       opened['end']=now;irqs.append(opened);opened=None
-     elif pc==0x2123:polls.append(dict(cycles=now,mode=p.register_file.A&3))
+     elif pc==0x2123:polls.append(dict(cycles=now,mode=p.register_file.A&3,lcd=p.lcd_snapshot()))
      elif pc==0x2128:writes.append(dict(cycles=now,address=256*p.register_file.D+p.register_file.E,value=p.register_file.A))
     try:
      with (folder/'setup.state').open('rb') as stream:p.load_state(stream)
-     for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128):p.hook_register(0,pc,hook,pc)
+     for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x151e,0x249b):p.hook_register(0,pc,hook,pc)
      for event in json.loads((folder/'events.json').read_text()):
       if event[0]=='tick':p.tick(event[1],event[2])
       elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
@@ -74,7 +82,7 @@ def capture(args):
      control=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or control!=manifest['controlMemorySha256']:raise ValueError('Incomplete accounting or changed original control')
-    data=dict(version=2,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,
+    data=dict(version=3 if points[0]['result']&4 else 2,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,
      points=points,interrupts=irqs,polls=polls,writes=writes)
     analyze(data)
     if not result_seen or len(result_buttons)!=33+len([r for r in irqs if r['kind']=='vblank']):raise ValueError('Incomplete result button input coverage')
@@ -85,14 +93,15 @@ def capture(args):
 
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
-    if data.get('version') not in (1,2) or not points or points[0]['name']!='begin' or points[-1]['name']!='end':
+    if data.get('version') not in (1,2,3) or not points or points[0]['name']!='begin' or points[-1]['name']!='end':
         raise ValueError('Incomplete successful accounting')
-    if any(p['result']!=3 or p['display']!=10 for p in points):raise ValueError('Separate special-result owner required')
+    perfect=points[0]['result']==7
+    if (perfect and data['version']!=3) or any(p['result']!=(7 if perfect else 3) or p['display']!=(2 if perfect else 10) for p in points):raise ValueError('Separate qualified special-result owner required')
     if any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Accounting boundary order differs')
     begin=points[0];end=points[-1]
-    if begin['stage']!=1 or end['stage']!=2 or end['pay'] or end['seconds'] or end['musicEnabled'] or begin['countdown']!=567 or not 1<=end['countdown']<=566:
+    if begin['stage']!=1 or end['stage']!=2 or end['pay'] or end['seconds'] or end['musicEnabled'] or begin['countdown']!=(687 if perfect else 567) or not 1<=end['countdown']<(687 if perfect else 567):
         raise ValueError('Incomplete ordinary Air stage handoff')
-    if end['savings']!=(begin['savings']+begin['pay']+begin['seconds'])%1000000:
+    if end['savings']!=(begin['savings']+(2 if perfect else 1)*(begin['pay']+begin['seconds']))%1000000:
         raise ValueError('Ordinary pay/time ledger does not conserve the source amounts')
     expected_counts={'payTest':begin['pay']+1,'savingsIncrement':begin['pay'],'payDecrement':begin['pay'],
         'payUpdated':begin['pay'],'payTail':begin['pay'],
@@ -122,7 +131,7 @@ def analyze(data):
         expected=costs.get(p['name'])
         if p['name']=='payTest':expected=64 if p['pay'] else 60
         if p['name']=='timeTest':expected=28 if p['seconds'] else 40
-        if p['name'] in ('payUpdated','timeResult'):expected=68 if p.get('skip',0) else 64
+        if p['name'] in ('payUpdated','timeResult'):expected=(228 if p.get('skip',0) else 224) if perfect else 68 if p.get('skip',0) else 64
         if expected is not None and elapsed_work(p['cycles'],q['cycles'],irqs)!=expected:
             raise ValueError('Accounting primitive work differs: '+p['name'])
     services=[];previous=begin['cycles']
@@ -130,9 +139,14 @@ def analyze(data):
         if not previous<=r['start']<r['end'] or r['end']+16>end['cycles']:raise ValueError('Accounting IRQ coverage overlaps or crosses its boundary')
         previous=r['end']+16
         if r['kind']=='stat':
-            if r['selector']!=0 or r['end']-r['start']!=stat_cycles(0):raise ValueError('Unowned accounting STAT work')
+            selector=4 if perfect else 0
+            if r['selector']!=selector or r['end']-r['start']!=stat_cycles(selector):raise ValueError('Unowned accounting STAT work')
         elif r['kind']=='vblank':
-            work=vblank_work(r);expected={**VBLANK_FIXED,'display':272 if r['countdown']>1 else 228,
+            work=vblank_work(r);celebration=r.get('celebration',{})
+            if perfect and (not celebration or len(r.get('visible',[]))!=160 or
+                not r['phases']['display']<celebration['start']<celebration.get('end',0)<r['phases']['bookkeeping']):raise ValueError('Missing accounting celebration/publication')
+            display=(272 if r['countdown']>1 else 228)+(80+celebration['end']-celebration['start'] if perfect else 0)
+            expected={**VBLANK_FIXED,'display':display,
                 'bookkeeping':vblank_bookkeeping_work(r['resetEnabled'],r['held'],r['resetLatched']),'effects':64}
             if any(work[k]!=v for k,v in expected.items()) or r['effectRequest']!=-1:raise ValueError('Unowned accounting display service')
             services.append(r)
@@ -140,7 +154,12 @@ def analyze(data):
     if len(services)!=(end['tick']-begin['tick'])%65536 or not services:raise ValueError('Missing accounting counter coverage')
     if data['version']==1 and (len({r['held'] for r in services})!=1 or end['countdown']!=1):
         raise ValueError('Legacy result evidence requires unchanged buttons and a complete timer')
-    if data['version']==2:
+    if perfect:
+        from air_celebration_reference import analyze as analyze_component
+        analyze_component(dict(version=1,terminal='accounting',services=[r['celebration'] for r in services]))
+        for a,b in zip(services,services[1:]):
+            if b['visible']!=a['celebration']['prepared']:raise ValueError('Accounting publication continuity differs')
+    if data['version']>=2:
         if any(not 0<=p['skip']<=255 or p['inputPressed']&~p['inputHeld'] or (p['inputHeld']&15)==15 for p in points):
             raise ValueError('Invalid original result input/latch/reset state')
         previous=begin['inputHeld']
@@ -155,7 +174,7 @@ def analyze(data):
     return services
 
 
-def compare_accounting(data,native,services,irqs,polls,writes,summary,epoch):
+def compare_accounting(data,native,services,irqs,polls,writes,summary,epoch,celebrations=None):
     original_services=analyze(data)
     if [len(x) for x in (native,services,irqs,polls,writes,summary)]!=[len(data['points']),len(original_services),len(data['interrupts']),len(data['polls']),len(data['writes']),1]:
         raise ValueError('Incomplete native accounting/access coverage')
@@ -166,12 +185,12 @@ def compare_accounting(data,native,services,irqs,polls,writes,summary,epoch):
     for i,(p,q) in enumerate(zip(data['points'],native)):
         if q['boundary']!=p['name']:raise ValueError('Reordered native accounting boundaries')
         target={k:p[k] for k in ('tick','countdown','pay','savings','seconds','stage','musicEnabled')}
-        if data['version']==2:target.update({k:p[k] for k in ('skip','inputHeld','inputPressed')})
+        if data['version']>=2:target.update({k:p[k] for k in ('skip','inputHeld','inputPressed')})
         target['cycle']=p['cycles']-epoch;check('boundary',i,target,q)
     for i,(p,q) in enumerate(zip(original_services,services)):
         w=vblank_work(p);target=dict(service=33+i,cycle=p['start']-epoch,tick=p['tick'],countdown=max(1,p['countdown']-1),display=w['display'],
             effects=w['effects'],music=w['music'],musicEnabled=p['musicEnabled'],inputHeld=p['held'])
-        if data['version']==2:target['inputPressed']=p['pressed']
+        if data['version']>=2:target['inputPressed']=p['pressed']
         check('service',i,target,q)
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
         owner=2 if p['returnAddress']==0x261d else 1
@@ -182,6 +201,14 @@ def compare_accounting(data,native,services,irqs,polls,writes,summary,epoch):
             check(name,i,dict(cycle=p['cycles']-epoch,**{k:p[k] for k in keys}),q)
     end=data['points'][-1];target={k:end[k] for k in ('tick','countdown','pay','savings','seconds','stage')}
     target.update(end=end['cycles']-epoch,displays=33+len(original_services),stats=33+len(data['interrupts'])-len(original_services));check('summary',0,target,summary[0])
+    if data['points'][0]['result']==7:
+        from air_celebration_reference import compare_component
+        if celebrations is None:raise ValueError('Missing native accounting celebration state/publication')
+        component=dict(version=1,terminal='accounting',services=[r['celebration'] for r in original_services])
+        differences.extend(dict(celebration=d) for d in compare_component(component,celebrations,33))
+        for i,(p,q) in enumerate(zip(original_services,celebrations)):
+            if any(f'visible{j}' not in q for j in range(160)):raise ValueError('Missing native accounting published list')
+            check('publication',i,{f'visible{j}':v for j,v in enumerate(p['visible'])},q)
     return differences
 
 
@@ -197,10 +224,12 @@ def compare(args):
         with path.open(encoding='utf-8-sig',newline='') as stream:return list(csv.DictReader(stream))
     native=rows(args.native_csv);services=rows(args.native_csv.with_suffix('.services.csv'));irqs=rows(args.native_csv.with_suffix('.interrupts.csv'))
     polls=rows(args.native_csv.with_suffix('.polls.csv'));writes=rows(args.native_csv.with_suffix('.writes.csv'));summary=rows(args.native_csv.with_suffix('.summary.csv'))
-    differences=compare_accounting(data,native,services,irqs,polls,writes,summary,epoch)
+    celebrations=rows(args.native_csv.with_suffix('.celebration.csv')) if data['points'][0]['result']==7 else None
+    differences=compare_accounting(data,native,services,irqs,polls,writes,summary,epoch,celebrations)
     result=dict(comparedBoundaries=len(native),comparedServices=len(services),comparedInterrupts=len(irqs),comparedPolls=len(polls),comparedWrites=len(writes),
         differences=len(differences),firstDifference=differences[0] if differences else None,productionSchedulerAccepted=False,
-        evidenceLimit='Complete ordinary successful Air accounting for the supplied control, including fresh input/skip state when version 2, ledger/timer/stage state, scalar LCD readiness and intended glyph writes. Excludes perfect/final-life/reset results, new gameplay, pixels/PCM, unobserved interruptions and production integration.')
+        perfectAccountingAccepted=data['points'][0]['result']==7,
+        evidenceLimit='Complete native Air accounting for the supplied control, including input/skip, ledger/timer/stage, scalar LCD readiness and intended glyph writes. Perfect version 3 additionally requires celebration work/state and published/prepared lists. Excludes final-life/reset, subsequent handoff/setup, complete pixels/PCM, unobserved interruptions and production integration.')
     write_json(args.native_csv.with_suffix('.comparison.json'),result);print(json.dumps(result,indent=2))
     if differences:raise ValueError('Native successful accounting differs from the original')
 
