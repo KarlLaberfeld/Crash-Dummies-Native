@@ -83,7 +83,8 @@ and independently captured startup, not another case's measurements.
 
 Successful accounting after 047e is now qualified through 0514 for one ordinary
 success with unchanged buttons; see [accounting evidence](AIR_RESULT_ACCOUNTING.md).
-Requested point 1 is not complete. Next are input skips and subsequent setup.
+Input skips now have separate qualified owners; see [result inputs](AIR_RESULT_INPUT.md).
+Requested point 1 is not complete. Subsequent setup remains open.
 Perfect celebration and
 final-life transitions also remain. Initial UI/LCD access, unobserved entity/
 resource/protected-pause interruptions, partial row pixels and production
@@ -91,7 +92,7 @@ Windows integration still need qualification. This evidence establishes
 neither result pixels/PCM, independent hardware/Windows nor final acceptance.
 
 Latest validation: 2,085 source-work assertions, 573 pause/session/
-pixel assertions, 4,624 result-clock assertions and 200 Python tests. The O2
+pixel assertions, 4,646 result-clock assertions and 211 Python tests. The O2
 diagnostic also retains all seven complete gameplay controls, including all
 36,548 main-game IRQ vectors. The rebuilt Windows EXE passes native suites,
 three complete campaign scenarios, 34 sprite assertions and normal/failed-audio

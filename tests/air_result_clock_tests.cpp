@@ -38,7 +38,7 @@ int main(){
                 AirResultTextAssets texts;for(auto& list:texts.layouts)list={{1,0,15},{0,0,0},{0,3,0},{4,0,0}};
                 int glyphs=0,polls=0,sourceVectors=0;bool sawFrozenCounter=false;
                 auto account=airResultAccount(incoming,3,0,3,4,2,sound,texts,
-                    [&](const char*,int64_t cycle,int,int,int,int,int,int,bool){require(cycle>previous,"Success accounting boundaries increase through counting and final waits");previous=cycle;},
+                    [&](const char*,int64_t cycle,int,int,int,int,int,int,bool,int){require(cycle>previous,"Success accounting boundaries increase through counting and final waits");previous=cycle;},
                     [&](unsigned,int64_t,int,int countdown,int display,int,int,bool){if(display==228)sawFrozenCounter=countdown==1;},
                     [&](const char*,int64_t,AirIrqOwner owner){require(owner==AirIrqOwner::CounterWait||owner==AirIrqOwner::SourceBoundary,"Every accounting request is owned by a wait or completed native operation");++sourceVectors;},
                     [&](int64_t,int mode){require(mode>=0&&mode<=3,"Accounting status reads retain native LCD modes");++polls;},
@@ -47,6 +47,26 @@ int main(){
                 require(account.timing.displays==660&&account.timing.countdown==1&&sawFrozenCounter,"Ordinary result completes its countdown plus the final 60-service hold");
                 require(account.timing.tick==((65530+660)&65535)&&!sound.enabled,"Successful result retains counter wrapping and stops music");
                 require(glyphs>60&&polls>=glyphs&&sourceVectors>1200,"Accounting owns actual glyph readiness accesses and complete periodic requests");
+                for(int branch=0;branch<4;++branch){
+                    NativeAudio skipSound(audio);skipSound.measureWork=true;skipSound.playMusic(4);
+                    int sample=0,payWaits=0,timeWaits=0,skipSeen=0;std::string phase;
+                    auto skipped=airResultAccount(incoming,3,0,10,0,3,skipSound,texts,
+                        [&](const char* name,int64_t,int,int,int,int,int,int,bool,int latch){phase=name;skipSeen=latch;
+                            payWaits+=phase=="payWait";timeWaits+=phase=="timeWait";},
+                        [](unsigned,int64_t,int,int,int,int,int,bool){},
+                        [](const char*,int64_t,AirIrqOwner){},[](int64_t,int){},[](int64_t,int,int){},
+                        [&]{++sample;
+                            if(branch==0&&sample==1)return 2;
+                            if(branch==1&&sample==1)return 64;
+                            if(branch==2&&phase=="payWait"&&payWaits==1)return 2;
+                            if(branch==3&&phase=="timeWait"&&timeWaits==1)return 2;
+                            if(phase=="timerWait"&&sample%2==0)return 2;
+                            return 0;});
+                    require(skipped.savings==13&&skipped.pay==0&&skipped.seconds==0&&skipped.stage==2,"Input skips preserve the complete pay/time ledger and stunt advance");
+                    require(skipped.timing.displays<660&&skipped.timing.countdown>1,"A fresh action ends the final hold before the guarded timer");
+                    require(skipSeen==(branch==1?64:2),"Ready wait retains unmasked direction edges; pay/time waits latch only action edges");
+                    require(payWaits==(branch<2?0:branch==2?1:10)&&timeWaits==(branch<3?0:1),"Latched skips bypass subsequent per-cent waits and refreshes");
+                }
             }
             if(result==1){
                 int holdServices=0,holdWaits=0,holdTails=0;bool stopped=false;
@@ -57,6 +77,18 @@ int main(){
                     [&](const char*,int64_t,AirIrqOwner owner){require(owner==AirIrqOwner::CounterWait,"Failure hold requests are owned by the source counter waits");});
                 require(holdServices==480&&holdWaits==480&&holdTails==480&&held.displays==514&&held.countdown==86,"Failure result holds all 480 services without expiring its 600-service timer");
                 require(stopped&&!sound.enabled&&held.end>incoming.end,"Failure result stops music before campaign handoff");
+                for(int branch=0;branch<3;++branch){
+                    NativeAudio skipSound(audio);skipSound.measureWork=true;skipSound.playMusic(3);
+                    auto start=incoming;int sample=0,waits=0;
+                    if(branch==2)start.input.held=start.input.previous=2;
+                    auto skipped=airResultFailureHold(start,1,branch==2?2:0,skipSound,*ui,
+                        [&](const char* name,int64_t,int,int,int,int,int,bool){waits+=std::string(name)=="holdWait";},
+                        [](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){},
+                        [&]{++sample;return branch==0?2:branch==1?(sample==1?64:2):2;});
+                    int expectedWaits=branch==0?1:branch==1?2:480;
+                    require(waits==expectedWaits&&skipped.displays==unsigned(34+expectedWaits),"Failure hold accepts fresh actions, ignores directions and does not reskip a held action");
+                    require(skipped.countdown==566-expectedWaits&&!skipSound.enabled,"Shortened failure hold preserves timer and music-stop ownership");
+                }
             }
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};

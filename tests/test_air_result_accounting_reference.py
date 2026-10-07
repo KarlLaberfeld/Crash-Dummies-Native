@@ -82,6 +82,28 @@ class AccountingEvidence(unittest.TestCase):
         with self.assertRaises(ValueError):self.compare()
     def test_summary_total_difference_reported(self):
         self.summary[0]['savings']=5;self.assertEqual(self.compare()[0]['category'],'summary')
+    def version_two(self):
+        self.data['version']=2
+        for p,native in zip(self.data['points'],self.native):
+            p.update(skip=0,inputHeld=0,inputPressed=0);native.update(skip=0,inputHeld=0,inputPressed=0)
+        for r in self.data['interrupts']:
+            if r['kind']=='vblank':r['pressed']=0
+        for r in self.services:r['inputPressed']=0
+    def test_version_two_fresh_sampling(self):
+        self.version_two();self.assertEqual(self.compare(),[])
+    def test_invalid_original_fresh_edge_rejects(self):
+        self.version_two();self.data['interrupts'][1]['pressed']=2
+        with self.assertRaises(ValueError):analyze(self.data)
+    def test_invalid_latch_rejects(self):
+        self.version_two();self.data['points'][2]['skip']=256
+        with self.assertRaises(ValueError):analyze(self.data)
+    def test_native_latch_difference_reported(self):
+        self.version_two();self.native[2]['skip']=2;self.assertEqual(self.compare()[0]['category'],'boundary')
+    def test_native_fresh_edge_difference_reported(self):
+        self.version_two();self.services[2]['inputPressed']=2;self.assertEqual(self.compare()[0]['category'],'service')
+    def test_latch_cannot_remove_arbitrary_loop_boundaries(self):
+        self.version_two();self.data['points'][2]['skip']=2;self.data['points'].pop(3)
+        with self.assertRaises(ValueError):analyze(self.data)
 
 
 if __name__=='__main__':unittest.main()

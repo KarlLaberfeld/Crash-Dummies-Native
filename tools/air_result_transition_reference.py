@@ -45,6 +45,7 @@ def capture(args):
                 result=player.memory[0xc095],countdown=word(0xc0b7),display=player.memory[0xc098],
                 musicEnabled=player.memory[0xffcf],song=player.memory[0xffce],
                 bgp=player.memory[0xff47],obp0=player.memory[0xff48],obp1=player.memory[0xff49],
+                inputHeld=player.memory[0xff8a],inputPressed=player.memory[0xff8b],
                 interruptFlags=player.memory[0xff0f],lcd=player.lcd_snapshot()))
             if selected[pc]==('failureResultReturned' if args.failure_hold else 'fadeReturned'):active=False;complete=True
         elif pc in (0x0040,0x0048):
@@ -53,7 +54,7 @@ def capture(args):
                 returnAddress=word(player.register_file.SP),tick=word(0xc00a),countdown=word(0xc0b7),phases={})
         elif pc in IRQ_PHASES and opened is not None and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now
-            if name=='display':opened['held']=player.memory[0xff8a]
+            if name=='display':opened.update(held=player.memory[0xff8a],pressed=player.memory[0xff8b])
             if name=='bookkeeping':opened.update(resetEnabled=player.memory[0xc005],resetLatched=player.memory[0xc004])
             if name=='effects':opened['effectRequest']=-1 if player.memory[0xffc6]==255 else player.memory[0xffc6]
             if name=='music':opened['musicEnabled']=player.memory[0xffcf]
@@ -71,14 +72,15 @@ def capture(args):
     finally:player.stop(save=False)
     if control!=manifest['controlMemorySha256'] or not complete or opened is not None:
         raise ValueError('Incomplete result transition or changed original control')
-    data=dict(version=1,failureHold=args.failure_hold,romSha256=manifest['romSha256'],controlMemorySha256=control,
+    data=dict(version=2,failureHold=args.failure_hold,romSha256=manifest['romSha256'],controlMemorySha256=control,
         reference=metadata,points=points,interrupts=interrupts)
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-transition.json',data)
+    (args.out/'buttons.txt').write_text(''.join(str(r['held'])+'\n' for r in interrupts if r['kind']=='vblank'))
     print(json.dumps(dict(points=len(points),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
 
 def analyze(data):
-    if data.get('version')!=1:raise ValueError('Recapture result transition')
+    if data.get('version') not in (1,2):raise ValueError('Recapture result transition')
     points=data['points'];irqs=data['interrupts']
     hold=data.get('failureHold',False)
     if not points or points[0]['name']!='playerReady' or points[-1]['name']!=('failureResultReturned' if hold else 'fadeReturned'):
@@ -90,7 +92,9 @@ def analyze(data):
         'playerReady','failurePortrait','failurePortraitReady','failureTextReady','lcdWriteReturned','enable','enableFollower',
         'failureWait','failureWaitReturned','musicEntry','musicReady','fadeEntry']
     expected=prefix+[name for _ in range(8) for name in ('palette','wait','tail','wait','tail','wait','tail','wait','tail')]+['fadeReturned']
-    if hold:expected+=[name for _ in range(480) for name in ('holdWait','holdTail')]+['holdReturned','musicStopped','failureResultReturned']
+    hold_count=sum(p['name']=='holdWait' for p in points) if hold else 0
+    if hold and not (1<=hold_count<=480 and (data['version']==2 or hold_count==480)):raise ValueError('Incomplete result hold')
+    if hold:expected+=[name for _ in range(hold_count) for name in ('holdWait','holdTail')]+['holdReturned','musicStopped','failureResultReturned']
     if [p['name'] for p in points]!=expected or any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):
         raise ValueError('Missing/reordered result boundaries')
     if any(p['result']!=result or p['display']!=10 for p in points):raise ValueError('Result mode changed inside transition')
@@ -116,7 +120,7 @@ def analyze(data):
                 raise ValueError('Unowned result display/bookkeeping/effect work')
             services.append(r)
         else:raise ValueError('Unknown result interrupt')
-    if len(services)!=((33 if success else 34)+(480 if hold else 0)) or len(irqs)!=2*len(services):
+    if len(services)!=((33 if success else 34)+hold_count) or len(irqs)!=2*len(services):
         raise ValueError('Result display/STAT coverage differs')
     fade_end=next(i for i,p in enumerate(points) if p['name']=='fadeReturned')
     fade=points[len(prefix)-1:fade_end+1];wait_index=0
@@ -135,7 +139,7 @@ def analyze(data):
     if wait_index!=32:raise ValueError('Incomplete incoming fade waits')
     if hold:
         held={r['held'] for r in services}
-        if len(held)!=1:raise ValueError('Changed post-stunt input needs its own hold/skip owner')
+        if data['version']==1 and len(held)!=1:raise ValueError('Legacy hold requires unchanged input')
         wait=0
         for p,q in zip(points[fade_end:],points[fade_end+1:]):
             active=elapsed_work(p['cycles'],q['cycles'],irqs)
@@ -145,8 +149,16 @@ def analyze(data):
                 idle=active-wait_active_cycles(sum(r['kind']=='stat' for r in included));wait+=1
                 if idle<0 or idle%4:raise ValueError('Invalid hold HALT idle')
             else:
-                predicted=44 if p['name']=='fadeReturned' else 52 if p['name']=='holdTail' and wait<480 else 64 if p['name']=='holdTail' else 12384 if p['name']=='holdReturned' else 16
+                edge=p.get('inputPressed',0)&11
+                if p['name']=='holdTail' and edge and wait!=hold_count:raise ValueError('Result hold failed to return at a fresh action')
+                if p['name']=='holdTail' and wait==hold_count and hold_count<480 and not edge:raise ValueError('Truncated hold without fresh action')
+                predicted=44 if p['name']=='fadeReturned' else (36 if edge else 52 if wait<480 else 64) if p['name']=='holdTail' else 12384 if p['name']=='holdReturned' else 16
                 if active!=predicted:raise ValueError('Result hold branch/stop work differs')
+    if data['version']==2:
+        previous=points[0]['inputHeld']
+        for r in services:
+            if r['pressed']!=r['held']&~previous or (r['held']&15)==15:raise ValueError('Result button edge/reset state differs')
+            previous=r['held']
     return services
 
 
@@ -159,12 +171,14 @@ def compare_transition(data,native,services,irqs,summary,epoch):
         if row['boundary']!=target['name']:raise ValueError('Reordered native result boundaries')
         expected={key:target[key] for key in ('tick','countdown','bgp','obp0','obp1','musicEnabled')}
         expected['cycle']=target['cycles']-epoch
+        if data['version']==2:expected.update({k:target[k] for k in ('inputHeld','inputPressed')})
         delta={k:[v,int(row[k])] for k,v in expected.items() if int(row[k])!=v}
         if delta:differences.append(dict(boundary=index,fields=delta))
     for index,(target,row) in enumerate(zip(original_services,services)):
         c=vblank_work(target)
         expected=dict(service=index,cycle=target['start']-epoch,tick=target['tick'],countdown=target['countdown']-1,
             display=c['display'],effects=c['effects'],music=c['music'],musicEnabled=target['musicEnabled'],inputHeld=target['held'])
+        if data['version']==2:expected['inputPressed']=target['pressed']
         delta={k:[v,int(row[k])] for k,v in expected.items() if int(row[k])!=v}
         if delta:differences.append(dict(service=index,fields=delta))
     for index,(target,row) in enumerate(zip(data['interrupts'],irqs)):
@@ -194,7 +208,7 @@ def compare(args):
     result=dict(comparedBoundaries=len(native),comparedServices=len(services),comparedInterrupts=len(irqs),differences=len(differences),
         firstDifference=differences[0] if differences else None,productionSchedulerAccepted=False,
         failureHoldAccepted=data.get('failureHold',False),
-        evidenceLimit='Ordinary Air result text/portrait work, music reset/start, LCD restart, pending services and complete incoming fade; failure-hold captures additionally include all 480 waits and the final music stop. Excludes final-life/perfect results, changed post-stunt buttons, pixels/PCM, successful accounting/next-stunt and Windows integration.')
+        evidenceLimit='Ordinary Air result text/portrait work, music reset/start, LCD restart, pending services and complete incoming fade; failure-hold captures additionally include the full or input-shortened hold and final music stop. Version 2 compares fresh input state. Excludes final-life/perfect/reset results, pixels/PCM, subsequent setup and Windows integration.')
     write_json(args.native_csv.with_suffix('.comparison.json'),result);print(json.dumps(result,indent=2))
     if differences:raise ValueError('Native result transition differs from original')
 

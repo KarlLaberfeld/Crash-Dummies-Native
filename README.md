@@ -9,10 +9,11 @@ boundaries and 8,485 LCD-line reads. Ordinary incoming results and full failure
 holds match another 3,225 boundaries and 3,150 vectors across four input patterns.
 Successful accounting additionally matches 2,753 boundaries, 1,254 vectors,
 17,634 LCD polls and 4,802 intended glyph writes. The native diagnostic builds
-at O2; input skips, special results, subsequent setup and production timing
+at O2. Seven post-result input schedules also match exactly; special results,
+subsequent setup and production timing
 integration remain open. See [scene completion](docs/AIR_SCENE_COMPLETION.md),
 [result setup](docs/AIR_RESULT_PREFIX.md), [result transition limits](docs/AIR_RESULT_TRANSITION.md)
-and [accounting scope](docs/AIR_RESULT_ACCOUNTING.md).
+and [accounting scope](docs/AIR_RESULT_ACCOUNTING.md), plus [result inputs](docs/AIR_RESULT_INPUT.md).
 
 This project aims to faithfully reimplement the Game Boy release as a native
 Windows game. The current build contains **Roof Jump**, **Air Bumper**, **Ski Slope**, **Bomb Factory**, and **Cruise Missile**, each with

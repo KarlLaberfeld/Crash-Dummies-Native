@@ -39,7 +39,11 @@ struct AirResultLayoutAssets {
 inline constexpr int airResultMusicStartWork(){
     return audioStopWork()-60-32+76+8*40+60+23*52-4+16+96;
 }
-struct AirResultTransition {int64_t end=0,lcdEpoch=0,nextStat=0,nextVBlank=0;int tick=0,countdown=600,displays=0,stats=0;};
+struct AirResultTransition {
+    int64_t end=0,lcdEpoch=0,nextStat=0,nextVBlank=0;
+    int tick=0,countdown=600,displays=0,stats=0,skip=0;
+    DisplayInput input;
+};
 inline int airResultCountdownWork(int& countdown){
     if(countdown<1||countdown>720)throw std::runtime_error("Invalid result countdown");
     // 24cf retains one when decrement would reach zero: the taken conditional
@@ -49,12 +53,13 @@ inline int airResultCountdownWork(int& countdown){
 }
 template<class Boundary,class Service,class Interrupt>
 AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
-    const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt){
+    const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt,
+    std::function<int()> sampleInput={}){
     if(!(result&1)||result&4||prefix.pendingRequests!=3||prefix.end<=prefix.lcdDisabled||sound.enabled)
         throw std::runtime_error("Unowned Air result transition/celebration/startup");
     if((held&15)==15||(!(result&2)&&lives<=1))
         throw std::runtime_error("Result reset/final-life transition needs its separate owner");
-    AirResultTransition state;state.tick=tick;int64_t now=prefix.end;
+    AirResultTransition state;state.tick=tick;state.input.held=state.input.previous=held;int64_t now=prefix.end;
     const bool success=result&2;int bgp=ui.fadePalettes[7],obp0=bgp&0xcf,obp1=bgp&0xf3;
     auto point=[&](const char* name,int64_t cycle){boundary(name,cycle,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
     point("playerReady",now);
@@ -77,6 +82,9 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     clock.nextStat=state.lcdEpoch+143*456;clock.nextVBlank=state.lcdEpoch+AirClock::VBlankLine;clock.statBody=248;
     clock.interrupt=[&](const char* kind,int64_t time,AirIrqOwner owner){interrupt(kind,time,owner);};
     auto display=[&](bool){
+        state.input.sample(sampleInput?sampleInput():state.input.held);
+        if(state.input.held<0||state.input.held>255||(state.input.held&15)==15)
+            throw std::runtime_error("Unowned result input/reset service");
         int before=state.tick;state.tick=(state.tick+1)&65535;
         // 24cf decrements 600, with the source's zero-store guard.
         int displayWork=airResultCountdownWork(state.countdown);sound.tick();
@@ -127,7 +135,7 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
 
 template<class Boundary,class Service,class Interrupt>
 AirResultTransition airResultFailureHold(AirResultTransition state,int result,int held,NativeAudio& sound,
-    const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt){
+    const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
     if(!(result&1)||result&6||state.displays!=34||state.countdown!=566||(held&15)==15)
         throw std::runtime_error("Unowned result hold/skip/reset transition");
     AirClock clock;clock.now=state.end;clock.nextStat=state.nextStat;clock.nextVBlank=state.nextVBlank;
@@ -136,6 +144,8 @@ AirResultTransition airResultFailureHold(AirResultTransition state,int result,in
     int bgp=ui.fadePalettes[0],obp0=bgp&0xcf,obp1=bgp&0xf3;
     auto point=[&](const char* name){boundary(name,clock.now,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
     auto display=[&](bool){
+        state.input.sample(sampleInput?sampleInput():state.input.held);
+        if(state.input.held<0||state.input.held>255||(state.input.held&15)==15)throw std::runtime_error("Unowned failure hold input/reset service");
         int tick=state.tick;state.tick=(state.tick+1)&65535;int displayWork=airResultCountdownWork(state.countdown);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned result hold audio work");
         service(clock.displays,clock.now+20,tick,state.countdown,displayWork,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
@@ -144,9 +154,10 @@ AirResultTransition airResultFailureHold(AirResultTransition state,int result,in
     for(int cost:{8,12,24})clock.atomicWork(cost,[]{},display,false);
     for(int wait=0;wait<480;++wait){
         point("holdWait");clock.wait(display,false);point("holdTail");
-        // Fresh input is sampled every display. This bounded hold keeps the
-        // already held post-stunt buttons; new edges require an input owner.
-        for(int cost:{12,4,8,8,4,4})clock.atomicWork(cost,[]{},display,false);
+        bool exit=state.input.pressed&11;
+        for(int cost:{12,4,exit?20:8})clock.atomicWork(cost,[]{},display,false);
+        if(exit)break;
+        for(int cost:{8,4,4})clock.atomicWork(cost,[]{},display,false);
         clock.atomicWork(wait<479?12:8,[]{},display,false);
         if(wait==479)clock.atomicWork(16,[]{},display,false);
     }

@@ -36,8 +36,9 @@ and must not be counted as independent gameplay patterns.
 Intended glyph writes are measured before the original store. These checks
 establish readiness, intended bytes/destinations and timing; they do not prove
 complete result image parity or physical hardware write acceptance. Evidence
-covers one ordinary success with unchanged post-stunt buttons. Perfect results,
-button skips/reset, final-life results, the subsequent player/stunt setup,
+covers one ordinary success with unchanged post-stunt buttons. Seven button
+extensions are now qualified separately; see [result input owners](AIR_RESULT_INPUT.md).
+Perfect/reset and final-life results, the subsequent player/stunt setup,
 unobserved interrupted owners and production integration remain open.
 
 Local evidence: `local/sameboy-air-success-accounting/`,

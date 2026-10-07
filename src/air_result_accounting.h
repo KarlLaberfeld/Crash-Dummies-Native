@@ -89,26 +89,33 @@ struct AirResultWriter {
 struct AirResultAccounting {AirResultTransition timing;int pay=0,savings=0,seconds=0,stage=1;};
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirResultAccounting airResultAccount(AirResultTransition state,int result,int held,int pay,int savings,int seconds,
-    NativeAudio& sound,const AirResultTextAssets& texts,Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write){
+    NativeAudio& sound,const AirResultTextAssets& texts,Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,
+    std::function<int()> sampleInput={}){
     if(result!=3||(held&15)==15||state.displays!=33||state.countdown!=567||pay<0||savings<0||seconds<0)
         throw std::runtime_error("Unowned successful result/accounting input");
     AirResultAccounting account;account.pay=pay;account.savings=savings;account.seconds=seconds;
     AirClock clock;clock.now=state.end;clock.nextStat=state.nextStat;clock.nextVBlank=state.nextVBlank;
     clock.displays=state.displays;clock.statServices=state.stats;clock.statBody=248;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
-    auto display=[&](bool){int tick=state.tick;state.tick=(state.tick+1)&65535;int work=airResultCountdownWork(state.countdown);sound.tick();
+    auto display=[&](bool){
+        state.input.sample(sampleInput?sampleInput():state.input.held);
+        if(state.input.held<0||state.input.held>255||(state.input.held&15)==15)throw std::runtime_error("Unowned accounting input/reset service");
+        int tick=state.tick;state.tick=(state.tick+1)&65535;int work=airResultCountdownWork(state.countdown);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned accounting audio service");
         service(clock.displays,clock.now+20,tick,state.countdown,work,sound.effectWorkCycles,sound.musicWorkCycles,sound.enabled);
         return 1592+work+sound.effectWorkCycles+sound.musicWorkCycles;};
     AirResultWriter writer(clock,state.lcdEpoch,display,poll,write);
-    auto point=[&](const char* name){boundary(name,clock.now,state.tick,state.countdown,account.pay,account.savings,account.seconds,account.stage,sound.enabled);};
+    auto point=[&](const char* name){boundary(name,clock.now,state.tick,state.countdown,account.pay,account.savings,account.seconds,account.stage,sound.enabled,state.skip);};
     auto works=[&](std::initializer_list<int> costs){writer.work(costs);};
     auto delay=[&](int count,bool ready){
-        works({24});for(int i=0;i<count;++i){works({16,4,8});clock.wait(display,false);
-            if(ready)works({12,16,4,8});works({8,4,4,i<count-1?12:8});if(i==count-1)works({16});}
+        works({24});for(int i=0;i<count;++i){works({16,4,state.skip?20:8});if(state.skip)return;
+            clock.wait(display,false);
+            if(ready){works({12,16});state.skip=state.input.pressed;works({4,state.skip&11?20:8});if(state.skip&11)return;}
+            works({8,4,4,i<count-1?12:8});if(i==count-1)works({16});}
     };
     auto savingsIncrement=[&]{works({24,16,4,4,4,8,4,8,8,8,4,8,8,8,4,8,8,8,4,8,16});account.savings=(account.savings+1)%1000000;};
-    auto buttonWait=[&]{works({24});clock.wait(display,false);works({12,8,20});};
+    auto buttonWait=[&]{works({24});clock.wait(display,false);int edge=state.input.pressed&11;
+        works({12,8,edge?8:20});if(edge){works({16});state.skip=edge;works({16});}};
     point("begin");works({8,12});point("readyWait");delay(15,true);point("readyReturned");
     works({8});clock.accessWork(12,8,[&]{
         auto frame=(clock.now-state.lcdEpoch)/AirClock::Frame;
@@ -124,20 +131,25 @@ AirResultAccounting airResultAccount(AirResultTransition state,int result,int he
         point("payTest");works({12,8,8,4,8,account.pay?8:20});if(!account.pay)break;
         works({16});point("savingsIncrement");savingsIncrement();point("payDecrement");
         works({24,12,8,8,4,8,8,8,4,8,8,8,4,8,16});--account.pay;point("payUpdated");
-        works({16,8,12,16,4,8});point("payWait");buttonWait();point("savingsRefresh");writer.money(account.savings,true);
-        point("payRefresh");writer.money(account.pay,false);point("payTail");works({12,12});
+        works({16,8,12,16,4,state.skip?12:8});
+        if(!state.skip){point("payWait");buttonWait();point("savingsRefresh");writer.money(account.savings,true);
+            point("payRefresh");writer.money(account.pay,false);}
+        point("payTail");works({12,12});
     }
     point("payDone");writer.money(account.savings,true);point("payTotal");writer.money(account.pay,false);point("payShowEnded");
     works({16,8,8,12});delay(15,false);point("timeLabel");works({24});writer.text(texts.layouts[2]);works({16,8,20});
     point("timeNumber");writer.time(account.seconds);point("timeLoop");works({24});
     for(;;){point("timeTest");works({16,4,account.seconds?8:20});if(!account.seconds)break;
         point("timeUnit");works({16});point("timeSavingsIncrement");savingsIncrement();point("timeDecrement");
-        works({24,16,8,4,8,16,16});--account.seconds;point("timeResult");works({16,8,12,16,4,8});point("timeWait");
-        buttonWait();point("timeSavingsRefresh");writer.money(account.savings,true);point("timeRefresh");writer.time(account.seconds);point("timeTail");works({12,12});}
+        works({24,16,8,4,8,16,16});--account.seconds;point("timeResult");works({16,8,12,16,4,state.skip?12:8});
+        if(!state.skip){point("timeWait");buttonWait();point("timeSavingsRefresh");writer.money(account.savings,true);point("timeRefresh");writer.time(account.seconds);}
+        point("timeTail");works({12,12});}
     point("timeDone");writer.money(account.savings,true);point("finalSavings");writer.time(account.seconds);point("accountingComplete");
     int waitCount=state.countdown+60;works({8,16,4,16,4,8,16,4,4,(state.countdown&255)+60>255?8:20});
     if((state.countdown&255)+60>255)works({4,16});point("timerWait");works({24});
-    for(int i=0;i<waitCount;++i){clock.wait(display,false);works({12,4,8,8,4,4,i<waitCount-1?12:8});if(i==waitCount-1)works({16});}
+    for(int i=0;i<waitCount;++i){clock.wait(display,false);bool exit=state.input.pressed&11;
+        works({12,4,exit?20:8});if(exit)break;
+        works({8,4,4,i<waitCount-1?12:8});if(i==waitCount-1)works({16});}
     point("finalMusicStop");if(clock.now+audioStopWork()>=std::min(clock.nextStat,clock.nextVBlank))throw std::runtime_error("Interrupted accounting audio stop needs its owner");
     clock.now+=audioStopWork();sound.stop();point("musicStopped");works({24,16,4,4,4,8,4,8,16});point("dayAdvance");
     works({8,4,8,8,12});++account.stage;point("end");state.end=clock.now;state.displays=clock.displays;state.stats=clock.statServices;

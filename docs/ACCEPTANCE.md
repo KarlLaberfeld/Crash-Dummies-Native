@@ -18,10 +18,13 @@ Successful ordinary accounting through 0514 also matches 2,753 boundaries,
 It verifies native pay/time/savings and the stunt index; one successful pattern
 with unchanged post-stunt buttons qualifies these scalar accesses, not complete
 result pixels or physical hardware acceptance. See [accounting limits](AIR_RESULT_ACCOUNTING.md).
-Current tests: 2,085 source, 573 pause/session/pixel and 4,624 result-clock
-assertions; 200 Python tests. The rebuilt EXE passes three complete campaigns,
+Seven additional post-result input schedules match exactly: early/transfer/final
+success skips, failure action exits and ignored failure directions. These extend
+existing gameplay controls; see [input scope](AIR_RESULT_INPUT.md).
+Current tests: 2,085 source, 573 pause/session/pixel and 4,646 result-clock
+assertions; 211 Python tests. The rebuilt EXE passes three complete campaigns,
 34 sprite assertions and normal/failed-audio 13/14 Windows UI checks.
-Remaining Air timing includes input skips, subsequent setup, perfect/final-life results,
+Remaining Air timing includes subsequent setup, perfect/final-life/reset results,
 earlier UI/LCD entry and unobserved interrupted/protected owners. Production
 scheduling and the full final-release checklist are still required.
 

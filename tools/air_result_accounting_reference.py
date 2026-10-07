@@ -29,22 +29,25 @@ def capture(args):
      0x13f5:'timeSavingsIncrement',0x13f8:'timeDecrement',0x13fb:'timeResult',0x1409:'timeWait',0x140c:'timeSavingsRefresh',
      0x140f:'timeRefresh',0x1412:'timeTail',0x04e7:'timeDone',0x04ea:'finalSavings',0x04ed:'accountingComplete',
      0x04fa:'timerWait',0x04fd:'finalMusicStop',0x0500:'musicStopped',0x0503:'dayAdvance',0x0514:'end'}
-    active=False;complete=False;points=[];irqs=[];opened=None;polls=[];writes=[]
+    active=False;complete=False;points=[];irqs=[];opened=None;polls=[];writes=[];result_buttons=[];result_seen=False
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def bcd(a,size):
      value=0
      for b in p.memory[a:a+size]:value=100*value+10*(b>>4)+(b&15)
      return value
     def hook(pc):
-     nonlocal active,complete,opened
+     nonlocal active,complete,opened,result_seen
      if complete:return
+     if pc==0x2436 and p.memory[0xc098]==10:
+      result_seen=True;result_buttons.append(p.memory[0xff8a])
      if pc==0x047e and p.memory[0xc098]==10:active=True
      if not active:return
      now=p._cycles()
      if pc in POINTS:
       points.append(dict(name=POINTS[pc],cycles=now,tick=word(0xc00a),countdown=word(0xc0b7),pay=bcd(0xff98,3),
        savings=bcd(0xc085+8*p.memory[0xc082],3),seconds=bcd(0xc084,1),stage=p.memory[0xc088+8*p.memory[0xc082]],
-       result=p.memory[0xc095],lyc=p.memory[0xff45],display=p.memory[0xc098],musicEnabled=p.memory[0xffcf],lcd=p.lcd_snapshot()))
+       result=p.memory[0xc095],lyc=p.memory[0xff45],display=p.memory[0xc098],musicEnabled=p.memory[0xffcf],
+       skip=p.memory[0xc0b4],inputHeld=p.memory[0xff8a],inputPressed=p.memory[0xff8b],lcd=p.lcd_snapshot()))
       if pc==0x0514:complete=True;active=False
      elif pc in (0x0040,0x0048):
       if opened:raise ValueError('Nested accounting interrupt')
@@ -52,7 +55,7 @@ def capture(args):
        tick=word(0xc00a),countdown=word(0xc0b7),phases={})
      elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
       name=IRQ_PHASES[pc];opened['phases'][name]=now
-      if name=='display':opened['held']=p.memory[0xff8a]
+      if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
       if name=='bookkeeping':opened.update(resetEnabled=p.memory[0xc005],resetLatched=p.memory[0xc004])
       if name=='effects':opened['effectRequest']=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6]
       if name=='music':opened['musicEnabled']=p.memory[0xffcf]
@@ -71,37 +74,47 @@ def capture(args):
      control=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or control!=manifest['controlMemorySha256']:raise ValueError('Incomplete accounting or changed original control')
-    data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,
+    data=dict(version=2,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,
      points=points,interrupts=irqs,polls=polls,writes=writes)
     analyze(data)
+    if not result_seen or len(result_buttons)!=33+len([r for r in irqs if r['kind']=='vblank']):raise ValueError('Incomplete result button input coverage')
     write_json(target/'accounting.json',data)
+    (target/'buttons.txt').write_text(''.join(str(held)+'\n' for held in result_buttons))
     print(json.dumps(dict(points=len(points),interrupts=len(irqs),polls=len(polls),writes=len(writes),begin=points[0],end=points[-1],nativeCompared=False),indent=2))
 
 
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
-    if data.get('version')!=1 or not points or points[0]['name']!='begin' or points[-1]['name']!='end':
+    if data.get('version') not in (1,2) or not points or points[0]['name']!='begin' or points[-1]['name']!='end':
         raise ValueError('Incomplete successful accounting')
     if any(p['result']!=3 or p['display']!=10 for p in points):raise ValueError('Separate special-result owner required')
     if any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Accounting boundary order differs')
     begin=points[0];end=points[-1]
-    if begin['stage']!=1 or end['stage']!=2 or end['pay'] or end['seconds'] or end['musicEnabled'] or begin['countdown']!=567 or end['countdown']!=1:
+    if begin['stage']!=1 or end['stage']!=2 or end['pay'] or end['seconds'] or end['musicEnabled'] or begin['countdown']!=567 or not 1<=end['countdown']<=566:
         raise ValueError('Incomplete ordinary Air stage handoff')
     if end['savings']!=(begin['savings']+begin['pay']+begin['seconds'])%1000000:
         raise ValueError('Ordinary pay/time ledger does not conserve the source amounts')
     expected_counts={'payTest':begin['pay']+1,'savingsIncrement':begin['pay'],'payDecrement':begin['pay'],
-        'payUpdated':begin['pay'],'payWait':begin['pay'],'savingsRefresh':begin['pay'],'payRefresh':begin['pay'],'payTail':begin['pay'],
+        'payUpdated':begin['pay'],'payTail':begin['pay'],
         'timeTest':begin['seconds']+1,'timeUnit':begin['seconds'],'timeSavingsIncrement':begin['seconds'],
-        'timeDecrement':begin['seconds'],'timeResult':begin['seconds'],'timeWait':begin['seconds'],
-        'timeSavingsRefresh':begin['seconds'],'timeRefresh':begin['seconds'],'timeTail':begin['seconds']}
+        'timeDecrement':begin['seconds'],'timeResult':begin['seconds'],'timeTail':begin['seconds']}
     from collections import Counter
     counts=Counter(p['name'] for p in points)
     if any(counts[k]!=v for k,v in expected_counts.items()):raise ValueError('Incomplete successful counting loops')
     before=['begin','readyWait','readyReturned','detailSetup','dayReady','savingsLabel','savingsNumber','savingsNumberReady','savingsDelay','payLabel','payNumber','payLoop']
     between=['payDone','payTotal','payShowEnded','timeLabel','timeNumber','timeLoop']
     after=['timeDone','finalSavings','accountingComplete','timerWait','finalMusicStop','musicStopped','dayAdvance','end']
-    expected_order=before+['payTest','savingsIncrement','payDecrement','payUpdated','payWait','savingsRefresh','payRefresh','payTail']*begin['pay']+['payTest']+between+[
-        'timeTest','timeUnit','timeSavingsIncrement','timeDecrement','timeResult','timeWait','timeSavingsRefresh','timeRefresh','timeTail']*begin['seconds']+['timeTest']+after
+    expected_order=before[:]
+    for p in (p for p in points if p['name']=='payUpdated'):
+        expected_order+=['payTest','savingsIncrement','payDecrement','payUpdated']
+        if not p.get('skip',0):expected_order+=['payWait','savingsRefresh','payRefresh']
+        expected_order+=['payTail']
+    expected_order+=['payTest']+between
+    for p in (p for p in points if p['name']=='timeResult'):
+        expected_order+=['timeTest','timeUnit','timeSavingsIncrement','timeDecrement','timeResult']
+        if not p.get('skip',0):expected_order+=['timeWait','timeSavingsRefresh','timeRefresh']
+        expected_order+=['timeTail']
+    expected_order+=['timeTest']+after
     if [p['name'] for p in points]!=expected_order:raise ValueError('Accounting stages/loop order differ')
     costs={'savingsIncrement':172,'payDecrement':136,'payUpdated':64,'payTail':24,'timeUnit':16,
         'timeSavingsIncrement':172,'timeDecrement':92,'timeResult':64,'timeTail':24,'finalMusicStop':12384,'musicStopped':88,'dayAdvance':40}
@@ -109,6 +122,7 @@ def analyze(data):
         expected=costs.get(p['name'])
         if p['name']=='payTest':expected=64 if p['pay'] else 60
         if p['name']=='timeTest':expected=28 if p['seconds'] else 40
+        if p['name'] in ('payUpdated','timeResult'):expected=68 if p.get('skip',0) else 64
         if expected is not None and elapsed_work(p['cycles'],q['cycles'],irqs)!=expected:
             raise ValueError('Accounting primitive work differs: '+p['name'])
     services=[];previous=begin['cycles']
@@ -124,7 +138,15 @@ def analyze(data):
             services.append(r)
         else:raise ValueError('Unexpected accounting IRQ')
     if len(services)!=(end['tick']-begin['tick'])%65536 or not services:raise ValueError('Missing accounting counter coverage')
-    if len({r['held'] for r in services})!=1:raise ValueError('Changed post-stunt buttons require their own skip owner')
+    if data['version']==1 and (len({r['held'] for r in services})!=1 or end['countdown']!=1):
+        raise ValueError('Legacy result evidence requires unchanged buttons and a complete timer')
+    if data['version']==2:
+        if any(not 0<=p['skip']<=255 or p['inputPressed']&~p['inputHeld'] or (p['inputHeld']&15)==15 for p in points):
+            raise ValueError('Invalid original result input/latch/reset state')
+        previous=begin['inputHeld']
+        for r in services:
+            if r['pressed']!=r['held']&~previous:raise ValueError('Original fresh button sampling differs')
+            previous=r['held']
     if not data.get('polls') or not data.get('writes'):raise ValueError('Missing LCD-on result access evidence')
     for key in ('polls','writes'):
         rows=data[key]
@@ -143,10 +165,14 @@ def compare_accounting(data,native,services,irqs,polls,writes,summary,epoch):
         if delta:differences.append(dict(category=category,index=index,fields=delta))
     for i,(p,q) in enumerate(zip(data['points'],native)):
         if q['boundary']!=p['name']:raise ValueError('Reordered native accounting boundaries')
-        target={k:p[k] for k in ('tick','countdown','pay','savings','seconds','stage','musicEnabled')};target['cycle']=p['cycles']-epoch;check('boundary',i,target,q)
+        target={k:p[k] for k in ('tick','countdown','pay','savings','seconds','stage','musicEnabled')}
+        if data['version']==2:target.update({k:p[k] for k in ('skip','inputHeld','inputPressed')})
+        target['cycle']=p['cycles']-epoch;check('boundary',i,target,q)
     for i,(p,q) in enumerate(zip(original_services,services)):
         w=vblank_work(p);target=dict(service=33+i,cycle=p['start']-epoch,tick=p['tick'],countdown=max(1,p['countdown']-1),display=w['display'],
-            effects=w['effects'],music=w['music'],musicEnabled=p['musicEnabled'],inputHeld=p['held']);check('service',i,target,q)
+            effects=w['effects'],music=w['music'],musicEnabled=p['musicEnabled'],inputHeld=p['held'])
+        if data['version']==2:target['inputPressed']=p['pressed']
+        check('service',i,target,q)
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
         owner=2 if p['returnAddress']==0x261d else 1
         if q['kind']!=p['kind'] or int(q['owner'])!=owner:raise ValueError('Unowned/reordered accounting vector')
@@ -174,7 +200,7 @@ def compare(args):
     differences=compare_accounting(data,native,services,irqs,polls,writes,summary,epoch)
     result=dict(comparedBoundaries=len(native),comparedServices=len(services),comparedInterrupts=len(irqs),comparedPolls=len(polls),comparedWrites=len(writes),
         differences=len(differences),firstDifference=differences[0] if differences else None,productionSchedulerAccepted=False,
-        evidenceLimit='Complete ordinary successful Air accounting with unchanged post-stunt buttons, ledger/timer/stage state, scalar LCD readiness and intended glyph writes. Excludes special/skip/reset results, new gameplay, pixels/PCM, unobserved interruptions and production integration.')
+        evidenceLimit='Complete ordinary successful Air accounting for the supplied control, including fresh input/skip state when version 2, ledger/timer/stage state, scalar LCD readiness and intended glyph writes. Excludes perfect/final-life/reset results, new gameplay, pixels/PCM, unobserved interruptions and production integration.')
     write_json(args.native_csv.with_suffix('.comparison.json'),result);print(json.dumps(result,indent=2))
     if differences:raise ValueError('Native successful accounting differs from the original')
 

@@ -28,11 +28,12 @@
 
 using namespace ticd;
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --result-incoming | --result-failure-hold | --result-accounting]\n");return 2;}
     try{
-        int difficulty=1,positional=0;std::string spritePath,displayInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0;std::string spritePath,displayInputPath,resultInputPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
+            else if(option=="--result-inputs"&&i+1<argc)resultInputPath=argv[++i];
             else if(option=="--result-prefix"){resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-incoming"){resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
             else if(option=="--result-failure-hold"){resultHold=true;resultIncoming=true;resultPrefix=true;outroFade=true;finalWait=true;}
@@ -54,6 +55,7 @@ int main(int argc,char** argv){
         if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
         if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
         if(framesPath.empty()!=frameSelection.empty())throw std::runtime_error("Frame output requires a directory and selected services");
+        if(!resultInputPath.empty()&&!resultIncoming)throw std::runtime_error("Result input requires incoming/accounting ownership");
         std::set<unsigned> frameServices;
         for(size_t begin=0;begin<frameSelection.size();){
             auto end=frameSelection.find(',',begin);auto value=frameSelection.substr(begin,end-begin);
@@ -399,33 +401,38 @@ int main(int argc,char** argv){
                 auto layouts=AirResultLayoutAssets::load("build/result-timing.dat");auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
                 std::ofstream resultPoints(std::string(argv[2])+".incoming.csv"),resultServices(std::string(argv[2])+".incoming.services.csv"),resultIrqs(std::string(argv[2])+".incoming.interrupts.csv");
                 if(!resultPoints||!resultServices||!resultIrqs)throw std::runtime_error("Cannot open result incoming outputs");
-                resultPoints<<"boundary,cycle,tick,countdown,bgp,obp0,obp1,musicEnabled\n";
-                resultServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld\n";
+                resultPoints<<"boundary,cycle,tick,countdown,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed\n";
+                resultServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld,inputPressed\n";
                 resultIrqs<<"kind,vectorCycle,owner\n";
                 // These standalone controls begin with the native campaign's
                 // five lives. Final-life and reset ownership explicitly reject.
-                auto point=[&](const char* name,int64_t cycle,int tick,int countdown,int bgp,int obp0,int obp1,bool enabled){resultPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<'\n';};
-                auto resultDisplay=[&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){sampled.sample(sampled.held);resultServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<'\n';};
+                auto point=[&](const char* name,int64_t cycle,int tick,int countdown,int bgp,int obp0,int obp1,bool enabled){resultPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';};
+                std::ifstream resultInputs;if(!resultInputPath.empty()){resultInputs.open(resultInputPath);if(!resultInputs)throw std::runtime_error("Cannot open result button samples");}
+                auto nextResultInput=[&]{int held=sampled.held;
+                    if(resultInputs.is_open()&&(!(resultInputs>>held)||held<0||held>255))throw std::runtime_error("Missing/invalid result button sample");
+                    sampled.sample(held);return held;};
+                auto resultDisplay=[&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){resultServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';};
                 auto resultIrq=[&](const char* kind,int64_t cycle,AirIrqOwner owner){resultIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';};
-                auto incoming=airResultIncoming(prefix,game->result,game->ticks,5,sampled.held,sound,layouts,*ui,point,resultDisplay,resultIrq);
-                if(resultHold)incoming=airResultFailureHold(incoming,game->result,sampled.held,sound,*ui,point,resultDisplay,resultIrq);
+                auto incoming=airResultIncoming(prefix,game->result,game->ticks,5,sampled.held,sound,layouts,*ui,point,resultDisplay,resultIrq,nextResultInput);
+                if(resultHold)incoming=airResultFailureHold(incoming,game->result,sampled.held,sound,*ui,point,resultDisplay,resultIrq,nextResultInput);
                 std::ofstream resultSummary(std::string(argv[2])+".incoming.summary.csv");
                 resultSummary<<"end,lcdEpoch,tick,countdown,displays,stats\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<'\n';
                 if(resultAccounting){
                     auto texts=AirResultTextAssets::load("build/result-layouts.dat");
                     std::ofstream accountPoints(std::string(argv[2])+".account.csv"),accountServices(std::string(argv[2])+".account.services.csv"),accountIrqs(std::string(argv[2])+".account.interrupts.csv"),accountPolls(std::string(argv[2])+".account.polls.csv"),accountWrites(std::string(argv[2])+".account.writes.csv");
                     if(!accountPoints||!accountServices||!accountIrqs||!accountPolls||!accountWrites)throw std::runtime_error("Cannot open result accounting outputs");
-                    accountPoints<<"boundary,cycle,tick,countdown,pay,savings,seconds,stage,musicEnabled\n";
-                    accountServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld\n";
+                    accountPoints<<"boundary,cycle,tick,countdown,pay,savings,seconds,stage,musicEnabled,skip,inputHeld,inputPressed\n";
+                    accountServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld,inputPressed\n";
                     accountIrqs<<"kind,vectorCycle,owner\n";accountPolls<<"cycle,mode\n";accountWrites<<"cycle,address,value\n";
                     auto account=airResultAccount(incoming,game->result,sampled.held,game->money,0,game->seconds,sound,texts,
-                        [&](const char* name,int64_t cycle,int tick,int countdown,int pay,int savings,int seconds,int stage,bool enabled){accountPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<pay<<','<<savings<<','<<seconds<<','<<stage<<','<<enabled<<'\n';},
-                        [&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){sampled.sample(sampled.held);accountServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<'\n';},
+                        [&](const char* name,int64_t cycle,int tick,int countdown,int pay,int savings,int seconds,int stage,bool enabled,int skip){accountPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<pay<<','<<savings<<','<<seconds<<','<<stage<<','<<enabled<<','<<skip<<','<<sampled.held<<','<<sampled.pressed<<'\n';},
+                        [&](unsigned service,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){accountServices<<service<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';},
                         [&](const char* kind,int64_t cycle,AirIrqOwner owner){accountIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
                         [&](int64_t cycle,int mode){accountPolls<<cycle<<','<<mode<<'\n';},
-                        [&](int64_t cycle,int address,int value){accountWrites<<cycle<<','<<address<<','<<value<<'\n';});
+                        [&](int64_t cycle,int address,int value){accountWrites<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
                     std::ofstream accountSummary(std::string(argv[2])+".account.summary.csv");accountSummary<<"end,tick,countdown,displays,stats,pay,savings,seconds,stage\n"<<account.timing.end<<','<<account.timing.tick<<','<<account.timing.countdown<<','<<account.timing.displays<<','<<account.timing.stats<<','<<account.pay<<','<<account.savings<<','<<account.seconds<<','<<account.stage<<'\n';
                 }
+                if(resultInputs.is_open()){int spare;if(resultInputs>>spare)throw std::runtime_error("Result button input extends beyond replay completion");if(!resultInputs.eof())throw std::runtime_error("Malformed trailing result input");}
             }
         }
         if(!frameServices.empty()&&*frameServices.rbegin()>=clock.displays)throw std::runtime_error("Selected native frame services exceed replay coverage");
