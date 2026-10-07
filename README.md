@@ -12,7 +12,10 @@ and published sprite bytes. Complete perfect accounting and handoff now also
 agree: 747 + seven services, 1,508 vectors, 23,631 LCD polls and 5,097 intended
 writes. Its 282 pay + six time cents correctly yield 576 savings cents.
 These extend the same 787-service control; counts overlap the isolated animation.
-Subsequent setup, final-life/reset and Windows integration remain open. See
+The following player/lives/stunt/difficulty header and first wait also agree
+in five controls: 60 boundaries, ten vectors, 1,391 polls and 197 glyph writes.
+Instruction text/transition, subsequent setup, final-life/reset and Windows
+integration remain open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).
 

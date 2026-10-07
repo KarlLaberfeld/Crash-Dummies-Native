@@ -26,7 +26,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat','result-layouts.dat'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat','result-layouts.dat','instruction-header.dat'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -263,6 +263,22 @@ class LocalCartridge(unittest.TestCase):
         altered=bytearray(self.rom);altered[0x2cd2]=0
         with self.assertRaisesRegex(ValueError,'Unknown password action'):
             extract_ui.hidden_passwords(altered)
+
+    def test_header_package_contains_only_semantic_layouts_and_player_glyphs(self):
+        with scratch_directory() as directory:
+            extract_ui.extract_ui(self.rom,directory)
+            packed=(Path(directory)/'instruction-header.dat').read_bytes()
+            self.assertEqual(packed[:8],b'TICDIH01')
+            self.assertEqual(packed[8:14],self.rom[0x22dc:0x22df]+self.rom[0x22e0:0x22e3])
+            position=14
+            for script in (0x02cf,0x02f3,0x0303,0x263d,0x2643,0x2649,0x2651,0x2658,0x266d,0x2674,0x2679,0x2680):
+                count=struct.unpack_from('<H',packed,position)[0];position+=2
+                commands=[tuple(packed[position+3*i:position+3*i+3]) for i in range(count)];position+=3*count
+                self.assertEqual(commands,extract_ui.result_layout_commands(self.rom,script,True))
+                self.assertEqual(commands[-1],(4,0,0));self.assertTrue(all(c[0]<=5 for c in commands))
+            self.assertEqual(position,len(packed))
+        self.assertEqual(extract_ui.result_layout_commands(bytes([0x8b,0x80]),0,True),[(5,0,0),(4,0,0)])
+        with self.assertRaises(ValueError):extract_ui.result_layout_commands(bytes([0x8b,0x80]),0)
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

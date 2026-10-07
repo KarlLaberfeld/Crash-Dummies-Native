@@ -1,5 +1,14 @@
 # Final release acceptance
 
+October 8 header follow-up: player/lives/stunt/difficulty text and its first
+wait through 031c match five existing originals at 60 boundaries / five services /
+ten vectors / 1,391 LCD polls / 197 intended glyph writes. Checks: 18,720 result
+assertions and 308 Python tests. See [scope](AIR_INSTRUCTION_HEADER.md).
+Instruction music/copy/transition/timed text/exit and next gameplay setup are
+still required, together with final-life/reset, earlier UI/LCD, unobserved
+owners and production scheduling. Full images/PCM, physical/human/independent
+Windows tests and packaging also remain. No final-release acceptance.
+
 Latest October 7 perfect accounting/handoff: all four native result intervals
 match one genuine 14/14 control through 02ce. Accounting agrees at 2,338
 boundaries / 747 services / 1,494 vectors / 19,961 polls / 4,073 intended writes;

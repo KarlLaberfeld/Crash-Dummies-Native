@@ -1,4 +1,16 @@
-# Project status - October 7, 2026
+# Project status - October 8, 2026
+
+Latest header follow-up: native 02ce..031c player/lives/stunt/difficulty text
+and first counter wait now match five existing originals: 60 boundaries / five
+services / ten vectors / 1,391 LCD polls / 197 intended glyph writes, zero
+differences. Global result-service indices and full original control hashes
+are checked. Locally extracted semantic layouts carry glyphs, not cartridge
+instructions or reference timings. Checks: optimized diagnostic, 18,720 result
+assertions and 308 Python tests. See [header scope](AIR_INSTRUCTION_HEADER.md).
+Next concrete owner: instruction music/graphics copy, map transition, timed
+text and input/exit fade, then following gameplay setup. Perfect result remains
+qualified through the preceding handoff below. Production scheduling, final-life/
+reset, earlier UI/LCD and unobserved owners keep timing point 1 incomplete.
 
 Latest perfect-accounting/handoff follow-up: the complete native result now
 matches the same genuine 14/14 original through 02ce. Accounting: 2,338
@@ -14,7 +26,7 @@ See [accounting](AIR_RESULT_ACCOUNTING.md) and [handoff](AIR_RESULT_HANDOFF.md).
 Checks: optimized diagnostic, 18,680 result / 580 pause/session/pixel assertions
 and 295 Python tests; baseline ordinary result/handoff and three coupled pause
 controls pass. The production EXE/scheduler is unchanged. Next concrete owner:
-header/instruction screen and following gameplay setup. Final-life/reset,
+instruction screen and following gameplay setup. Final-life/reset,
 earlier UI/LCD entry, unobserved interrupted owners and production integration
 also remain open. Timing point 1 is incomplete; no final release is claimed.
 

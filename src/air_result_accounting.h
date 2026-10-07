@@ -44,19 +44,30 @@ struct AirResultWriter {
         clock.accessWork(8,4,[]{},display,false);clock.atomicWork(8,[&]{++cursor;},display,false);work({16});
     }
     void positionWork(){work({4,4,4,4,4,8,4,4,4,4,4,4,16,4,4,16});}
-    void text(const std::vector<AirResultTextCommand>& commands){
+    void character(int value){
+        work({8,8,8,16,8,value?8:12});if(value)work({16,4,12});
+        work({12,24});glyph(value);work({12});
+    }
+    void commandDispatch(){work({8,8,12,16,12,24,4,16,4,4,20,8,8,4,16,4});}
+    void text(const std::vector<AirResultTextCommand>& commands,const std::array<unsigned char,3>* playerName=nullptr){
         work({16,16,12,16,4,16,4});
         for(const auto& command:commands){
-            if(command.kind==0){
-                work({8,8,8,16,8,command.a?8:12});if(command.a)work({16,4,12});
-                work({12,24});glyph(command.a);work({12});continue;
-            }
+            if(command.kind==0){character(command.a);continue;}
             // Identified layout-command dispatch with a non-crossing table.
-            work({8,8,12,16,12,24,4,16,4,4,20,8,8,4,16,4});
+            commandDispatch();
             if(command.kind==4){work({4,16,4,16,4,16,16,16,16});return;}
             if(command.kind==1){work({12,8,4,16,8,4,24});anchor=command.a;row=command.b;cursor=layer+32*row+anchor;positionWork();work({16});}
             else if(command.kind==2){work({12,4,16,4,24});++row;cursor=layer+32*row+anchor;positionWork();work({16});}
             else if(command.kind==3){work({12,8,4,4,8,16,16});layer=0x9800+1024*command.a;}
+            else if(command.kind==5){
+                if(!playerName||std::any_of(playerName->begin(),playerName->end(),[](int value){return value<1||value>127;}))
+                    throw std::runtime_error("Unowned player-name layout substitution");
+                // Identified word substitution saves/restores its text cursor;
+                // only the three locally decoded glyph values are dynamic.
+                work({12,4,16,4,16,16,4,4,12,16,4,4,20,16});
+                for(int value:*playerName)character(value);
+                commandDispatch();work({12,16,4,16,4,16});
+            }
             else throw std::runtime_error("Unowned result layout command");
         }
         throw std::runtime_error("Incomplete result text layout");

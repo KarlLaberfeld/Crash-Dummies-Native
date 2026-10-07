@@ -2,6 +2,7 @@
 #include "air_result_transition.h"
 #include "air_result_accounting.h"
 #include "air_result_handoff.h"
+#include "air_instruction_header.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -216,6 +217,31 @@ int main(){
                 [](const char*,int64_t,AirIrqOwner){},[](int64_t,int){},[](int64_t,int,int){});
             }catch(const std::runtime_error&){rejected=true;}
             require(rejected,"All-player elimination requires its separate title return owner");
+        }
+        for(int variant=0;variant<4;++variant){
+            const char* path="local/air-header-fixture.dat";
+            {std::ofstream file(path,std::ios::binary);file.write("TICDIH01",8);const char names[6]={1,2,3,4,5,6};file.write(names,6);
+                const char terminal[5]={1,0,4,0,0};for(int i=0;i<(variant==1?11:12);++i)file.write(terminal,5);
+                if(variant==2)file.put(0);}
+            bool rejected=false;AirInstructionHeaderAssets header;
+            try{header=AirInstructionHeaderAssets::load(path);}catch(const std::runtime_error&){rejected=true;}
+            std::remove(path);
+            require(variant==1||variant==2?rejected:!rejected,"Header asset loader rejects missing lists and trailing bytes");
+            if(variant!=3)continue;
+            header.layouts[0]={{1,0,0},{5,0,0},{4,0,0}};
+            for(int lives:{1,9,255})for(int player:{0,1}){
+                sound.stop();AirResultHandoff state;state.player=player;state.lives={lives,lives};
+                state.timing.end=2*AirClock::Frame+100;state.timing.nextStat=2*AirClock::Frame+120*456;
+                state.timing.nextVBlank=2*AirClock::Frame+AirClock::VBlankLine;state.timing.countdown=100;
+                std::vector<int> glyphs;int services=0;
+                auto finished=airInstructionHeader(state,2,3,sound,header,
+                    [](const char*,int64_t,int,int,int,int,int,const DisplayInput&){},
+                    [&](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){++services;},
+                    [](const char*,int64_t,AirIrqOwner owner){if(owner==AirIrqOwner::Unqualified)throw std::runtime_error("Unowned header fixture vector");},
+                    [](int64_t,int){},[&](int64_t,int address,int value){require(address>=0x9800&&address<0x9c00,"Header uses its cleared background layer");glyphs.push_back(value);});
+                require(glyphs==std::vector<int>({header.playerNames[player][0],header.playerNames[player][1],header.playerNames[player][2],std::min(lives,9)+1}),"Header name substitution and life clamp own their glyph values");
+                require(services==1&&finished.timing.tick==1&&finished.timing.countdown==99&&finished.lives==state.lives,"Header retains campaign lives and completes its own counter wait");
+            }
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

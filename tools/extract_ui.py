@@ -87,7 +87,7 @@ def result_layout_profile(rom,script):
     raise ValueError('Unterminated result layout profile')
 
 
-def result_layout_commands(rom,script):
+def result_layout_commands(rom,script,player=False):
     """Decode static glyph/anchor/row/layer commands for LCD-on result work."""
     commands=[]
     for _ in range(4096):
@@ -97,6 +97,7 @@ def result_layout_commands(rom,script):
         elif op==0x81:commands.append((1,*rom[script:script+2]));script+=2
         elif op==0x84:commands.append((2,0,0))
         elif op==0x82:commands.append((3,rom[script],0));script+=1
+        elif op==0x8b and player:commands.append((5,0,0))
         else:raise ValueError(f'Unqualified LCD-on result layout operation {op:02x}')
     raise ValueError('Unterminated result command list')
 
@@ -191,6 +192,11 @@ def extract_ui(rom,output):
     (output/'result-timing.dat').write_bytes(b'TICDRT02'+b''.join(struct.pack('<8H',*p) for p in profiles))
     layouts=[result_layout_commands(rom,p) for p in (0x04aa,0x13b3,0x13d3,0x13cb,0x13e8)]
     (output/'result-layouts.dat').write_bytes(b'TICDRL02'+b''.join(struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in layouts))
+    header_layouts=[result_layout_commands(rom,p,True) for p in
+        (0x02cf,0x02f3,0x0303,0x263d,0x2643,0x2649,0x2651,0x2658,0x266d,0x2674,0x2679,0x2680)]
+    player_names=rom[0x22dc:0x22df]+rom[0x22e0:0x22e3]
+    (output/'instruction-header.dat').write_bytes(b'TICDIH01'+player_names+b''.join(
+        struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in header_layouts))
     # Separate bounded pause-copy inputs for the native graphics candidate.
     # Keeping the established UI07 payload unchanged preserves existing builds.
     pause_payload=(b'TICDPA01'+rom[address(3,0x5850):address(3,0x58d0)]+
