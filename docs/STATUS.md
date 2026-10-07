@@ -1,5 +1,21 @@
 # Project status - October 7, 2026
 
+Latest follow-up: ordinary result handoff through live-player selection and
+the full LCD-safe background clear now matches four existing originals:
+44 boundaries, 12 services, 24 vectors, 14,236 polls and 4,096 intended writes,
+zero differences. The steady-frame first-line status edge is corrected.
+Three coupled pause/graphics/audio controls and all baseline result comparisons
+still pass. Current checks: 18,437 result, 574 pause/session/pixel and 4,200
+source assertions; 242 Python tests. See [handoff scope](AIR_RESULT_HANDOFF.md).
+
+A genuine perfect input-only original control now collects 14/14, including
+the crash-only collectible. Native main gameplay agrees through 0409 at all
+2,477 updates, 2,516 services, 14,862 phases, 39,632 pre-update entity slots,
+inputs/final wait and 5,032 IRQ vectors. Eight complete-vector controls now
+total 41,580. Perfect result setup/celebration is the next concrete owner;
+it remains guarded. The following instruction/setup and other pending owners,
+including production integration, keep timing point 1 open.
+
 Latest timing checkpoint: full IRQ coverage exposed and corrected 23 early
 sprite/map vectors previously hidden by counter waits. Scene/resource/clear/
 result-test completion now uses native source boundaries. The six existing

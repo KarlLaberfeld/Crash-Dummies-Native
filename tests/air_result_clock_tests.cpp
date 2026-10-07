@@ -1,6 +1,7 @@
 // Source-shaped native result tests; no ROM or reference emulator.
 #include "air_result_transition.h"
 #include "air_result_accounting.h"
+#include "air_result_handoff.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -86,10 +87,36 @@ int main(){
                         [](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){},
                         [&]{++sample;return branch==0?2:branch==1?(sample==1?64:2):2;});
                     int expectedWaits=branch==0?1:branch==1?2:480;
-                    require(waits==expectedWaits&&skipped.displays==unsigned(34+expectedWaits),"Failure hold accepts fresh actions, ignores directions and does not reskip a held action");
+                    require(waits==expectedWaits&&skipped.displays==34+expectedWaits,"Failure hold accepts fresh actions, ignores directions and does not reskip a held action");
                     require(skipped.countdown==566-expectedWaits&&!skipSound.enabled,"Shortened failure hold preserves timer and music-stop ownership");
                 }
             }
+        }
+        for(int scenario=0;scenario<3;++scenario){
+            sound.stop();AirResultTransition start;start.end=10*AirClock::Frame+100;start.lcdEpoch=0;
+            start.nextStat=10*AirClock::Frame+143*456;start.nextVBlank=10*AirClock::Frame+AirClock::VBlankLine;
+            start.tick=65535;start.countdown=2;
+            int player=scenario==2?1:0;std::array<int,2> lives={5,scenario==1?5:0};
+            int stores=0,points=0,polls=0,displays=0;
+            auto handoff=airResultHandoff(start,player,lives,3,sound,
+                [&](const char*,int64_t,int,int,int,int,int,int,const DisplayInput&){++points;},
+                [&](unsigned,int64_t,int tick,int countdown,int cost,int,int,const DisplayInput&){
+                    require(tick==((65535+displays)&65535)&&countdown==1&&cost==(displays?228:272),"Handoff services retain counter wrapping and the frozen-one timer");++displays;},
+                [&](const char*,int64_t,AirIrqOwner owner){require(owner==AirIrqOwner::SourceBoundary,"Handoff requests wait for identified access completion");},
+                [&](int64_t,int mode){require(mode>=0&&mode<=3,"Handoff readiness stays in qualified steady LCD modes");++polls;},
+                [&](int64_t,int destination,int value){require(destination==0x9800+stores&&value==0,"Handoff clears all map cells in destination order");++stores;});
+            require(stores==1024&&polls>=stores&&displays>0,"Complete background clear owns every store and display service");
+            require(handoff.player==(scenario==1?1:0)&&handoff.lives==lives&&handoff.result==0,"Handoff selects a live player, retains both life records and clears the result");
+            require(points==(scenario==0?11:7),"Only an eliminated opposite player requires a second selection pass");
+            require(handoff.timing.tick==((65535+displays)&65535)&&handoff.timing.countdown==1,"Handoff returns the continuing timer and input clock");
+        }
+        {
+            sound.stop();bool rejected=false;try{airResultHandoff(AirResultTransition{},0,{0,0},3,sound,
+                [](const char*,int64_t,int,int,int,int,int,int,const DisplayInput&){},
+                [](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){},
+                [](const char*,int64_t,AirIrqOwner){},[](int64_t,int){},[](int64_t,int,int){});
+            }catch(const std::runtime_error&){rejected=true;}
+            require(rejected,"All-player elimination requires its separate title return owner");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

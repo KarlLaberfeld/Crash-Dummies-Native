@@ -63,7 +63,11 @@ struct AirPauseLcd {
         // The pinned independent observer exposes the completed edge before
         // advancing its graphics state (its sleep boundary is inclusive).
         // This reference-edge convention still needs hardware qualification.
-        if(dot<=4||dot>end)return 0;
+        // The first visible line retains VBlank at the frame boundary's
+        // inclusive source sample, then enters the short horizontal blank
+        // before scanning. Other lines retain horizontal blank throughout.
+        if(dot<=4)return line==0&&!dot?1:0;
+        if(dot>end)return 0;
         return dot<=84?2:3;
     }
     bool readable(int64_t time) const {return accessible(time,80);}

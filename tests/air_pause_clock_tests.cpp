@@ -96,6 +96,7 @@ int main(){
         require(lcd.mode(row+248)==3&&lcd.mode(row+249)==0&&lcd.readable(row+249),"Pixel completion releases the independent candidate's graphics access");
         require(lcd.mode(row+80)==lcd.mode(row+80+AirClock::Frame),"Steady graphics progress independently of game updates");
         require(lcd.mode(AirClock::Frame+144*456)==1,"Blanking lines permit graphics polling without pixel transfer");
+        require(lcd.mode(2*AirClock::Frame-8)==1&&lcd.mode(2*AirClock::Frame-7)==0&&lcd.mode(2*AirClock::Frame-4)==0&&lcd.mode(2*AirClock::Frame-3)==2,"The first visible line retains the inclusive VBlank sample then the short blank before scanning");
         lcd.objects[0]={40,28};lcd.objects[1]={48,28};
         require(lcd.transferEnd(15)==278&&lcd.transferEnd(28)==256,"Visible native geometry owns its line-specific transfer penalties");
         lcd.objects[1].x=41;

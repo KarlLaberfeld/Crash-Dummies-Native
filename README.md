@@ -2,6 +2,13 @@
 
 **Work in progress. This is not a complete port.**
 
+Latest follow-up: ordinary result handoff and complete background clear match
+four originals at 44 boundaries, 24 vectors, 14,236 polls and 4,096 intended writes.
+A genuine perfect 14/14 control now also matches main gameplay and 5,032 IRQ
+vectors through 0409. Its special result remains the next timing owner;
+subsequent setup and Windows integration remain open. See
+[handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md).
+
 Latest Air timing evidence: seven controls, including a successful finish,
 match all 36,548 complete interrupt vectors. Source completion corrects 23
 previously hidden sprite/map edges. The common result setup also matches 44

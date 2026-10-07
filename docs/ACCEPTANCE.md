@@ -1,5 +1,16 @@
 # Final release acceptance
 
+October 7 follow-up: ordinary result-to-player selection and complete background
+clear through 02ce match 44 boundaries / 12 services / 24 vectors / 14,236 polls /
+4,096 intended writes across four existing controls. Three coupled pause cases
+and baseline result regressions pass after the first-line status correction.
+Current validation: 18,437 result, 574 pause/session/pixel, 4,200 source assertions
+and 242 Python tests. A genuine perfect 14/14 original control additionally
+matches main gameplay and all 5,032 IRQ vectors through 0409; eight-vector-control
+total 41,580. Perfect result/celebration, subsequent instruction/gameplay setup,
+other pending timing owners and production integration remain open. See
+[handoff limits](AIR_RESULT_HANDOFF.md). No final-release acceptance is claimed.
+
 October 7: all 36,548 complete IRQ vectors in seven Air controls match through
 explicit terminal boundaries, including a genuinely successful control.
 Twenty-three previously hidden sprite/map completion errors are corrected;
