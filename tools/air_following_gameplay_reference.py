@@ -15,13 +15,14 @@ def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
-    p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[]
+    p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
-        nonlocal armed,active,complete,opened
+        nonlocal armed,active,complete,opened,pause_seen
         if complete:return
         if pc==0x268b and p.memory[0xc098] in (2,10):armed=True
-        if pc==0x2436 and (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (4,5,6)):buttons.append(p.memory[0xff8a])
+        if pc==0x1476 and armed and not active:pause_seen=True
+        if pc==0x2436 and (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6)):buttons.append(p.memory[0xff8a])
         if pc==0x03d8 and armed:
             if p.memory[0xc098]!=4:raise ValueError('Following gameplay control is not an Air retry')
             if not active:active=True
@@ -47,7 +48,7 @@ def capture(args):
         elif pc in (0x2484,0x2555) and opened:opened['end']=now;irqs.append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b}:p.hook_register(0,pc,hook,pc)
+        for pc in {*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476}:p.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':p.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
@@ -55,7 +56,7 @@ def capture(args):
         digest=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete first following update or changed control')
-    data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-1,productionSchedulerAccepted=False)
+    data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-1,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),services=1,interrupts=len(irqs),controlDifferences=0),indent=2))
@@ -66,7 +67,7 @@ def analyze(data):
     if len(irqs)!=2 or [r['kind'] for r in irqs]!=['stat','vblank'] or data.get('precedingDisplays',-1)<0:raise ValueError('Incomplete following gameplay vectors')
     first=points[0]
     for i,p in enumerate(points):
-        if p['display']!=4 or p['ready'] or p['transfer'] or p['remaining'] or p['effect']!=-1 or p['held']&15==15 or p['pressed']&~p['held'] or p['pressed']&8:raise ValueError('Unowned following gameplay/input/pause state')
+        if p['display']!=4 or p['ready'] or p['transfer'] or p['remaining'] or p['effect']!=-1 or p['held']&15==15 or p['pressed']&~p['held'] or (p['pressed']&8 and not (i<9 and data.get('entryPauseConsumed') is True)):raise ValueError('Unowned following gameplay/input/pause state')
         if not 0<=p['secondTicks']<60 or not 0<=p['seconds']<=99 or any(p[k]!=first[k] for k in ('secondTicks','seconds','random','cameraX','cameraY')):raise ValueError('Unowned first following gameplay scalar change')
         if p['tick']!=(first['tick']+(i==9))&65535 or p['hudCursor']!=2+(i==9) or p['fadeRemaining']!=7-(i==9 and not first['tick']&1):raise ValueError('Unowned following counter/HUD/fade continuation')
         if p['lcdc']!=0xe7 or p['map']!=1 or len(p['entities'])!=16:raise ValueError('Unowned following scene extent')
@@ -105,6 +106,7 @@ def compare_gameplay(data,points,entities,services,irqs,summary,entry,epoch):
         check('interrupt',i,dict(vectorCycle=p['start']-epoch),q)
     first=data['points'][0];end=data['points'][-1]
     if int(entry[0]['end'])!=first['cycles']-epoch or int(entry[0]['tick'])!=first['tick'] or int(entry[0]['randomState'])!=first['random'] or int(entry[0]['displays'])!=data['precedingDisplays']:raise ValueError('Following gameplay is detached from native entry')
+    if int(entry[0].get('entryPauseComplete',0))!=int(data.get('entryPauseConsumed',False)):raise ValueError('Following first-update Start consumption lacks its native pause return')
     if any(int(entry[0][key])+epoch+20!=p['start'] for key,p in zip(('nextStat','nextVBlank'),data['interrupts'])):raise ValueError('Following wait lost its inherited deadlines')
     check('summary',0,dict(end=end['cycles']-epoch,tick=end['tick'],countdown=int(entry[0]['countdown']),displays=int(entry[0]['displays'])+1,stats=int(entry[0]['stats'])+1,lcdEpoch=int(entry[0]['lcdEpoch']),nextStat=int(entry[0]['nextStat'])+70224,nextVBlank=int(entry[0]['nextVBlank'])+70224),summary[0])
     return differences,occupied
@@ -121,8 +123,8 @@ def compare(args):
         with path.open(encoding='utf-8-sig',newline='') as stream:return list(csv.DictReader(stream))
     path=args.native_csv;values=[rows(path)]+[rows(path.with_suffix('.'+key+'.csv')) for key in ('entities','services','interrupts','summary')]+[rows(args.entry_summary)]
     differences,occupied=compare_gameplay(data,*values,epoch)
-    report=dict(comparedBoundaries=10,comparedActorSlots=160,comparedOccupiedActors=occupied,comparedServices=1,comparedInterrupts=2,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,
-        evidenceLimit='One easy following Air retry: complete first update and next wait/input gate, live actor fields, native inherited timer/animation block, row/RNG/scene scalars and counter-wait input/audio/vectors. Excludes raw script pointers, unused vacant actor payloads, full map/sprite bytes, images/PCM, later gameplay, Ski, entry pause and production Windows scheduling.')
+    report=dict(comparedBoundaries=10,comparedActorSlots=160,comparedOccupiedActors=occupied,comparedServices=1,comparedInterrupts=2,entryPauseConsumed=data.get('entryPauseConsumed',False),differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,
+        evidenceLimit='Bounded following Air retry: complete first update and next wait/input gate, live actor fields, native inherited timer/animation block, row/RNG/scene scalars and counter-wait input/audio/vectors. A preceding entry pause is qualified separately and its completed native return must own consumed Start. Excludes raw script pointers, unused vacant actor payloads, full map/sprite bytes, images/PCM, later gameplay, Ski and production Windows scheduling.')
     write_json(path.with_suffix('.comparison.json'),report);print(json.dumps(report,indent=2))
     if differences:raise ValueError('Native following gameplay differs')
 

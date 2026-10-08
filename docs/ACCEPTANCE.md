@@ -1,5 +1,20 @@
 # Final release acceptance
 
+October 8 entry-pause follow-up: a new input-only easy Air control matches the
+complete first-entry pause/return at 13 boundaries / 25 displays / 50 vectors,
+1,746 bus events, 444 accepted row/font bytes and 53 intervals. Its first
+post-pause update/next wait separately match ten boundaries / 160 actor slots
+(20 occupied instances) / one display / two vectors. Shared 03d8 counted once:
+22 distinct samples / 26 displays / 52 vectors; initial restart coverage overlaps
+the ordinary owner. Native epoch, frozen world/HUD/fade, input/audio/restoration
+and consumed Start agree. Checks: 663 handoff/pause, 52,850 result assertions
+and 434 Python tests; ordinary first update and four prior startup/exit controls
+remain exact. See [scope](AIR_FOLLOWING_PAUSE.md). Later Air/Ski/changed-player
+gameplay, genuine final-life/reset, earlier UI, unobserved owners, production
+scheduler, full images/PCM, human/physical/independent Windows and distribution
+gates remain open. Production EXE unchanged; point 1 and final acceptance remain
+incomplete. The continuation automation remains active.
+
 October 8 first-gameplay follow-up: the easy following Air retry matches ten
 boundaries, 160 actor slots / 20 occupied instances, one display and two complete
 vectors through its first update and next wait/input gate. Native inherited

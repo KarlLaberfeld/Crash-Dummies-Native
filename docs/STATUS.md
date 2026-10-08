@@ -1,5 +1,21 @@
 # Project status - October 8, 2026
 
+Latest entry-pause follow-up: one input-only easy Air retry now matches complete
+first-entry pause and return at 13 boundaries / 25 displays / 50 complete vectors,
+all 1,746 bus events, 444 accepted row/font storage bytes and 53 pause intervals.
+Its first post-resume update and next wait also match ten boundaries / 160 actor
+slots (20 occupied instances) / one display / two vectors. The shared 03d8 is
+counted once: 22 distinct entry/update samples, 26 displays, 52 vectors. Two
+entry displays/four vectors overlap ordinary restart; this is one new control.
+Native new LCD epoch, frozen HUD/fade/world, input/audio, restoration and consumed
+Start ownership agree. Checks: O2 diagnostic, 663 handoff/pause assertions,
+52,850 result assertions and 434 Python tests. Ordinary first update and all four
+preceding startup/exit controls remain exact. See [scope](AIR_FOLLOWING_PAUSE.md).
+Next: later Air/Ski and changed-player handoffs, genuine final-life/reset,
+earlier UI, unobserved work and production source-clock scheduler integration.
+Complete images/PCM and remaining ACCEPTANCE.md gates stay open. Production EXE
+unchanged; timing point 1 is incomplete. No final release; automation stays active.
+
 Latest first-gameplay follow-up: the existing easy Air retry now matches its
 first complete update and next wait/input gate at ten boundaries, 160 actor
 slots (20 occupied instances), one display and two complete vectors, zero

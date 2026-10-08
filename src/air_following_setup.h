@@ -8,6 +8,7 @@ struct AirFollowingSetup {
     int stage=0,difficulty=0,lcdc=0,lyc=95,display=5,stat=5;
     int64_t lcdDisabled=0;
     int pendingRequests=0,pollReads=0;
+    bool entryPauseComplete=false;
     int cameraX=0,cameraY=0,mapScratch=0,ready=0,randomState=0,hudCursor=0,fadeRemaining=8;
     std::array<unsigned char,256> objects{},actors{};
 };
@@ -142,7 +143,8 @@ inline int followingHudSetupWork(bool air){
 // The limited two-display callback has no actor/resource update or HUD wrap.
 template<class Boundary,class Service,class Interrupt>
 AirFollowingSetup airFollowingEntry(AirFollowingSetup state,NativeAudio& sound,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={},
+    std::function<void(AirClock&,AirFollowingSetup&)> entryPause={}){
     if((state.stage!=1&&state.stage!=2)||!sound.enabled||state.stat!=4||state.lyc!=135||state.lcdc!=0x67||state.ready!=1||state.pendingRequests!=3)
         throw std::runtime_error("Unowned following LCD/gameplay entry");
     const bool air=state.stage==1;auto& timing=state.instruction.map.campaign.timing;int64_t now=timing.end;
@@ -178,8 +180,12 @@ AirFollowingSetup airFollowingEntry(AirFollowingSetup state,NativeAudio& sound,
     clock.wait(display,true);
     clock.atomicWork(4,[]{},display,true);clock.atomicWork(12,[&]{state.ready=0;},display,true);
     clock.atomicWork(12,[]{},display,false);clock.atomicWork(8,[]{},display,false);
-    if(timing.input.pressed&8)throw std::runtime_error("Fresh Start at following entry needs its pause owner");
-    clock.atomicWork(12,[]{},display,false);point("end",clock.now);
+    if(timing.input.pressed&8){
+        if(!entryPause)throw std::runtime_error("Fresh Start at following entry needs its pause owner");
+        clock.atomicWork(24,[]{},display,false);point("pauseEntry",clock.now);entryPause(clock,state);
+        if(!state.entryPauseComplete||state.display!=4||sound.paused)throw std::runtime_error("Following entry pause lacks its completed return owner");
+    }else clock.atomicWork(12,[]{},display,false);
+    point("end",clock.now);
     timing.end=clock.now;timing.nextStat=clock.nextStat;timing.nextVBlank=clock.nextVBlank;
     timing.displays=clock.displays;timing.stats=clock.statServices;return state;
 }

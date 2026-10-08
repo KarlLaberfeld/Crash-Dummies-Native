@@ -90,5 +90,12 @@ class FollowingGameplayIntegrity(unittest.TestCase):
     def test_altered_actor_parameter_detected(self):
         self.values[2][32]['param0']=0
         self.assertEqual(self.compare()[0][0]['category'],'actor')
+    def test_consumed_start_continues_after_owned_pause(self):
+        self.data['entryPauseConsumed']=True;self.values[6][0]['entryPauseComplete']=1
+        for p,q in zip(self.data['points'][:9],self.values[1][:9]):p['held']=q['held']=41;p['pressed']=q['pressed']=8
+        self.assertEqual(self.compare(),([],20))
+    def test_unproved_start_consumption_rejects(self):
+        self.data['entryPauseConsumed']=True
+        with self.assertRaises(ValueError):self.compare()
 
 if __name__=='__main__':unittest.main()

@@ -1,5 +1,5 @@
 // Synthetic handoff and unowned-work guards; no ROM or original recordings.
-#include "air_following_gameplay.h"
+#include "air_following_pause.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -41,6 +41,23 @@ int main(){
         state.stage=2;require(rejects(),"Ski requires its own native gameplay handoff");state.stage=1;
         state.cameraX++;require(rejects(),"Handoff cannot replace decoded level geometry with another value");state.cameraX--;
         bool alias=false;try{airFollowingAirHandoff(*preceding,*preceding,state);}catch(const std::runtime_error&){alias=true;}require(alias,"Handoff refuses to overwrite its own inheritance source");
+        AirFollowingPauseLcd lcd;lcd.epoch=5*AirClock::Frame+1000;AirPauseLcd base;
+        for(int phase:{AirClock::Frame+84,AirClock::Frame+260,AirClock::Frame+400,2*AirClock::Frame+AirClock::VBlankLine}){
+            require(lcd.mode(lcd.epoch+phase)==base.mode(phase),"Pause mode belongs to the restarted LCD epoch");
+            require(lcd.readable(lcd.epoch+phase)==base.readable(phase)&&lcd.writable(lcd.epoch+phase)==base.writable(phase),"Restarted LCD read/write boundaries retain their relative source ownership");
+        }
+        auto audioAssets=std::make_unique<AudioAssets>();NativeAudio sound(*audioAssets);sound.enabled=sound.measureWork=true;
+        AirPauseAssets pause;pause.text.fill(1);state.lcdc=0xe7;state.fadeRemaining=7;auto& t=state.instruction.map.campaign.timing;t.lcdEpoch=lcd.epoch;t.tick=7;t.input.held=8;t.input.previous=0;t.input.pressed=8;
+        AirClock clock;clock.now=t.lcdEpoch+AirClock::Frame+2500;clock.nextStat=t.lcdEpoch+AirClock::Frame+AirClock::StatLine;clock.nextVBlank=t.lcdEpoch+AirClock::Frame+AirClock::VBlankLine;
+        clock.displays=5;clock.statServices=6;clock.objectDisable=[&](int64_t,AirIrqOwner){state.lcdc&=~2;};int services=0,snapshots=0,busEvents=0;
+        airFollowingEntryPause(clock,state,*preceding,sound,pause,
+            [&](unsigned index,int64_t,int tick,int display,int effects,int music,const DisplayInput& input){require(index==5+services&&tick==7+services&&display==160&&effects==64&&music==60,"Paused callbacks retain global counters while freezing gameplay/music");++services;require(input.pressed==(services==2?8:0),"Fresh resume input belongs to its paused display sample");},
+            [](const char*,int64_t,int64_t,int){},[&](const char*,const char*,unsigned,int,int64_t){++busEvents;},
+            [&](const char*,int64_t,const AirPauseGraphics&){++snapshots;},[&]{return services?8:0;});
+        require(services==2&&snapshots==3&&busEvents>296,"Entry pause owns complete copy/text/restore observations and two counter waits");
+        require(t.tick==9&&clock.displays==7&&clock.statServices==8,"Paused displays continue the native counters and deadlines");
+        require(state.hudCursor==2&&state.fadeRemaining==7&&state.display==4&&state.lcdc==0xe7&&!sound.paused&&state.entryPauseComplete,"Pause freezes HUD/fade and restores selector, objects and audio while consuming its Start call");
+        require(clock.nextStat==t.lcdEpoch+3*AirClock::Frame+AirClock::StatLine&&clock.nextVBlank==t.lcdEpoch+3*AirClock::Frame+AirClock::VBlankLine,"Pause cannot return to the initial main game's LCD epoch");
         printf("Following Air handoff checks: %d passed (synthetic; no original parity claim)\n",checks);return 0;
     }catch(const std::exception& e){fprintf(stderr,"Following Air handoff failed after %d checks: %s\n",checks,e.what());return 1;}
 }

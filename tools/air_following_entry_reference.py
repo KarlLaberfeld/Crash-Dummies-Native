@@ -16,17 +16,19 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[]
+    include_pause=getattr(args,'include_entry_pause',False);point_names=dict(POINTS)
+    if include_pause:point_names[0x1476]='pauseEntry'
     def word(a):return player.memory[a]+256*player.memory[a+1]
     def hook(pc):
         nonlocal armed,active,complete,opened
         if complete:return
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
-        if pc==0x2436 and (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in (4,5,6)):buttons.append(player.memory[0xff8a])
+        if pc==0x2436 and (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in ((1,4,5,6) if include_pause else (4,5,6))):buttons.append(player.memory[0xff8a])
         if pc==0x039c and armed:active=True
         if not active:return
         now=player._cycles()
-        if pc in POINTS:
-            points.append(dict(name=POINTS[pc],cycles=now,tick=word(0xc00a),countdown=word(0xc0b7),display=player.memory[0xc098],stat=player.memory[0xc099],
+        if pc in point_names:
+            points.append(dict(name=point_names[pc],cycles=now,tick=word(0xc00a),countdown=word(0xc0b7),display=player.memory[0xc098],stat=player.memory[0xc099],
                 lcdc=player.memory[0xff40],lyc=player.memory[0xff45],pendingRequests=player.memory[0xff0f]&3,cameraX=word(0xff92),cameraY=word(0xff94),
                 mapScratch=word(0xc00c),randomState=word(0xc09e),ready=player.memory[0xffae],musicEnabled=player.memory[0xffcf],
                 inputHeld=player.memory[0xff8a],inputPressed=player.memory[0xff8b],hudCursor=player.memory[0xc04c],fadeRemaining=player.memory[0xffc9]))
@@ -44,7 +46,7 @@ def capture(args):
         elif pc in (0x2484,0x2555) and opened:opened['end']=now;irqs.append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in {*POINTS,*IRQ_PHASES,0x268b,0x0040,0x0048,0x2484,0x2555}:player.hook_register(0,pc,hook,pc)
+        for pc in {*point_names,*IRQ_PHASES,0x268b,0x0040,0x0048,0x2484,0x2555}:player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -53,10 +55,14 @@ def capture(args):
     finally:player.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete following entry or changed original control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,
-        precedingDisplays=len(buttons)-2,productionSchedulerAccepted=False)
-    analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'entry.json',data)
+        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),productionSchedulerAccepted=False)
+    if include_pause:
+        from air_following_pause_reference import analyze_paused_entry
+        analyze_paused_entry(data)
+    else:analyze(data)
+    args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'entry.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
-    print(json.dumps(dict(boundaries=len(points),services=2,interrupts=len(irqs),controlDifferences=0),indent=2))
+    print(json.dumps(dict(boundaries=len(points),services=sum(r['kind']=='vblank' for r in irqs),interrupts=len(irqs),controlDifferences=0),indent=2))
 
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])

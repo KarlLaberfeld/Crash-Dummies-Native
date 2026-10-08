@@ -20,6 +20,7 @@
 #include "air_instruction_exit.h"
 #include "air_following_setup.h"
 #include "air_following_gameplay.h"
+#include "air_following_pause.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -51,9 +52,9 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
     out<<'\n';
 }
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay | --following-entry-pause]\n");return 2;}
     try{
-        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false;
+        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false;
         int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
@@ -74,6 +75,7 @@ int main(int argc,char** argv){
             else if(option=="--following-stage-setup"){followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-entry"){followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-gameplay"){followingGameplay=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--following-entry-pause"){followingEntryPause=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
@@ -617,12 +619,28 @@ int main(int argc,char** argv){
                                                     if(!points||!services||!irqs)throw std::runtime_error("Cannot open following LCD entry outputs");
                                                     points<<"boundary,cycle,tick,countdown,display,stat,lcdc,lyc,pendingRequests,cameraX,cameraY,mapScratch,randomState,ready,musicEnabled,inputHeld,inputPressed\n";
                                                     services<<"service,cycle,tick,display,effects,music,inputHeld,inputPressed\n";irqs<<"kind,vectorCycle,owner\n";
+                                                    std::ofstream pausePhases,pauseBus,pauseStorage;std::function<void(AirClock&,AirFollowingSetup&)> pauseOwner;
+                                                    if(followingEntryPause){
+                                                        pausePhases.open(std::string(argv[2])+".following-pause.phases.csv");pauseBus.open(std::string(argv[2])+".following-pause.bus.csv");pauseStorage.open(std::string(argv[2])+".following-pause.graphics.csv");
+                                                        if(!pausePhases||!pauseBus||!pauseStorage)throw std::runtime_error("Cannot open following entry pause outputs");
+                                                        pausePhases<<"phase,start,end,work\n";pauseBus<<"phase,kind,address,value,cycle\n";pauseStorage<<"phase,cycle";for(int i=0;i<20;++i)pauseStorage<<",status"<<i;for(int i=0;i<128;++i)pauseStorage<<",font"<<i;pauseStorage<<'\n';
+                                                        pauseOwner=[&](AirClock& clock,AirFollowingSetup& state){auto assets=AirPauseAssets::load("build/pause.dat");
+                                                            followingPauseReached=true;
+                                                            std::ofstream prefix(std::string(argv[2])+".following-pause.prefix.csv");if(!prefix)throw std::runtime_error("Cannot open following pause geometry");
+                                                            prefix<<"version,cycle,scrollX,scrollY,windowX,windowY";for(int i=0;i<40;++i)prefix<<",objectX"<<i<<",objectY"<<i;prefix<<'\n';
+                                                            prefix<<1<<','<<clock.now<<','<<((state.cameraX>>4)&255)<<','<<((state.cameraY>>4)&255)<<",7,136";for(int i=0;i<40;++i)prefix<<','<<int(state.objects[4*i+1])<<','<<int(state.objects[4*i]);prefix<<'\n';
+                                                            airFollowingEntryPause(clock,state,*game,sound,assets,
+                                                                [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
+                                                                [&](const char* name,int64_t start,int64_t end,int work){pausePhases<<name<<','<<start<<','<<end<<','<<work<<'\n';},
+                                                                [&](const char* name,const char* kind,unsigned address,int value,int64_t cycle){pauseBus<<name<<','<<kind<<','<<address<<','<<value<<','<<cycle<<'\n';},
+                                                                [&](const char* name,int64_t cycle,const AirPauseGraphics& state){pauseStorage<<name<<','<<cycle;for(int value:state.row)pauseStorage<<','<<value;for(int value:state.font)pauseStorage<<','<<value;pauseStorage<<'\n';},nextResultInput);};
+                                                    }
                                                     auto entered=airFollowingEntry(stage,sound,
                                                         [&](const char* name,int64_t cycle,const AirFollowingSetup& state){const auto& t=state.instruction.map.campaign.timing;points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<state.display<<','<<state.stat<<','<<state.lcdc<<','<<state.lyc<<','<<state.pendingRequests<<','<<state.cameraX<<','<<state.cameraY<<','<<state.mapScratch<<','<<state.randomState<<','<<state.ready<<','<<sound.enabled<<','<<t.input.held<<','<<t.input.pressed<<'\n';},
                                                         [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
-                                                        [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
+                                                        [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput,pauseOwner);
                                                     std::ofstream summary(std::string(argv[2])+".following-entry.summary.csv");const auto& t=entered.instruction.map.campaign.timing;
-                                                    summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<'\n';
+                                                    summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining,entryPauseComplete\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<','<<entered.entryPauseComplete<<'\n';
                                                     if(followingGameplay){
                                                         auto next=std::make_unique<AirGame>(*assets,*shared);airFollowingAirHandoff(*next,*game,entered);
                                                         std::ofstream points(std::string(argv[2])+".following-gameplay.csv"),entities(std::string(argv[2])+".following-gameplay.entities.csv"),services(std::string(argv[2])+".following-gameplay.services.csv"),irqs(std::string(argv[2])+".following-gameplay.interrupts.csv");
@@ -652,6 +670,7 @@ int main(int argc,char** argv){
             }
         }
         if(!frameServices.empty()&&*frameServices.rbegin()>=clock.displays)throw std::runtime_error("Selected native frame services exceed replay coverage");
+        if(followingEntryPause&&!followingPauseReached)throw std::runtime_error("Following entry replay did not reach its fresh Start pause");
         fprintf(stderr,"Completed %d ordinary-clock updates, %u display services, %u STAT services; %s buttons.\n",updates,clock.displays,clock.statServices,displayInputs.is_open()?"display-sampled":"update-aligned");
         return 0;
     }catch(const std::exception& e){fprintf(stderr,"%s\n",e.what());return 1;}

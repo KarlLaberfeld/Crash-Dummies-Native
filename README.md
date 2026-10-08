@@ -35,8 +35,13 @@ level-length work, scene seed, LCD restart and input/audio agree; see
 also matches the complete first update and next wait: ten boundaries, 160 actor
 slots (20 occupied instances), one display and two vectors. Native animation/
 partial-second inheritance and entry seed/input/clock agree; see
-[following gameplay scope](docs/AIR_FOLLOWING_GAMEPLAY.md). First-entry pause,
-later Air/Ski handoffs, earlier UI, final-life/reset and Windows integration remain
+[following gameplay scope](docs/AIR_FOLLOWING_GAMEPLAY.md). One new easy Air
+control now also matches complete first-entry pause and return: 13 boundaries,
+25 displays, 50 vectors, 1,746 bus events, 444 accepted row/font bytes and 53
+intervals. Its first post-resume update/next wait matches another ten boundaries,
+160 actor slots, one display and two vectors. Shared 03d8 and ordinary restart
+coverage overlap; see [pause scope](docs/AIR_FOLLOWING_PAUSE.md). Later Air/Ski
+handoffs, earlier UI, final-life/reset and Windows integration remain
 open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).

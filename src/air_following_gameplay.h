@@ -35,7 +35,7 @@ AirFollowingSetup airFollowingAirFirstUpdate(AirFollowingSetup state,AirGame& ga
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
     auto& t=state.instruction.map.campaign.timing;
     if(state.stage!=1||state.ready||game.result||!game.measureWork||game.entities[0].handler!=AirHandler::Intro||
-       game.transferState||game.transferRemaining||game.pendingSound!=-1||!sound.enabled||sound.pendingEffect!=-1||t.input.pressed&8)
+       game.transferState||game.transferRemaining||game.pendingSound!=-1||!sound.enabled||sound.pendingEffect!=-1||((t.input.pressed&8)&&!state.entryPauseComplete))
         throw std::runtime_error("Unowned first following Air update");
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};

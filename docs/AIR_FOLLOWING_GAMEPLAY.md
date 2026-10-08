@@ -67,9 +67,15 @@ Original data and recordings remain local and ignored.
 ## Remaining scope
 
 This qualifies one easy Air retry's first update and wait. Later gameplay,
-Ski handoff, changed-player/global animation-pool ownership, entry pause,
+Ski handoff, changed-player/global animation-pool ownership,
 genuine final-life/reset and earlier UI/LCD startup still need their owners
 and original controls. Full prepared/published map and sprite bytes, startup
 images/PCM, unobserved interrupted work and production Windows scheduling are
 not certified here. The production EXE is unchanged. Timing point 1 and final
 release acceptance remain incomplete; the continuation automation stays active.
+
+The subsequent [entry-pause checkpoint](AIR_FOLLOWING_PAUSE.md) qualifies one
+additional input-only Air control, including its first post-resume update.
+The native pause return owns consumed Start before this first update; later
+fresh Start still rejects without its own pause owner. That checkpoint records
+the latest 663 native handoff/pause assertions and 434 Python tests.
