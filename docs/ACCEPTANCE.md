@@ -1,5 +1,15 @@
 # Final release acceptance
 
+October 8 text follow-up: complete following Air/Ski text in five controls plus
+three Start schedules agrees at 9,459 semantic boundaries / 3,988 displays /
+7,976 vectors / 1,642 polls / 810 intended writes through 032b. Name/quota skips
+and an ignored one-frame pulse during scroll have original witnesses. Inherited
+unused cursor/delay and CPU scratch registers are excluded; see
+[scope](AIR_INSTRUCTION_TEXT.md). Checks: 35,622 native result assertions and
+345 Python tests. Held-Start/prompt/input/exit, next LCD/gameplay entry, earlier
+UI, final-life/reset, unobserved owners and production scheduling remain required,
+along with complete final-release requirements. Production EXE unchanged.
+
 October 8 map follow-up: subsequent instruction transition and 64 map selections
 match five existing originals at 1,335 boundaries / 330 displays / 665 vectors /
 17,556 LY reads, zero differences. Native countdown/input/audio and the separate

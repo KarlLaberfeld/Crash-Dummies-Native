@@ -5,6 +5,7 @@
 #include "air_instruction_header.h"
 #include "air_instruction_picture.h"
 #include "air_instruction_map.h"
+#include "air_instruction_text.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -300,6 +301,27 @@ int main(){
             bool rejected=false;try{airInstructionMap(state,sound,*ui,[](const char*,int64_t,int,int,const AirInstructionMapState&,const DisplayInput&){},
                 [](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){},[](const char*,int64_t,AirIrqOwner){},[](int64_t,int){});}catch(const std::runtime_error&){rejected=true;}
             require(rejected,"An unowned inherited compare line cannot borrow map-transition timing");
+        }
+        for(int mode:{0,1,2}){
+            sound.playMusic(2);AirInstructionMapState map;map.display=map.stat=5;map.lyc=95;map.lcdc=0xd1;
+            map.campaign.timing.end=2*AirClock::Frame+AirClock::VBlankLine+3000;
+            map.campaign.timing.nextStat=3*AirClock::Frame+95*456;map.campaign.timing.nextVBlank=3*AirClock::Frame+AirClock::VBlankLine;
+            map.campaign.timing.countdown=73;if(mode==2)map.campaign.timing.input.held=8;
+            ui->instructions[2].text={0x82,0,0x81,0,17,0x86,5,0x87,8,0x89,0,0x8a,0x85,0x80};
+            for(int i=0;i<5;++i)ui->names[i]=i+2;ui->skiQuotas[0]=7;ui->skiQuotas[1]=8;
+            int services=0,waits=0,scrollSteps=0;std::vector<int> glyphs;
+            auto text=airInstructionText(map,2,0,sound,*ui,
+                [&](const char* name,int64_t,int,int countdown,const AirInstructionTextState& state,const DisplayInput&){
+                    require(countdown==73,"Instruction text never decrements the retained result countdown");
+                    if(std::string(name)=="glyphWait")++waits;
+                    if(std::string(name)=="scrollStored"){constexpr int increments[5]={1,3,6,7,8};require(state.map.scroll==increments[scrollSteps++],"Scroll's five stores have their independent cumulative values");}
+                },[&](unsigned,int64_t,int,int,int work,int,int,const DisplayInput&){require(work==144,"Text display uses its instruction callback");++services;},
+                [&](const char*,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Text vectors own completed source and counter waits");},
+                [](int64_t,int){},[&](int64_t,int address,int value){require(address==0x9800+17*32+int(glyphs.size()),"Text writes consecutive glyphs at its layout anchor");glyphs.push_back(value);},
+                [&]{return mode==1&&services>=1?8:mode==2?8:0;});
+            if(mode==1)require(text.skipped&&text.skipContext==1&&services==2&&glyphs.empty()&&!scrollSteps,"Fresh Start during a name owns word return and abandons the pending glyph");
+            else require(!text.skipped&&services==45&&waits==35&&scrollSteps==5&&glyphs==std::vector<int>({2,3,4,5,6,0,7,8})&&text.map.scroll==8,"Nonzero glyphs use five services, zero uses none, and held Start creates no fresh skip");
+            require(!text.speed&&!text.skipMask&&text.row==17+(mode==1?0:1),"Text termination retains its row while clearing speed and skip mask");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

@@ -16,6 +16,7 @@
 #include "air_instruction_header.h"
 #include "air_instruction_picture.h"
 #include "air_instruction_map.h"
+#include "air_instruction_text.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -49,7 +50,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header]\n");return 2;}
     try{
-        int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,pauseEntryReached=false,pauseReplay=false,paused=false;
+        int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--perfect-celebration"&&i+1<argc){celebrationServices=std::stoi(argv[++i]);
@@ -63,6 +64,7 @@ int main(int argc,char** argv){
             else if(option=="--instruction-header"){instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--instruction-picture"){instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--instruction-map"){instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--instruction-text"){instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
@@ -554,6 +556,21 @@ int main(int argc,char** argv){
                                     [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
                                     [&](int64_t cycle,int ly){polls<<cycle<<','<<ly<<'\n';},nextResultInput);
                                 std::ofstream summary(std::string(argv[2])+".instruction-map.summary.csv");summary<<"end,tick,countdown,displays,stats\n"<<map.campaign.timing.end<<','<<map.campaign.timing.tick<<','<<map.campaign.timing.countdown<<','<<map.campaign.timing.displays<<','<<map.campaign.timing.stats<<'\n';
+                                if(instructionText){
+                                    std::ofstream points(std::string(argv[2])+".text.csv"),services(std::string(argv[2])+".text.services.csv"),
+                                        irqs(std::string(argv[2])+".text.interrupts.csv"),polls(std::string(argv[2])+".text.polls.csv"),writes(std::string(argv[2])+".text.writes.csv");
+                                    if(!points||!services||!irqs||!polls||!writes)throw std::runtime_error("Cannot open timed instruction text outputs");
+                                    points<<"boundary,cycle,tick,countdown,scroll,speed,delay,skipMask,layer,column,row,inputHeld,inputPressed,skipContext\n";
+                                    services<<"service,cycle,tick,countdown,display,effects,music,inputHeld,inputPressed\n";
+                                    irqs<<"kind,vectorCycle,owner\n";polls<<"cycle,mode\n";writes<<"cycle,address,value\n";
+                                    auto text=airInstructionText(map,nextStage,difficulty,sound,*ui,
+                                        [&](const char* name,int64_t cycle,int tick,int countdown,const AirInstructionTextState& state,const DisplayInput& input){points<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<state.map.scroll<<','<<state.speed<<','<<state.delay<<','<<state.skipMask<<",152,"<<state.anchor<<','<<state.row<<','<<input.held<<','<<input.pressed<<','<<state.skipContext<<'\n';},
+                                        [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
+                                        [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},
+                                        [&](int64_t cycle,int mode){polls<<cycle<<','<<mode<<'\n';},
+                                        [&](int64_t cycle,int address,int value){writes<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
+                                    std::ofstream summary(std::string(argv[2])+".text.summary.csv");summary<<"end,tick,countdown,displays,stats,scroll,skipped\n"<<text.map.campaign.timing.end<<','<<text.map.campaign.timing.tick<<','<<text.map.campaign.timing.countdown<<','<<text.map.campaign.timing.displays<<','<<text.map.campaign.timing.stats<<','<<text.map.scroll<<','<<text.skipped<<'\n';
+                                }
                             }
                         }
                     }

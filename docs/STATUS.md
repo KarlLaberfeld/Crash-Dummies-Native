@@ -1,5 +1,18 @@
 # Project status - October 8, 2026
 
+Latest text follow-up: complete following Air/Ski typing, names/quotas and eight
+row scrolls now agree in five extended original controls. Three additional
+button-only controls qualify name/quota skipping and an ignored one-frame Start
+pulse during scroll. All eight match 9,459 semantic boundaries / 3,988 displays /
+7,976 complete vectors / 1,642 polls / 810 intended writes through 032b, zero
+differences. Native five-service glyphs, two-wait scroll steps, frozen countdown,
+input and audio work agree. Unused inherited cursor/delay before layout overwrite
+and CPU scratch registers are excluded; see [scope](AIR_INSTRUCTION_TEXT.md).
+Checks: O2 probe, 35,622 result assertions and 345 Python tests. Next concrete
+owner: held-Start/prompt/input/exit fade, then next LCD/gameplay entry. Initial UI,
+final-life/reset, unobserved owners and production scheduling still keep timing
+point 1 incomplete. Production Windows EXE unchanged; no final release.
+
 Latest map follow-up: subsequent instruction callback/LYC/STAT-write transition
 and all 64 map selections now match five existing originals through timed-text
 entry: 1,335 boundaries / 330 displays / 665 vectors / 17,556 LY reads, zero

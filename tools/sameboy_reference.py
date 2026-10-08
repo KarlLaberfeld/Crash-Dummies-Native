@@ -76,6 +76,8 @@ class Registers:
     def D(self):return DLL.ref_reg(self.p.handle,2)>>8
     @property
     def E(self):return DLL.ref_reg(self.p.handle,2)&255
+    @property
+    def HL(self):return DLL.ref_reg(self.p.handle,3)
 
 class Screen:
     def __init__(self,p):self.p=p

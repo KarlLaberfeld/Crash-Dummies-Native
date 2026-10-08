@@ -20,7 +20,11 @@ See [picture scope](docs/AIR_INSTRUCTION_PICTURE.md).
 The subsequent 64-step map transition now also agrees in five controls:
 1,335 boundaries, 665 vectors and 17,556 LY reads, with a frozen countdown.
 See [map scope](docs/AIR_INSTRUCTION_MAP.md).
-Timed instruction text, subsequent setup, final-life/reset and Windows
+Complete subsequent Air/Ski text now agrees in five extended controls plus
+three Start schedules: 9,459 semantic boundaries, 7,976 vectors and 810 intended
+glyph writes. Names/quotas, full scrolling and observed skips have native owners;
+see [text scope](docs/AIR_INSTRUCTION_TEXT.md).
+Instruction prompt/exit, subsequent setup, final-life/reset and Windows
 integration remain open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).
