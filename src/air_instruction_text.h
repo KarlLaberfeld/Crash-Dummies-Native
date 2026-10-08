@@ -4,7 +4,7 @@
 namespace ticd {
 struct AirInstructionTextState {
     AirInstructionMapState map;
-    int speed=0,delay=0,skipMask=0,anchor=0,row=0;
+    int speed=0,delay=0,skipMask=0,anchor=0,row=0,cursor=0x9800;
     bool skipped=false;int skipContext=0;
 };
 // Identified timed UI language, not cartridge instructions. Glyph delays,
@@ -95,6 +95,7 @@ AirInstructionTextState airInstructionText(AirInstructionMapState map,int stage,
         }
         else throw std::runtime_error("Unowned instruction text command");
     }
+    state.cursor=writer.cursor;
     timing.end=clock.now;timing.displays=clock.displays;timing.stats=clock.statServices;
     timing.nextStat=clock.nextStat;timing.nextVBlank=clock.nextVBlank;return state;
 }

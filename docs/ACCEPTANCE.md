@@ -1,5 +1,13 @@
 # Final release acceptance
 
+October 8 instruction-exit follow-up: four original paths match 414 boundaries /
+166 displays / 332 vectors / 200 polls / 40 intended writes through 0355,
+including held Start, prompt/fresh input, complete fade and quiet audio reset.
+Checks: 36,048 native result assertions and 357 Python tests. See
+[scope](AIR_INSTRUCTION_EXIT.md). Following LCD/resources/gameplay entry,
+initial UI, final-life/reset, unobserved owners and production scheduling remain
+required, together with full final-release acceptance. Production EXE unchanged.
+
 October 8 text follow-up: complete following Air/Ski text in five controls plus
 three Start schedules agrees at 9,459 semantic boundaries / 3,988 displays /
 7,976 vectors / 1,642 polls / 810 intended writes through 032b. Name/quota skips

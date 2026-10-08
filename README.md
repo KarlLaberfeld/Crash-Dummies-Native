@@ -24,7 +24,10 @@ Complete subsequent Air/Ski text now agrees in five extended controls plus
 three Start schedules: 9,459 semantic boundaries, 7,976 vectors and 810 intended
 glyph writes. Names/quotas, full scrolling and observed skips have native owners;
 see [text scope](docs/AIR_INSTRUCTION_TEXT.md).
-Instruction prompt/exit, subsequent setup, final-life/reset and Windows
+Following instruction prompt/input/fade/audio reset also agrees in four controls
+through 0355: 414 boundaries, 332 vectors and 40 intended prompt glyphs; see
+[exit scope](docs/AIR_INSTRUCTION_EXIT.md).
+Subsequent gameplay setup, final-life/reset and Windows
 integration remain open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).

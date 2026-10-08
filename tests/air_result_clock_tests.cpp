@@ -6,6 +6,7 @@
 #include "air_instruction_picture.h"
 #include "air_instruction_map.h"
 #include "air_instruction_text.h"
+#include "air_instruction_exit.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -322,6 +323,26 @@ int main(){
             if(mode==1)require(text.skipped&&text.skipContext==1&&services==2&&glyphs.empty()&&!scrollSteps,"Fresh Start during a name owns word return and abandons the pending glyph");
             else require(!text.skipped&&services==45&&waits==35&&scrollSteps==5&&glyphs==std::vector<int>({2,3,4,5,6,0,7,8})&&text.map.scroll==8,"Nonzero glyphs use five services, zero uses none, and held Start creates no fresh skip");
             require(!text.speed&&!text.skipMask&&text.row==17+(mode==1?0:1),"Text termination retains its row while clearing speed and skip mask");
+        }
+        for(bool held:{false,true}){
+            sound.playMusic(2);AirInstructionTextState text;text.map.display=text.map.stat=5;text.map.lyc=95;text.map.lcdc=0xd1;
+            text.cursor=0x9b20;text.row=25;text.map.scroll=64;
+            text.map.campaign.timing.end=2*AirClock::Frame+AirClock::VBlankLine+3000;
+            text.map.campaign.timing.nextStat=3*AirClock::Frame+95*456;text.map.campaign.timing.nextVBlank=3*AirClock::Frame+AirClock::VBlankLine;
+            text.map.campaign.timing.countdown=1;if(held)text.map.campaign.timing.input.held=8;
+            ui->startPrompt.fill(2);ui->fadePalettes={0xe4,0xe4,0xe4,0xa4,0x90,0x50,0x50,0};
+            int services=0,waits=0,inputWaits=0,writes=0,palettes=0;
+            auto exited=airInstructionExit(text,sound,*ui,
+                [&](const char* name,int64_t,int,int count,int scroll,int bgp,int obp0,int obp1,bool enabled,const DisplayInput&){
+                    require(count==1&&scroll==64,"Instruction exit freezes countdown and text scroll");
+                    if(std::string(name)=="fadeWait")++waits;if(std::string(name)=="inputWait")++inputWaits;
+                    if(std::string(name)=="bgpReady")require(bgp==ui->fadePalettes[palettes++],"Each fade publishes its next local background palette");
+                    if(std::string(name)=="end")require(!enabled&&!bgp&&!obp0&&!obp1,"Exit owns complete palette fade and sound reset");
+                },[&](unsigned,int64_t,int,int,int work,int,int,const DisplayInput&){require(work==144,"Instruction exit retains the instruction callback");++services;},
+                [&](const char*,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Instruction exit vectors have source owners");},
+                [](int64_t,int){},[&](int64_t,int address,int value){require(address==0x9b20+writes++&&value==2,"The prompt starts at the completed text cursor");},
+                [&]{return held||services>=2?8:0;});
+            require(waits==32&&palettes==8&&writes==(held?0:20)&&inputWaits==(held?0:3)&&services==(held?33:36)&&!sound.enabled,"Held Start bypasses the prompt; fresh Start ends its own wait before 32 fade services and one final wait");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

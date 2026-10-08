@@ -1,5 +1,17 @@
 # Project status - October 8, 2026
 
+Latest instruction-exit follow-up: held Start, optional twenty-glyph prompt,
+fresh-Start wait, 32 fade waits plus one final wait and quiet audio reset now
+match four original controls through 0355: 414 boundaries / 166 displays / 332
+complete vectors / 200 polls / 40 intended writes, zero differences. Two held
+Start paths bypass the prompt; ordinary success and Air retry each wait 17
+services for a fresh edge. Native durations come from source operations and
+raw buttons. Interrupted audio reset still rejects. Checks: O2 probe, 36,048
+result assertions and 357 Python tests; see [exit scope](AIR_INSTRUCTION_EXIT.md).
+Next concrete owner: subsequent LCD-off/resources/gameplay startup from 0355.
+Initial UI, final-life/reset, unobserved work and production Windows scheduling
+still keep timing point 1 incomplete. Production EXE unchanged; no final release.
+
 Latest text follow-up: complete following Air/Ski typing, names/quotas and eight
 row scrolls now agree in five extended original controls. Three additional
 button-only controls qualify name/quota skipping and an ignored one-frame Start
