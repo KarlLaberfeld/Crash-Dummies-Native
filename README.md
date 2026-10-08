@@ -31,8 +31,12 @@ The complete following startup through the next first-update boundary now also
 agrees in four controls: 114 distinct boundary samples, 6,941 LY reads, 2,048
 intended buffer-clear stores, eight displays and 16 complete vectors. Native
 level-length work, scene seed, LCD restart and input/audio agree; see
-[following-startup scope](docs/AIR_FOLLOWING_SETUP.md). First-entry pause,
-restarted gameplay, earlier UI, final-life/reset and Windows integration remain
+[following-startup scope](docs/AIR_FOLLOWING_SETUP.md). Its easy Air retry now
+also matches the complete first update and next wait: ten boundaries, 160 actor
+slots (20 occupied instances), one display and two vectors. Native animation/
+partial-second inheritance and entry seed/input/clock agree; see
+[following gameplay scope](docs/AIR_FOLLOWING_GAMEPLAY.md). First-entry pause,
+later Air/Ski handoffs, earlier UI, final-life/reset and Windows integration remain
 open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).

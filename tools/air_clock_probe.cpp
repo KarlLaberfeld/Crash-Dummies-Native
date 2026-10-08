@@ -19,6 +19,7 @@
 #include "air_instruction_text.h"
 #include "air_instruction_exit.h"
 #include "air_following_setup.h"
+#include "air_following_gameplay.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -50,9 +51,9 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
     out<<'\n';
 }
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay]\n");return 2;}
     try{
-        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false;
+        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false;
         int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
@@ -72,6 +73,7 @@ int main(int argc,char** argv){
             else if(option=="--following-setup-prefix"){followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-stage-setup"){followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-entry"){followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--following-gameplay"){followingGameplay=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
@@ -621,6 +623,22 @@ int main(int argc,char** argv){
                                                         [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
                                                     std::ofstream summary(std::string(argv[2])+".following-entry.summary.csv");const auto& t=entered.instruction.map.campaign.timing;
                                                     summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<'\n';
+                                                    if(followingGameplay){
+                                                        auto next=std::make_unique<AirGame>(*assets,*shared);airFollowingAirHandoff(*next,*game,entered);
+                                                        std::ofstream points(std::string(argv[2])+".following-gameplay.csv"),entities(std::string(argv[2])+".following-gameplay.entities.csv"),services(std::string(argv[2])+".following-gameplay.services.csv"),irqs(std::string(argv[2])+".following-gameplay.interrupts.csv");
+                                                        if(!points||!entities||!services||!irqs)throw std::runtime_error("Cannot open following gameplay outputs");
+                                                        points<<"boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse\n";
+                                                        entities<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)entities<<",param"<<i;entities<<'\n';
+                                                        services<<"service,cycle,tick,display,effects,music,inputHeld,inputPressed\n";irqs<<"kind,vectorCycle,owner\n";
+                                                        auto restarted=airFollowingAirFirstUpdate(entered,*next,sound,
+                                                            [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
+                                                                points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<'\n';
+                                                                for(int i=0;i<16;++i){const auto& e=g.entities[i];entities<<name<<','<<i<<','<<e.alive<<','<<(e.alive?e.frame:255)<<','<<((e.flags&~2)|(e.offscreen?2:0))<<','<<int(e.handler)<<','<<e.x<<','<<e.y<<','<<e.animDone<<','<<e.frameWaiting<<','<<e.delay<<','<<e.period;for(int value:e.params)entities<<','<<value;entities<<'\n';}},
+                                                            [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
+                                                            [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
+                                                        std::ofstream summary(std::string(argv[2])+".following-gameplay.summary.csv");const auto& t=restarted.instruction.map.campaign.timing;
+                                                        summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<'\n';
+                                                    }
                                                 }
                                             }
                                         }

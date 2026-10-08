@@ -1,5 +1,17 @@
 # Project status - October 8, 2026
 
+Latest first-gameplay follow-up: the existing easy Air retry now matches its
+first complete update and next wait/input gate at ten boundaries, 160 actor
+slots (20 occupied instances), one display and two complete vectors, zero
+differences. The native prior game supplies retained animation blocks and the
+partial second; entry supplies the new seed/input/clock/HUD/fade. Actor/resource
+IRQ crossings still reject. Checks: optimized Windows diagnostic, 647 ROM-free
+handoff assertions and 414 Python tests; all four preceding startup and exit
+controls remain exact. See [scope](AIR_FOLLOWING_GAMEPLAY.md). Next: entry pause,
+later Air/Ski handoffs, genuine final-life/reset, earlier UI and production
+scheduler integration. Images/PCM and remaining final-release gates stay open.
+Production EXE unchanged; timing point 1 remains incomplete. No final release.
+
 Latest following-startup checkpoint: the complete instruction-to-stunt interval
 0355..03d8 matches four original controls (one easy Air retry, three easy Ski
 starts). LCD-off/clears: 20 boundaries / 6,941 LY reads / 2,048 intended stores;

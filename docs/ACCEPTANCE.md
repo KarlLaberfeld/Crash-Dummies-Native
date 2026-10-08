@@ -1,5 +1,17 @@
 # Final release acceptance
 
+October 8 first-gameplay follow-up: the easy following Air retry matches ten
+boundaries, 160 actor slots / 20 occupied instances, one display and two complete
+vectors through its first update and next wait/input gate. Native inherited
+animation/timer/input and derived scene/clock/HUD/fade states agree. Checks:
+647 ROM-free handoff assertions and 414 Python tests; four preceding startup
+and exit controls remain exact. See [scope](AIR_FOLLOWING_GAMEPLAY.md). This
+extends one existing control and excludes later gameplay, Ski/changed-player
+handoffs, entry pause and full map/sprite bytes/images/PCM. Earlier UI,
+final-life/reset, unobserved owners, production scheduler, physical/human/
+independent Windows and distribution gates still prevent final acceptance.
+The production EXE is unchanged; point 1 remains incomplete.
+
 October 8 following-startup checkpoint: four controls match the full 0355..03d8
 interval at 20 LCD-off / 50 stage / 48 restart boundary comparisons, 6,941 LY
 reads, 2,048 intended clear stores, eight displays and 16 complete vectors.
