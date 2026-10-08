@@ -4,6 +4,7 @@
 #include "air_result_handoff.h"
 #include "air_instruction_header.h"
 #include "air_instruction_picture.h"
+#include "air_instruction_map.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -275,6 +276,30 @@ int main(){
                 [](int64_t,int){},[&](const char*,int64_t,int,int){++writes;});}
             catch(const std::runtime_error&){rejected=true;}
             require(rejected&&!sound.enabled&&!writes,"An unowned interrupt during song reset cannot receive an aggregate timing allowance");
+        }
+        {
+            sound.playMusic(2);for(int i=0;i<4;++i)sound.tick();
+            AirResultHandoff state;state.lives={5,0};state.timing.end=2*AirClock::Frame+36*456;
+            state.timing.nextStat=2*AirClock::Frame+120*456;state.timing.nextVBlank=2*AirClock::Frame+AirClock::VBlankLine;
+            state.timing.countdown=100;
+            for(int i=0;i<8;++i)ui->instructionPattern[i]=static_cast<unsigned char>(i*29);
+            int writes=0,services=0,frozen=-1,previous=0,immediate=0;
+            auto map=airInstructionMap(state,sound,*ui,
+                [&](const char* name,int64_t,int,int countdown,const AirInstructionMapState& map,const DisplayInput&){
+                    if(std::string(name)=="compareReady")frozen=countdown;
+                    if(std::string(name)=="mapWrite")previous=map.lcdc;
+                    if(std::string(name)=="stepComplete"){
+                        int selected=(ui->instructionPattern[writes/8]>>(writes%8))&1;
+                        require(map.lcdc==((previous&~8)|(selected*8)),"Every map selection uses its local pattern's next least-significant bit");++writes;
+                        require(countdown==frozen&&!map.scroll&&map.display==5&&map.stat==5&&map.lyc==95&&!(map.lcdc&2),"Instruction callback swap retains the timer and disabled objects");}
+                },[&](unsigned,int64_t,int,int,int work,int,int,const DisplayInput&){++services;if(frozen>=0)require(work==144,"Instruction display replaces result countdown work");},
+                [&](const char* kind,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Map vectors have completed source or wait ownership");if(std::string(kind)=="stat"&&frozen>=0&&owner==AirIrqOwner::SourceBoundary)++immediate;},
+                [&](int64_t,int line){require(line>=0&&line<=153,"Map line wait uses native LY values");});
+            require(writes==64&&immediate==1&&services>=64&&map.campaign.timing.countdown==frozen,"All pattern writes and the single STAT-write request complete");
+            state.timing.nextStat=2*AirClock::Frame+77*456;
+            bool rejected=false;try{airInstructionMap(state,sound,*ui,[](const char*,int64_t,int,int,const AirInstructionMapState&,const DisplayInput&){},
+                [](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){},[](const char*,int64_t,AirIrqOwner){},[](int64_t,int){});}catch(const std::runtime_error&){rejected=true;}
+            require(rejected,"An unowned inherited compare line cannot borrow map-transition timing");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

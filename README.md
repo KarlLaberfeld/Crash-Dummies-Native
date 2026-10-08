@@ -17,7 +17,10 @@ in five controls: 60 boundaries, ten vectors, 1,391 polls and 197 glyph writes.
 Instruction music and picture transfer also agree in five controls: 45
 boundaries, 40 vectors, 26,365 polls and all 5,570 intended tile/map writes.
 See [picture scope](docs/AIR_INSTRUCTION_PICTURE.md).
-Instruction text/transition, subsequent setup, final-life/reset and Windows
+The subsequent 64-step map transition now also agrees in five controls:
+1,335 boundaries, 665 vectors and 17,556 LY reads, with a frozen countdown.
+See [map scope](docs/AIR_INSTRUCTION_MAP.md).
+Timed instruction text, subsequent setup, final-life/reset and Windows
 integration remain open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).

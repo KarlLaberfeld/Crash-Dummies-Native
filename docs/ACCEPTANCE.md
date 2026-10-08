@@ -1,5 +1,14 @@
 # Final release acceptance
 
+October 8 map follow-up: subsequent instruction transition and 64 map selections
+match five existing originals at 1,335 boundaries / 330 displays / 665 vectors /
+17,556 LY reads, zero differences. Native countdown/input/audio and the separate
+STAT-write request agree. Checks: 35,070 native result assertions and 332 Python
+tests (12 new integrity checks); see [scope](AIR_INSTRUCTION_MAP.md). Timed text/scroll/
+skip, input/exit and next LCD/gameplay entry remain required. Earlier UI,
+final-life/reset, unobserved owners, production scheduling and all remaining
+release requirements stay open. Production EXE unchanged; no final acceptance.
+
 October 8 picture follow-up: instruction music, 1,024 tile bytes and 90 picture
 glyphs through 268b match five existing originals at 45 boundaries / 20 displays /
 40 vectors / 26,365 polls / 5,570 intended writes. Checks: 31,103 result

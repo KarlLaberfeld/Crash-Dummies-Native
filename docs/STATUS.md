@@ -1,5 +1,16 @@
 # Project status - October 8, 2026
 
+Latest map follow-up: subsequent instruction callback/LYC/STAT-write transition
+and all 64 map selections now match five existing originals through timed-text
+entry: 1,335 boundaries / 330 displays / 665 vectors / 17,556 LY reads, zero
+differences. Countdown and all input/audio work agree. The native owner retains
+an LY read across a display service and separately owns the DMG STAT-write
+request; unobserved critical crossings/modes reject. Checks: optimized probe,
+35,070 result assertions and 332 Python tests (12 new integrity checks). See
+[map scope](AIR_INSTRUCTION_MAP.md). Next: timed text/scroll/skip, input/exit fade
+and next LCD/gameplay entry. Earlier UI, final-life/reset, unobserved owners and
+production scheduling still keep timing point 1 incomplete. Windows EXE unchanged.
+
 Latest picture follow-up: native instruction music startup, complete tile copy
 and picture rectangle through 268b match five existing originals: 45 boundaries /
 20 services / 40 vectors / 26,365 LCD polls / 5,570 intended writes, zero
