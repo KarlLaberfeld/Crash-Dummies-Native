@@ -7,6 +7,7 @@
 #include "air_instruction_map.h"
 #include "air_instruction_text.h"
 #include "air_instruction_exit.h"
+#include "air_following_setup.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -342,7 +343,64 @@ int main(){
                 [&](const char*,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Instruction exit vectors have source owners");},
                 [](int64_t,int){},[&](int64_t,int address,int value){require(address==0x9b20+writes++&&value==2,"The prompt starts at the completed text cursor");},
                 [&]{return held||services>=2?8:0;});
-            require(waits==32&&palettes==8&&writes==(held?0:20)&&inputWaits==(held?0:3)&&services==(held?33:36)&&!sound.enabled,"Held Start bypasses the prompt; fresh Start ends its own wait before 32 fade services and one final wait");
+            require(waits==32&&palettes==8&&writes==(held?0:20)&&inputWaits==(held?0:3)&&services==(held?33:36)&&!sound.enabled&&exited.map.campaign.timing.tick==services,"Held Start bypasses the prompt; fresh Start ends its own wait before 32 fade services and one final wait");
+        }
+        for(int stage:{1,2})for(int line:{0,143,145,146}){
+            sound.stop();AirInstructionTextState instruction;instruction.map.display=instruction.map.stat=5;instruction.map.lyc=95;instruction.map.lcdc=0xd1;
+            instruction.map.campaign.lives={5,0};auto& timing=instruction.map.campaign.timing;timing.lcdEpoch=3*AirClock::Frame+1000;
+            timing.end=timing.lcdEpoch+5*AirClock::Frame+line*456;timing.tick=65535;timing.countdown=73;
+            timing.nextStat=timing.lcdEpoch+5*AirClock::Frame+95*456;while(timing.nextStat<=timing.end)timing.nextStat+=AirClock::Frame;
+            timing.nextVBlank=timing.lcdEpoch+5*AirClock::Frame+144*456;while(timing.nextVBlank<=timing.end)timing.nextVBlank+=AirClock::Frame;
+            int writes=0,polls=0;int64_t previousWrite=0;
+            auto setup=airFollowingSetupPrefix(instruction,stage,0,sound,
+                [&](const char*,int64_t,const AirFollowingSetup& state){require(state.instruction.map.campaign.timing.tick==65535&&state.instruction.map.campaign.timing.countdown==73,"Masked following setup cannot advance counter or countdown");},
+                [&](int64_t,int ly){require(ly!=145||polls<2200,"LCD equality terminates from the native inherited epoch");++polls;},
+                [&](int64_t cycle,int address,int value){require(address==(writes<256?0xc100+writes:0xc200+writes-256)&&value==(writes<256?0:255),"Every object/actor buffer byte has its own destination and fill value");if(writes%256)require(cycle-previousWrite==24,"Stores preserve their complete native loop spacing");previousWrite=cycle;++writes;});
+            require(writes==512&&polls==setup.pollReads&&setup.lcdc==0x51&&std::all_of(setup.actors.begin(),setup.actors.end(),[](int b){return b==255;}),"LCD-off owner completes both whole buffers without enabling services");
+            require(setup.pendingRequests==((timing.nextStat<=setup.lcdDisabled?2:0)|(timing.nextVBlank<=setup.lcdDisabled?1:0)),"Pending restart requests follow native deadlines, not a recorded gate");
+            if(setup.pendingRequests!=3)continue;
+            AirFollowingStageProfile profile{3,1,4,2,0x5000,stage==1?0xae80:0};
+            auto loaded=airFollowingStageSetup(setup,profile,sound,[](const char*,int64_t,const AirFollowingSetup&){});
+            require(loaded.ready==1&&loaded.display==(stage==1?4:6)&&loaded.lyc==135&&loaded.stat==4&&loaded.lcdc==0x67,"Decoded stage setup owns resource readiness and new callbacks while the LCD remains off");
+            int services=0,pending=0,waited=0;std::vector<int> displayWork;
+            auto entered=airFollowingEntry(loaded,sound,[](const char*,int64_t,const AirFollowingSetup&){},
+                [&](unsigned,int64_t,int,int work,int,int,const DisplayInput&){++services;displayWork.push_back(work);},
+                [&](const char*,int64_t,AirIrqOwner owner){if(owner==AirIrqOwner::PendingStartup)++pending;else if(owner==AirIrqOwner::CounterWait)++waited;else throw std::runtime_error("Unowned fixture startup vector");});
+            require(services==2&&pending==2&&waited==2&&displayWork==std::vector<int>({1508,1676}),"Pending startup and the first wait use two separate callback/input/audio services across counter wrap");
+            const auto& finished=entered.instruction.map.campaign.timing;
+            require(finished.tick==1&&finished.countdown==73&&entered.randomState==0xff00&&!entered.ready&&entered.hudCursor==2&&entered.fadeRemaining==7,"Scene seed uses the prior native counter, followed by two services and the ready clear");
+            sound.stop();auto oneMore=profile;++oneMore.placements;
+            auto more=airFollowingStageSetup(setup,oneMore,sound,[](const char*,int64_t,const AirFollowingSetup&){});
+            require(more.instruction.map.campaign.timing.end-loaded.instruction.map.campaign.timing.end==452,"Additional placement reconstruction and offset work follow decoded data length");
+            sound.stop();oneMore=profile;++oneMore.chunks;
+            more=airFollowingStageSetup(setup,oneMore,sound,[](const char*,int64_t,const AirFollowingSetup&){});
+            require(more.instruction.map.campaign.timing.end-loaded.instruction.map.campaign.timing.end==1664,"Initial sprite-copy work follows decoded chunk count");
+            sound.stop();oneMore=profile;++oneMore.bands;
+            more=airFollowingStageSetup(setup,oneMore,sound,[](const char*,int64_t,const AirFollowingSetup&){});
+            require(more.instruction.map.campaign.timing.end-loaded.instruction.map.campaign.timing.end==5564,"The fourth template band owns both its copy and destination-page carry");
+        }
+        require(followingInitialMapWork(true,0xae80)-followingInitialMapWork(true,0xf780)==4,"The high-difficulty initial world-coordinate wrap owns the shorter first row branch");
+        for(int player:{-1,0,2}){
+            sound.stop();AirInstructionTextState state;state.map.display=state.map.stat=5;state.map.lyc=95;state.map.lcdc=0xd1;state.map.campaign.player=player;
+            bool rejected=false;try{airFollowingSetupPrefix(state,1,0,sound,[](const char*,int64_t,const AirFollowingSetup&){},[](int64_t,int){},[](int64_t,int,int){});}catch(const std::runtime_error&){rejected=true;}
+            require(rejected,"Invalid or eliminated campaign selection cannot enter the following stunt startup owner");
+        }
+        for(int variant:{0,1,2}){
+            const char* path="local/following-stage-profile-fixture.dat";
+            {std::ofstream file(path,std::ios::binary);file.write("TICDFS01",8);
+                const unsigned char record[12]={1,0,0,0,1,0,1,0,0,0,0,0};
+                for(int i=0;i<(variant==1?7:8);++i)file.write(reinterpret_cast<const char*>(record),12);
+                if(variant==2)file.put(0);}
+            bool rejected=false;try{AirFollowingStageAssets::load(path);}catch(const std::runtime_error&){rejected=true;}
+            std::remove(path);require(rejected==(variant!=0),"Only the complete eight-profile startup package is accepted; missing/trailing records cannot supply a workload");
+        }
+        {
+            sound.playMusic(9);AirFollowingSetup state;state.stage=1;state.ready=1;state.stat=4;state.lyc=135;state.lcdc=0x67;state.pendingRequests=3;
+            state.instruction.map.campaign.timing.end=1000000;
+            int services=0;bool rejected=false;
+            try{airFollowingEntry(state,sound,[](const char*,int64_t,const AirFollowingSetup&){},[&](unsigned,int64_t,int,int,int,int,const DisplayInput&){++services;},
+                [](const char*,int64_t,AirIrqOwner){},[&]{return services?8:0;});}catch(const std::runtime_error&){rejected=true;}
+            require(rejected&&services==2,"Fresh Start at the first following update cannot borrow ordinary startup's unpaused tail");
         }
         auto reject=[&](int result,int lives,int held){sound.stop();try{airResultIncoming(prefix,result,0,lives,held,sound,layouts,*ui,[](const char*,int64_t,int,int,int,int,int,bool){},[](unsigned,int64_t,int,int,int,int,int,bool){},[](const char*,int64_t,AirIrqOwner){});return false;}catch(const std::runtime_error&){return true;}};
         require(reject(1,1,0),"Final-life transition cannot borrow ordinary failure timing");

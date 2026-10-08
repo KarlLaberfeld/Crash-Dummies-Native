@@ -18,6 +18,7 @@
 #include "air_instruction_map.h"
 #include "air_instruction_text.h"
 #include "air_instruction_exit.h"
+#include "air_following_setup.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -49,9 +50,9 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
     out<<'\n';
 }
 int main(int argc,char** argv){
-    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header]\n");return 2;}
+    if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry]\n");return 2;}
     try{
-        bool instructionExit=false;
+        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false;
         int difficulty=1,positional=0,celebrationServices=0;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
@@ -68,6 +69,9 @@ int main(int argc,char** argv){
             else if(option=="--instruction-map"){instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--instruction-text"){instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--instruction-exit"){instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--following-setup-prefix"){followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--following-stage-setup"){followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
+            else if(option=="--following-entry"){followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
             else if(option=="--pause-entry"&&i+1<argc)pauseEntryPath=argv[++i];
@@ -587,6 +591,39 @@ int main(int argc,char** argv){
                                             [&](int64_t cycle,int mode){polls<<cycle<<','<<mode<<'\n';},
                                             [&](int64_t cycle,int address,int value){writes<<cycle<<','<<address<<','<<value<<'\n';},nextResultInput);
                                         std::ofstream summary(std::string(argv[2])+".instruction-exit.summary.csv");summary<<"end,tick,countdown,displays,stats\n"<<exited.map.campaign.timing.end<<','<<exited.map.campaign.timing.tick<<','<<exited.map.campaign.timing.countdown<<','<<exited.map.campaign.timing.displays<<','<<exited.map.campaign.timing.stats<<'\n';
+                                        if(followingSetupPrefix){
+                                            std::ofstream points(std::string(argv[2])+".following-prefix.csv"),polls(std::string(argv[2])+".following-prefix.polls.csv"),writes(std::string(argv[2])+".following-prefix.writes.csv");
+                                            if(!points||!polls||!writes)throw std::runtime_error("Cannot open following setup prefix outputs");
+                                            points<<"boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests\n";
+                                            polls<<"cycle,ly\n";writes<<"cycle,address,value\n";
+                                            auto setup=airFollowingSetupPrefix(exited,nextStage,difficulty,sound,
+                                                [&](const char* name,int64_t cycle,const AirFollowingSetup& state){const auto& campaign=state.instruction.map.campaign;points<<name<<','<<cycle<<','<<campaign.timing.tick<<','<<campaign.timing.countdown<<','<<campaign.player<<','<<state.stage<<','<<state.difficulty<<','<<campaign.lives[campaign.player]<<','<<state.display<<','<<state.stat<<','<<state.lcdc<<','<<state.lyc<<','<<state.pendingRequests<<'\n';},
+                                                [&](int64_t cycle,int ly){polls<<cycle<<','<<ly<<'\n';},
+                                                [&](int64_t cycle,int address,int value){writes<<cycle<<','<<address<<','<<value<<'\n';});
+                                            std::ofstream summary(std::string(argv[2])+".following-prefix.summary.csv");summary<<"end,tick,countdown,displays,stats,pollReads,lcdDisabled,pendingRequests\n"<<setup.instruction.map.campaign.timing.end<<','<<setup.instruction.map.campaign.timing.tick<<','<<setup.instruction.map.campaign.timing.countdown<<','<<setup.instruction.map.campaign.timing.displays<<','<<setup.instruction.map.campaign.timing.stats<<','<<setup.pollReads<<','<<setup.lcdDisabled<<','<<setup.pendingRequests<<'\n';
+                                            if(followingStageSetup){
+                                                auto profiles=AirFollowingStageAssets::load("build/following-setup.dat");
+                                                std::ofstream points(std::string(argv[2])+".following-stage.csv");
+                                                if(!points)throw std::runtime_error("Cannot open following stage outputs");
+                                                points<<"boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests,cameraX,cameraY,mapScratch,ready,musicEnabled\n";
+                                                auto stage=airFollowingStageSetup(setup,profiles.profiles[(nextStage-1)*4+difficulty],sound,
+                                                    [&](const char* name,int64_t cycle,const AirFollowingSetup& state){const auto& c=state.instruction.map.campaign;points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<state.stage<<','<<state.difficulty<<','<<c.lives[c.player]<<','<<state.display<<','<<state.stat<<','<<state.lcdc<<','<<state.lyc<<','<<state.pendingRequests<<','<<state.cameraX<<','<<state.cameraY<<','<<state.mapScratch<<','<<state.ready<<','<<sound.enabled<<'\n';});
+                                                std::ofstream summary(std::string(argv[2])+".following-stage.summary.csv");const auto& t=stage.instruction.map.campaign.timing;
+                                                summary<<"end,tick,countdown,displays,stats\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<'\n';
+                                                if(followingEntry){
+                                                    std::ofstream points(std::string(argv[2])+".following-entry.csv"),services(std::string(argv[2])+".following-entry.services.csv"),irqs(std::string(argv[2])+".following-entry.interrupts.csv");
+                                                    if(!points||!services||!irqs)throw std::runtime_error("Cannot open following LCD entry outputs");
+                                                    points<<"boundary,cycle,tick,countdown,display,stat,lcdc,lyc,pendingRequests,cameraX,cameraY,mapScratch,randomState,ready,musicEnabled,inputHeld,inputPressed\n";
+                                                    services<<"service,cycle,tick,display,effects,music,inputHeld,inputPressed\n";irqs<<"kind,vectorCycle,owner\n";
+                                                    auto entered=airFollowingEntry(stage,sound,
+                                                        [&](const char* name,int64_t cycle,const AirFollowingSetup& state){const auto& t=state.instruction.map.campaign.timing;points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<state.display<<','<<state.stat<<','<<state.lcdc<<','<<state.lyc<<','<<state.pendingRequests<<','<<state.cameraX<<','<<state.cameraY<<','<<state.mapScratch<<','<<state.randomState<<','<<state.ready<<','<<sound.enabled<<','<<t.input.held<<','<<t.input.pressed<<'\n';},
+                                                        [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';},
+                                                        [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
+                                                    std::ofstream summary(std::string(argv[2])+".following-entry.summary.csv");const auto& t=entered.instruction.map.campaign.timing;
+                                                    summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<'\n';
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

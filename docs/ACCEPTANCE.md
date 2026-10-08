@@ -1,5 +1,17 @@
 # Final release acceptance
 
+October 8 following-startup checkpoint: four controls match the full 0355..03d8
+interval at 20 LCD-off / 50 stage / 48 restart boundary comparisons, 6,941 LY
+reads, 2,048 intended clear stores, eight displays and 16 complete vectors.
+Four 039c handoffs overlap; 114 samples are distinct. Frozen counters, selected
+completed camera/map/scene-seed states, pending/periodic IRQ order and input/audio
+work agree. Checks: 52,850 native result assertions and 394 Python tests; prior
+instruction exits remain exact. See [scope](AIR_FOLLOWING_SETUP.md). Fresh-entry
+pause/restarted gameplay, genuine final-life/reset, earlier UI, unobserved owners
+and production Windows scheduling remain required. Resource/HUD/actor byte,
+complete image/PCM, human/physical/independent Windows and distribution gates
+remain open. Production EXE unchanged; point 1 and final acceptance are incomplete.
+
 October 8 instruction-exit follow-up: four original paths match 414 boundaries /
 166 displays / 332 vectors / 200 polls / 40 intended writes through 0355,
 including held Start, prompt/fresh input, complete fade and quiet audio reset.

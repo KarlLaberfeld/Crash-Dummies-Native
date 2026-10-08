@@ -1,5 +1,20 @@
 # Project status - October 8, 2026
 
+Latest following-startup checkpoint: the complete instruction-to-stunt interval
+0355..03d8 matches four original controls (one easy Air retry, three easy Ski
+starts). LCD-off/clears: 20 boundaries / 6,941 LY reads / 2,048 intended stores;
+masked stage setup: 50 boundaries; resources/HUD/LCD restart: 48 boundaries /
+eight displays / 16 complete vectors. All agree, including frozen counters,
+native map/RNG role separation, scene seed, input/audio and pending/periodic IRQ
+order. Boundary totals overlap four 039c endpoints (114 unique samples). Prior
+instruction exits remain exact. Checks: O2 Windows diagnostic, 52,850 native
+result assertions and 394 Python tests. See [scope](AIR_FOLLOWING_SETUP.md).
+Next concrete owners: first-entry pause/restarted gameplay handoff and genuine
+final-life/reset continuation, followed by earlier UI and production scheduler
+integration. Stage buffer contents, full images/PCM, unobserved work and remaining
+ACCEPTANCE.md gates remain open. Point 1 is incomplete; production EXE unchanged.
+The private repository and continuation automation remain required; no release.
+
 Latest instruction-exit follow-up: held Start, optional twenty-glyph prompt,
 fresh-Start wait, 32 fade waits plus one final wait and quiet audio reset now
 match four original controls through 0355: 414 boundaries / 166 displays / 332
