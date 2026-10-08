@@ -1,5 +1,22 @@
 # Project status - October 8, 2026
 
+Latest continued-retry follow-up: ordinary and post-entry-pause easy Air variants
+each match 266 updates through complete rise/wait and four active-play updates.
+Combined: 5,320 boundary comparisons (4,790 distinct samples), 85,120 actor slots
+(16,116 occupied instances), 532 displays and 1,064 complete vectors, zero
+differences. First updates/adjacent endpoints overlap prior scope. Native raw
+input history, timer 35 through intro then 39 after four active steps, effect
+20 consumption, HUD/fade and new LCD deadlines agree. A shared row-scratch/gate
+high byte now clears at no-row completion. Checks: O2 diagnostic, 663 handoff/
+pause assertions and 456 Python tests; prior result suite remains applicable.
+Four startup/exit and ordinary first-update controls remain exact; production EXE
+unchanged. See [scope](AIR_FOLLOWING_QUIET_GAMEPLAY.md). Next concrete owner:
+267th update's resource request (state one / thirteen pieces) and following
+display transfers; a 300-update rejected original record is saved locally for
+diagnosis. Later restarted play/Ski/changed-player, final-life/reset, earlier UI,
+unobserved work and production scheduling remain open. Point 1 is incomplete;
+all remaining ACCEPTANCE.md gates still apply. No release; automation stays active.
+
 Latest entry-pause follow-up: one input-only easy Air retry now matches complete
 first-entry pause and return at 13 boundaries / 25 displays / 50 complete vectors,
 all 1,746 bus events, 444 accepted row/font storage bytes and 53 pause intervals.

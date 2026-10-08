@@ -79,3 +79,8 @@ additional input-only Air control, including its first post-resume update.
 The native pause return owns consumed Start before this first update; later
 fresh Start still rejects without its own pause owner. That checkpoint records
 the latest 663 native handoff/pause assertions and 434 Python tests.
+
+The [continued retry checkpoint](AIR_FOLLOWING_QUIET_GAMEPLAY.md) extends both
+ordinary and paused variants through 266 updates. It reuses this first-update
+scope, adds native input/effect continuation and corrects the shared row-scratch
+gate at no-row completion. The next graphics request/transfer remains guarded.

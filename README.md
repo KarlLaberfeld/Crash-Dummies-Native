@@ -46,6 +46,13 @@ open. See [header scope](docs/AIR_INSTRUCTION_HEADER.md),
 [handoff evidence and limits](docs/AIR_RESULT_HANDOFF.md) and
 [celebration scope](docs/AIR_CELEBRATION.md).
 
+Both ordinary and paused Air retries now also match 266 following updates
+through the complete rise/wait and four active-play steps: 5,320 boundary
+comparisons, 85,120 actor slots, 532 displays and 1,064 vectors. Adjacent endpoints
+and previous first-update coverage overlap. Native timer/input/effects/HUD/fade
+agree, and a shared row-scratch/gate boundary is corrected. The next graphics
+request/transfer remains guarded; see [continued retry scope](docs/AIR_FOLLOWING_QUIET_GAMEPLAY.md).
+
 Latest Air timing evidence: seven controls, including a successful finish,
 match all 36,548 complete interrupt vectors. Source completion corrects 23
 previously hidden sprite/map edges. The common result setup also matches 44

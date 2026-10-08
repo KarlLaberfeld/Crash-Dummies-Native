@@ -1,5 +1,18 @@
 # Final release acceptance
 
+October 8 continued-retry follow-up: two Air entry variants (ordinary/paused)
+each match 266 updates through rise/wait and four active-play steps. Combined
+5,320 boundary comparisons / 85,120 actor slots / 532 displays / 1,064 vectors
+agree; adjacent end/begin and previous first-update coverage overlap. Native
+timer/input, queued effect, HUD/fade and corrected shared row-scratch/gate agree.
+Checks: O2 diagnostic, 663 handoff/pause assertions, 456 Python tests and exact
+four prior startup/exit plus ordinary first-update regressions. See
+[scope](AIR_FOLLOWING_QUIET_GAMEPLAY.md). The next resource request/transfer at
+the 267th update is deliberately excluded, together with later play, Ski/player
+handoffs, final-life/reset, earlier UI, unknown owners and production scheduling.
+Complete images/PCM, human/physical/independent Windows and distribution gates
+remain open. Production EXE unchanged; point 1/final acceptance are incomplete.
+
 October 8 entry-pause follow-up: a new input-only easy Air control matches the
 complete first-entry pause/return at 13 boundaries / 25 displays / 50 vectors,
 1,746 bus events, 444 accepted row/font bytes and 53 intervals. Its first

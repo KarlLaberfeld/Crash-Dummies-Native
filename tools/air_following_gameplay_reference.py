@@ -1,4 +1,4 @@
-"""Read-only first following Air update and next counter wait; never native input."""
+"""Read-only following Air updates and counter waits; never native timing/state input."""
 import argparse,csv,hashlib,json
 from pathlib import Path
 from extract import read_rom
@@ -15,27 +15,31 @@ def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
-    p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False
+    extent=getattr(args,'updates',1)
+    if not 1<=extent<=100000:raise ValueError('Invalid following update extent')
+    p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False;updates=0
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
-        nonlocal armed,active,complete,opened,pause_seen
+        nonlocal armed,active,complete,opened,pause_seen,updates
         if complete:return
         if pc==0x268b and p.memory[0xc098] in (2,10):armed=True
         if pc==0x1476 and armed and not active:pause_seen=True
         if pc==0x2436 and (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6)):buttons.append(p.memory[0xff8a])
+        closing=False
         if pc==0x03d8 and armed:
             if p.memory[0xc098]!=4:raise ValueError('Following gameplay control is not an Air retry')
             if not active:active=True
-            else:complete=True
+            else:updates+=1;closing=True;complete=updates==extent
         if not active:return
         now=p._cycles()
         if pc in POINTS:
             seconds=p.memory[0xc084]
             if seconds&15>9 or seconds>>4>9:raise ValueError('Invalid original BCD timer')
-            points.append(dict(name='end' if complete else POINTS[pc],cycles=now,tick=word(0xc00a),secondTicks=p.memory[0xc083],seconds=(seconds>>4)*10+(seconds&15),random=word(0xc09e),
+            points.append(dict(name='end' if closing else POINTS[pc],cycles=now,tick=word(0xc00a),secondTicks=p.memory[0xc083],seconds=(seconds>>4)*10+(seconds&15),random=word(0xc09e),
                 ready=p.memory[0xffae],map=p.memory[0xc00d],lastMapCamera=word(0xff96),mapScratch=word(0xc00c),cameraX=word(0xff92),cameraY=word(0xff94),hudCursor=p.memory[0xc04c],fadeRemaining=p.memory[0xffc9],
                 held=p.memory[0xff8a],pressed=p.memory[0xff8b],lcdc=p.memory[0xff40],display=p.memory[0xc098],transfer=p.memory[0xffb6],remaining=p.memory[0xffb5],effect=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6],reverse=int(bool(p.memory[0xff90])),
                 entities=[dict(frame=p.memory[0xc200+i*16],flags=p.memory[0xc205+i*16],handler=word(0xc206+i*16),x=word(0xc201+i*16),y=word(0xc203+i*16),params=list(p.memory[0xc209+i*16:0xc210+i*16]),state=p.memory[0xc302+i*16],delay=p.memory[0xc303+i*16],period=p.memory[0xc304+i*16]) for i in range(16)]))
+            if closing and not complete:points.append(dict(points[-1],name='begin'))
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested following gameplay IRQ')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],display=p.memory[0xc098],returnAddress=word(p.register_file.SP),tick=word(0xc00a),ready=p.memory[0xffae],phases={})
@@ -56,14 +60,22 @@ def capture(args):
         digest=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete first following update or changed control')
-    data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-1,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
-    analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.json',data)
+    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-extent,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    try:
+        if extent==1:analyze(data)
+        else:
+            from air_following_quiet_reference import analyze as analyze_quiet
+            analyze_quiet(data)
+    except ValueError:
+        args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.rejected.json',data)
+        raise
+    args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
-    print(json.dumps(dict(boundaries=len(points),services=1,interrupts=len(irqs),controlDifferences=0),indent=2))
+    print(json.dumps(dict(boundaries=len(points),services=extent,interrupts=len(irqs),controlDifferences=0),indent=2))
 
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
-    if data.get('version')!=1 or [p['name'] for p in points]!=ORDER or any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Incomplete/reordered following gameplay')
+    if data.get('version')!=1 or data.get('updates',1)!=1 or [p['name'] for p in points]!=ORDER or any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Incomplete/reordered following gameplay')
     if len(irqs)!=2 or [r['kind'] for r in irqs]!=['stat','vblank'] or data.get('precedingDisplays',-1)<0:raise ValueError('Incomplete following gameplay vectors')
     first=points[0]
     for i,p in enumerate(points):
@@ -130,7 +142,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1)
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

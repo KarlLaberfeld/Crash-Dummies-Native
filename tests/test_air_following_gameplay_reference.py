@@ -33,6 +33,9 @@ class FollowingGameplayIntegrity(unittest.TestCase):
     def setUp(self):self.values=fixture();self.data=self.values[0]
     def compare(self):return compare_gameplay(*self.values,1000)
     def test_complete_fixture(self):self.assertEqual(self.compare(),([],20))
+    def test_wrong_declared_update_extent_rejects(self):
+        self.data['updates']=2
+        with self.assertRaises(ValueError):self.compare()
     def test_missing_original_end_rejects(self):
         self.data['points'].pop()
         with self.assertRaises(ValueError):self.compare()
