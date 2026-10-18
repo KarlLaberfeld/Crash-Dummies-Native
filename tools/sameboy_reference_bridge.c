@@ -1,4 +1,4 @@
-/* Separate original-ROM reference adapter. Never part of CrashDummies.exe. */
+/* Separate original-ROM reference adapter. Never part of CrashDummiesNative.exe. */
 #include "Core/gb.h"
 #include <stdlib.h>
 #include <string.h>

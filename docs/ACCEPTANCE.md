@@ -1,4 +1,11 @@
-# Final release acceptance
+# Crash Dummies Native - final release acceptance
+
+October 18 alpha preparation: XInput support and a ROM-free versioned private
+pre-release are separate from final fidelity acceptance. Release validation is
+reported in RELEASE_NOTES.md and the release validation attachment. Physical
+controller qualification, second-Windows testing and all existing original
+comparison/timing gates remain open. Historical checks below retain their
+original executable names and scope.
 
 October 8 continued-retry follow-up: two Air entry variants (ordinary/paused)
 each match 266 updates through rise/wait and four active-play steps. Combined

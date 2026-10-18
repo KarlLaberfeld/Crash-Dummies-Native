@@ -31,9 +31,17 @@ if (-not $SkipExtract) {
     & python tools/extract_ui.py $Rom --out build
     if ($LASTEXITCODE -ne 0) { throw 'UI extraction failed.' }
 }
-& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp src/bomb.cpp src/cruise.cpp src/ui.cpp src/audio.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp tests/bomb_tests.cpp tests/cruise_tests.cpp tests/campaign_tests.cpp tests/ui_tests.cpp tests/playthrough_tests.cpp tests/audio_tests.cpp tests/sprite_tests.cpp -o build/CrashDummies.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32 -lwinmm
+& python tools/build_manifest.py begin
+if ($LASTEXITCODE -ne 0) { throw 'Build identity preparation failed.' }
+& $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Wno-nullability-completeness -Wno-unused-command-line-argument -Isrc src/main.cpp src/game.cpp src/air.cpp src/ski.cpp src/bomb.cpp src/cruise.cpp src/ui.cpp src/audio.cpp tests/native_tests.cpp tests/air_tests.cpp tests/ski_tests.cpp tests/bomb_tests.cpp tests/cruise_tests.cpp tests/campaign_tests.cpp tests/ui_tests.cpp tests/playthrough_tests.cpp tests/audio_tests.cpp tests/sprite_tests.cpp -o build/CrashDummiesNative.exe -target x86_64-windows-gnu -municode '-Wl,--subsystem,windows' -luser32 -lgdi32 -lshell32 -lwinmm
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
+& python tools/build_manifest.py finish
+if ($LASTEXITCODE -ne 0) { throw 'Build identity verification failed.' }
 if ($Test) {
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/controller_tests.cpp -o build/controller-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Controller test compilation failed.' }
+    & ./build/controller-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Controller tests failed.' }
     & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_work_tests.cpp src/air.cpp src/game.cpp -o build/air-work-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Air source-work test compilation failed.' }
     & ./build/air-work-tests.exe
@@ -50,7 +58,7 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build
     try {
-        $process = Start-Process -FilePath '.\CrashDummies.exe' -ArgumentList '--self-test' -Wait -PassThru -WindowStyle Hidden
+        $process = Start-Process -FilePath '.\CrashDummiesNative.exe' -ArgumentList '--self-test' -Wait -PassThru -WindowStyle Hidden
         Get-Content self-test.txt
         Get-Content air-test.txt
         Get-Content ski-test.txt
@@ -64,4 +72,4 @@ if ($Test) {
         if ($process.ExitCode -ne 0) { throw 'Native tests failed.' }
     } finally { Pop-Location }
 }
-Write-Output 'Built: build\CrashDummies.exe (development build, not the complete game)'
+Write-Output 'Built: build\CrashDummiesNative.exe (development build, not the complete game)'

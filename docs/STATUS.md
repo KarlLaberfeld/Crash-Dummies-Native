@@ -1,4 +1,20 @@
-# Project status - October 8, 2026
+# Crash Dummies Native - project status
+
+## Alpha release preparation - October 18, 2026
+
+The project/repository is now Crash Dummies Native (`Crash-Dummies-Native` on
+GitHub), and the executable is `CrashDummiesNative.exe`. The private visibility
+is retained. The local workspace path is unchanged so existing measurements
+remain usable. Historical executable names/hashes below refer to their actual
+checkpoints and have not been relabeled.
+
+The alpha adds XInput controller input, reconnect/focus protection and disconnect
+pause, an English Windows shell, player-facing documentation and strict clean
+build/package identity checks. See RELEASE_NOTES.md and BUILDING.md. This is a
+separate usability/distribution milestone; the original-timing work below has
+not advanced and production scheduling is still incomplete. Final acceptance
+remains open. The continuation automation's saved repository URL/name has been
+updated while preserving its existing PAUSED state.
 
 Latest continued-retry follow-up: ordinary and post-entry-pause easy Air variants
 each match 266 updates through complete rise/wait and four active-play updates.

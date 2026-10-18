@@ -17,6 +17,7 @@
 #include "audio.h"
 #include "windows_audio.h"
 #include "sprites.h"
+#include "windows_controller.h"
 
 namespace ticd { int runPlaythroughTests(const Assets&,const AirAssets&,const SkiAssets&,const BombAssets&,const CruiseAssets&,const UiAssets&); }
 
@@ -44,12 +45,18 @@ int& difficulty(){return selectedStunt==4?cruise->difficulty:selectedStunt==3?bo
 int result(){return selectedStunt==4?cruise->result:selectedStunt==3?bomb->result:selectedStunt==2?ski->result:selectedStunt==1?air->result:game->terminalFlags();}
 void restart(){++musicGeneration;int player=developerMode?0:ui->campaign.current;if(selectedStunt==4)cruise->start(cruise->difficulty,player);else if(selectedStunt==3)bomb->start(bomb->difficulty,player);else if(selectedStunt==2)ski->start(ski->difficulty,player);else if(selectedStunt==1)air->start(air->difficulty,player);else game->start(game->difficulty,player);}
 bool keys[256]{};
+bool inputFocused=true;
+ticd::ControllerInput controller;
+void startAction(){
+    if(developerMode){if(!started()||result())restart();else paused()=!paused();}
+    else if(ui->phase==ticd::UiPhase::Playing)paused()=!paused();
+}
 HFONT headingFont,bodyFont,smallFont;
 uint32_t pixels[ticd::Width*ticd::Height];
 const uint32_t palette[]={0xe0eecd,0x8dac74,0x395841,0x111f1d};
 std::wstring appDirectory() {
     wchar_t buffer[32768];DWORD n=GetModuleFileNameW(nullptr,buffer,32768);
-    if(!n||n==32768)throw std::runtime_error("Programmpfad ist zu lang.");
+    if(!n||n==32768)throw std::runtime_error("Executable path is too long.");
     std::wstring p(buffer,n);return p.substr(0,p.find_last_of(L"\\/")+1);
 }
 void label(HDC dc,int x,int y,int w,int h,const wchar_t* text,COLORREF color,HFONT font) {
@@ -62,8 +69,8 @@ void paint(HWND hwnd,HDC dc) {
     int side=w>=800?260:0;
     int scale=std::max(1,std::min((w-side-48)/160,(h-160)/144));
     int gx=(w-side-160*scale)/2,gy=100;
-    label(dc,24,18,w-48,36,L"THE INCREDIBLE CRASH DUMMIES",RGB(224,238,205),headingFont);
-    label(dc,24,57,w-48,26,L"Native Windows-Portierung  /  Entwicklungsstand 0.1",RGB(149,175,162),smallFont);
+    label(dc,24,18,w-48,36,L"CRASH DUMMIES NATIVE",RGB(224,238,205),headingFont);
+    label(dc,24,57,w-48,26,L"Native Windows port  /  0.1.0-alpha.1",RGB(149,175,162),smallFont);
     if(selectedStunt==4)cruise->render(developerMode);else if(selectedStunt==3)bomb->render(developerMode);else if(selectedStunt==2)ski->render(developerMode);else if(selectedStunt==1)air->render(developerMode);else game->render(developerMode);
     const auto uiScreen=ui->render();
     auto screen=(!developerMode&&ui->phase!=ticd::UiPhase::Playing)?uiScreen:selectedStunt==4?cruise->screen:selectedStunt==3?bomb->screen:selectedStunt==2?ski->screen:selectedStunt==1?air->screen:game->screen;
@@ -73,24 +80,19 @@ void paint(HWND hwnd,HDC dc) {
     info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
     SetStretchBltMode(dc,COLORONCOLOR);
     StretchDIBits(dc,gx,gy,160*scale,144*scale,0,0,160,144,pixels,&info,DIB_RGB_COLORS,SRCCOPY);
-    const wchar_t* difficulties[]={L"LEICHT",L"NORMAL",L"SCHWER",L"SEHR SCHWER"};
+    const wchar_t* difficulties[]={L"EASY",L"NORMAL",L"HARD",L"VERY HARD"};
     std::wstring status=selectedStunt==4?L"CRUISE MISSILE   /   ":selectedStunt==3?L"BOMB FACTORY   /   ":selectedStunt==2?L"SKI SLOPE   /   ":selectedStunt==1?L"AIR BUMPER   /   ":L"ROOF JUMP   /   ";status+=difficulties[difficulty()];
     if(!developerMode&&ui->phase==ticd::UiPhase::Title)status=L"THE INCREDIBLE CRASH DUMMIES";
     label(dc,gx,gy+144*scale+16,600,28,status.c_str(),RGB(224,238,205),smallFont);
     if(side){
         int sx=w-side;
         label(dc,sx,102,240,30,selectedStunt==4?L"CRUISE MISSILE":selectedStunt==3?L"BOMB FACTORY":selectedStunt==2?L"SKI SLOPE":selectedStunt==1?L"AIR BUMPER":L"ROOF JUMP",RGB(224,238,205),headingFont);
-        label(dc,sx,148,232,162,!developerMode&&ui->phase!=ticd::UiPhase::Playing?
-            ui->phase==ticd::UiPhase::NameEntry?L"Links / rechts  Zeichen waehlen\nZ / X                  Zeichen bestaetigen\nRueckpfeil        Zeichen loeschen\nEndsymbol        Eingabe beenden":L"Enter                 Start / Weiter\nTab                     Select / Optionen\nZ / X                  A / B\nPfeiltasten       Auswahl\nF1 - F5             Stunt-Testmodus\nF6                       Zur Titelseite":!developerMode?
-            L"Pfeiltasten        Bewegen\nZ oder A             A-Taste\nX oder S             B-Taste\nEnter / Esc        Pause\nF1 - F5                Stunt-Testmodus\nF6                          Zur Titelseite":selectedStunt==4?
-            L"Links / rechts  Drehen\nZ oder A          Schub\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":selectedStunt==3?
-            L"Links / rechts  Band waehlen\nOben / unten  Bewegen\nZ oder A          Entschaerfen\nX oder S          Schlagen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==2?
-            L"Links / rechts  Lenken\nPfeil unten      Geradeaus\nZ oder A          Springen\nX oder S          Beschleunigen\nEnter / Esc     Start / Pause\nR / 1 - 4           Neustart / Stufe\nF1 - F5             Stunt waehlen":selectedStunt==1?
-            L"Links / rechts  Neigen\nZ oder A          Aufsteigen\nX oder S          Absteigen\nEnter / Esc     Start / Pause\nR                       Neustart\n1 - 4                 Schwierigkeit\nF1 - F5             Stunt waehlen":
-            L"Pfeiltasten  Bewegen / Haltung\nZ oder A      Abspringen\nX oder S      Zweite Aktion\nEnter / Esc  Start / Pause\nR                   Neustart\n1 - 4             Schwierigkeit\nF1 - F5         Stunt waehlen",RGB(193,207,197),bodyFont);
-        label(dc,sx,322,232,32,L"ORIGINALDATEN",RGB(224,238,205),smallFont);
-        label(dc,sx,353,232,96,L"Grafiken und Objektlisten stammen aus deiner ROM. Die Spiellogik wird als C++ direkt unter Windows ausgefuehrt.",RGB(149,175,162),bodyFont);
-        label(dc,sx,465,232,96,L"Noch unvollstaendig: Bilduebergaenge, Klangtreue und Originalabgleich. Dieser Build ist keine fertige Vollversion.",RGB(218,186,128),bodyFont);
+        label(dc,sx,148,232,162,
+            L"Arrows / D-pad / left stick: move\nZ or A / pad A: action A\nX or S / pad B: action B\nEnter / pad Start: start, pause\nTab / pad Back: Select, options\nEscape: pause\nF6: return to title",
+            RGB(193,207,197),bodyFont);
+        label(dc,sx,322,232,32,L"EXPERIMENTAL ALPHA",RGB(224,238,205),smallFont);
+        label(dc,sx,353,232,96,L"Native C++ game logic. Original graphics and game data are prepared locally from your own ROM.",RGB(149,175,162),bodyFont);
+        label(dc,sx,465,232,96,L"Original timing, image and audio comparisons remain incomplete. F1-F5: development stunt selection.",RGB(218,186,128),bodyFont);
     }
 }
 LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -101,16 +103,17 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         paint(hwnd,back);BitBlt(dc,0,0,r.right,r.bottom,back,0,0,SRCCOPY);SelectObject(back,old);DeleteObject(bitmap);DeleteDC(back);EndPaint(hwnd,&ps);return 0;}
     case WM_SIZE:InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_GETMINMAXINFO:{auto* m=reinterpret_cast<MINMAXINFO*>(lp);m->ptMinTrackSize={420,450};return 0;}
-    case WM_KILLFOCUS:std::fill(std::begin(keys),std::end(keys),false);if(started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=true;return 0;
+    case WM_SETFOCUS:inputFocused=true;return 0;
+    case WM_KILLFOCUS:inputFocused=false;controller.suspend();std::fill(std::begin(keys),std::end(keys),false);if(started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=true;return 0;
     case WM_KEYUP:if(wp<256)keys[wp]=false;return 0;
     case WM_KEYDOWN:
         if(wp<256)keys[wp]=true;
         if(lp&(1LL<<30))return 0;
+        if(wp==VK_RETURN)startAction();
         if(developerMode){
-            if(wp==VK_RETURN){if(!started()||result())restart();else paused()=!paused();}
             if(wp=='R')restart();
             if(wp>='1'&&wp<='4'){difficulty()=static_cast<int>(wp-'1');if(started())restart();}
-        }else if(wp==VK_RETURN&&ui->phase==ticd::UiPhase::Playing)paused()=!paused();
+        }
         if(wp==VK_ESCAPE&&started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=!paused();
         if(wp>=VK_F1&&wp<=VK_F5){if(started())paused()=true;developerMode=true;selectedStunt=static_cast<int>(wp-VK_F1);std::fill(std::begin(keys),std::end(keys),false);}
         if(wp==VK_F6){developerMode=false;ui->phase=ticd::UiPhase::Title;ui->page=ui->phaseTicks=ui->previous=ui->titleDirection=ui->titleScroll=0;ui->campaign.active=false;std::fill(std::begin(keys),std::end(keys),false);}
@@ -144,7 +147,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool audioSmoke=argc>1&&std::wstring(argv[1])==L"--audio-smoke-test";
         bool noAudioSmoke=argc>1&&std::wstring(argv[1])==L"--ui-no-audio-test";
-        bool uiSmoke=noAudioSmoke||(argc>1&&std::wstring(argv[1])==L"--ui-smoke-test");
+        bool controllerSmoke=argc>1&&std::wstring(argv[1])==L"--controller-smoke-test";
+        bool uiSmoke=controllerSmoke||noAudioSmoke||(argc>1&&std::wstring(argv[1])==L"--ui-smoke-test");
         bool smoke=uiSmoke||audioSmoke||(argc>1&&std::wstring(argv[1])==L"--smoke-test");
         LocalFree(argv);
         if(tests){int roofResult=ticd::runSelfTests(*assets);int airResult=ticd::runAirTests(*airAssets,*assets);int skiResult=ticd::runSkiTests(*skiAssets,*assets);int bombResult=ticd::runBombTests(*bombAssets,*assets);int cruiseResult=ticd::runCruiseTests(*cruiseAssets,*assets);int campaignResult=ticd::runCampaignTests();int uiResult=ticd::runUiTests(*uiAssets);int audioResult=ticd::runAudioTests(*audioAssets);int spriteResult=ticd::runSpriteTests();int playthroughResult=ticd::runPlaythroughTests(*assets,*airAssets,*skiAssets,*bombAssets,*cruiseAssets,*uiAssets);return roofResult?roofResult:airResult?airResult:skiResult?skiResult:bombResult?bombResult:cruiseResult?cruiseResult:campaignResult?campaignResult:uiResult?uiResult:audioResult?audioResult:spriteResult?spriteResult:playthroughResult;}
@@ -204,6 +208,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bomb->start(0);for(int i=0;i<350;++i)bomb->step(0);bomb->render();ticd::saveBmp(directory+L"bomb-factory.bmp",bomb->screen);
             cruise->start(0);for(int i=0;i<240;++i)cruise->step(ticd::A);cruise->render();ticd::saveBmp(directory+L"cruise-missile.bmp",cruise->screen);return 0;
         }
+        ticd::WindowsController controllerDevice;
+        ticd::ControllerSample testController;
         ui->beginBoot();
         // The diagnostic uses an invalid identifier to exercise the real
         // waveOutOpen failure path without changing any Windows audio devices.
@@ -213,16 +219,16 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         headingFont=CreateFontW(-24,0,0,0,FW_BOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
         bodyFont=CreateFontW(-16,0,0,0,FW_NORMAL,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
         smallFont=CreateFontW(-15,0,0,0,FW_SEMIBOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
-        WNDCLASSW wc={};wc.lpfnWndProc=windowProc;wc.hInstance=instance;wc.lpszClassName=L"TICDNativePort";wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
-        if(!RegisterClassW(&wc))throw std::runtime_error("Fensterklasse konnte nicht erstellt werden.");
-        HWND window=CreateWindowExW(0,wc.lpszClassName,L"Crash Dummies - Native Port (unvollstaendig)",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,980,800,nullptr,nullptr,instance,nullptr);
-        if(!window)throw std::runtime_error("Fenster konnte nicht erstellt werden.");
+        WNDCLASSW wc={};wc.lpfnWndProc=windowProc;wc.hInstance=instance;wc.lpszClassName=L"CrashDummiesNative";wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
+        if(!RegisterClassW(&wc))throw std::runtime_error("Could not register the application window class.");
+        HWND window=CreateWindowExW(0,wc.lpszClassName,L"Crash Dummies Native - 0.1.0-alpha.1",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,980,800,nullptr,nullptr,instance,nullptr);
+        if(!window)throw std::runtime_error("Could not create the application window.");
         ShowWindow(window,smoke?SW_HIDE:show);
         using Clock=std::chrono::steady_clock;auto previousTime=Clock::now();double accumulator=0;
         // One gameplay update per DMG frame. No emulated CPU, interrupts or PPU.
         constexpr double step=70224.0/4194304.0;
         MSG message={};bool running=true;int smokeTicks=0;
-        FILE* uiLog=uiSmoke?_wfopen((directory+(noAudioSmoke?L"ui-window-no-audio-test.txt":L"ui-window-test.txt")).c_str(),L"w"):nullptr;
+        FILE* uiLog=uiSmoke?_wfopen((directory+(controllerSmoke?L"ui-controller-test.txt":noAudioSmoke?L"ui-window-no-audio-test.txt":L"ui-window-test.txt")).c_str(),L"w"):nullptr;
         bool uiFailed=uiSmoke&&!uiLog;int pausedY=0;
         auto checkWindow=[&](bool ok,const char* label){if(!ok)uiFailed=true;if(uiLog){fprintf(uiLog,"%s: %s\n",ok?"PASS":"FAIL",label);fflush(uiLog);}};
         if(noAudioSmoke)checkWindow(!audioDevice.available(),"Invalid device identifier exercises the audio-open failure path");
@@ -233,14 +239,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
             bool changed=false;
             while(accumulator>=step){
                 if(uiSmoke){
-                    auto down=[&](int key){SendMessageW(window,WM_KEYDOWN,key,0);};
-                    auto up=[&](int key){SendMessageW(window,WM_KEYUP,key,0);};
+                    if(controllerSmoke&&smokeTicks==0)testController.slot=0;
+                    auto down=[&](int key){if(controllerSmoke&&key==VK_RETURN)testController.buttons|=0x10;else SendMessageW(window,WM_KEYDOWN,key,0);};
+                    auto up=[&](int key){if(controllerSmoke&&key==VK_RETURN)testController.buttons&=~0x10u;else SendMessageW(window,WM_KEYUP,key,0);};
                     switch(smokeTicks){
                     case 380:checkWindow(ui->phase==ticd::UiPhase::Title,"Windows loop completes boot and title opening");down(VK_RETURN);break;
-                    case 381:case 501:case 561:case 581:case 641:up(VK_RETURN);break;
+                    case 381:case 501:case 561:case 581:case 641:case 842:case 902:case 962:up(VK_RETURN);break;
                     case 500:checkWindow(ui->phase==ticd::UiPhase::Instructions,"Enter starts campaign instructions");down(VK_RETURN);break;
                     case 550:checkWindow(ui->phase==ticd::UiPhase::Playing&&game->ticks>0,"Enter reaches native Roof gameplay");break;
-                    case 560:down(VK_RETURN);pausedY=game->entities[0].y;checkWindow(paused(),"Enter pauses gameplay");break;
+                    case 560:down(VK_RETURN);pausedY=game->entities[0].y;if(!controllerSmoke)checkWindow(paused(),"Enter pauses gameplay");break;
                     case 580:checkWindow(paused()&&game->entities[0].y==pausedY&&sound->paused,"Pause freezes player and audio sequencer");down(VK_RETURN);break;
                     case 600:checkWindow(!paused()&&!sound->paused,"Enter resumes gameplay and audio");break;
                     case 620:down(VK_F6);break;case 621:case 801:up(VK_F6);break;
@@ -251,15 +258,44 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                     case 710:checkWindow(paused(),"Escape pauses development gameplay");break;
                     case 712:down(VK_ESCAPE);break;
                     case 720:checkWindow(!paused(),"Escape resumes development gameplay");down('Z');SendMessageW(window,WM_KILLFOCUS,0,0);checkWindow(paused()&&!keys['Z'],"Focus loss pauses and releases held keys");break;
-                    case 740:down(VK_ESCAPE);break;
+                    case 740:SendMessageW(window,WM_SETFOCUS,0,0);down(VK_ESCAPE);break;
                     case 760:{SetWindowPos(window,nullptr,0,0,420,450,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);RECT r{};GetClientRect(window,&r);checkWindow(r.right>0&&r.bottom>0,"Small window retains a usable drawing area");InvalidateRect(window,nullptr,FALSE);UpdateWindow(window);break;}
                     case 780:SetWindowPos(window,nullptr,0,0,980,800,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);InvalidateRect(window,nullptr,FALSE);UpdateWindow(window);break;
                     case 800:down(VK_F6);break;
+                    case 840:down(VK_F3);break;
+                    case 841:up(VK_F3);down(VK_RETURN);break;
+                    case 880:checkWindow(developerMode&&selectedStunt==2&&ski->started&&ski->ticks>0,"Windows input starts native Ski");break;
+                    case 900:down(VK_F4);break;
+                    case 901:up(VK_F4);down(VK_RETURN);break;
+                    case 940:checkWindow(developerMode&&selectedStunt==3&&bomb->started&&bomb->ticks>0,"Windows input starts native Bomb");break;
+                    case 960:down(VK_F5);break;
+                    case 961:up(VK_F5);down(VK_RETURN);break;
+                    case 1000:checkWindow(developerMode&&selectedStunt==4&&cruise->started&&cruise->ticks>0,"Windows input starts native Cruise");break;
                     case 820:checkWindow(!developerMode&&ui->phase==ticd::UiPhase::Title,"Return from development mode restores campaign title");break;
                     }
+                    if(controllerSmoke)switch(smokeTicks){
+                    case 390:checkWindow(ui->phase==ticd::UiPhase::TitleExit,"Controller Start leaves title");break;
+                    case 565:checkWindow(paused(),"Controller Start pauses once");break;
+                    case 610:testController.buttons=0x1008;break;
+                    case 611:checkWindow(controller.held==(ticd::A|ticd::Right),"Controller action and movement reach Windows input");testController.buttons=0;break;
+                    case 685:testController={};break;
+                    case 686:checkWindow(paused()&&!controller.held,"Disconnect pauses gameplay and releases input");testController={0,0x10};break;
+                    case 688:checkWindow(paused(),"Held Start on reconnect cannot resume");testController.buttons=0;break;
+                    case 690:testController.buttons=0x10;break;
+                    case 691:checkWindow(!paused(),"Fresh Start after reconnect resumes");break;
+                    case 695:checkWindow(!paused(),"Held Start does not toggle repeatedly");testController.buttons=0;break;
+                    case 721:testController.buttons=0x10;break;
+                    case 724:SendMessageW(window,WM_SETFOCUS,0,0);break;
+                    case 727:checkWindow(paused()&&!controller.held,"Focus regain ignores held controller Start");testController.buttons=0;break;
+                    case 825:testController.buttons=0x20;break;
+                    case 826:checkWindow(controller.held==ticd::UiSelect&&ui->nextPage==5&&ui->titleDirection!=0,"Controller Back opens options");testController.buttons=0;break;
+                    }
                 }
-                int input=buttons();
-                if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&videoTickPrepared();auto before=ui->phase;ui->step(input|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
+                controller.update(smoke?testController:controllerDevice.poll(),inputFocused&&(smoke||GetForegroundWindow()==window));
+                if(controller.disconnected&&started()&&(developerMode||ui->phase==ticd::UiPhase::Playing))paused()=true;
+                if((controller.pressed&ticd::UiStart)&&!keys[VK_RETURN])startAction();
+                int input=buttons()|(controller.held&(ticd::Right|ticd::Left|ticd::Up|ticd::Down|ticd::A|ticd::B));
+                if(!developerMode){ui->musicActive=sound->musicPlaying();ui->gameplayPaused=ui->phase==ticd::UiPhase::Playing&&videoTickPrepared();auto before=ui->phase;ui->step(input|(controller.held&(ticd::UiStart|ticd::UiSelect))|(keys[VK_RETURN]?ticd::UiStart:0)|(keys[VK_TAB]?ticd::UiSelect:0));
                     if(before==ticd::UiPhase::Instructions&&ui->phase==ticd::UiPhase::Playing){selectedStunt=ui->stunt;difficulty()=ui->level;restart();
                         if(selectedStunt==4){cruise->secondTicks=ui->timerPhase;cruise->randomState=(ui->ticks&255)<<8;}
                         else if(selectedStunt==3)bomb->randomState=(ui->ticks&255)<<8;
@@ -328,7 +364,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
                 if(audioPaused!=sound->paused)audioDevice.discardQueued();
                 sound->setPaused(audioPaused);
                 sound->tick();sound->render(audioSamples);audioDevice.submit(audioSamples);
-                accumulator-=step;changed=true;if(smoke&&++smokeTicks==(uiSmoke?840:audioSmoke?300:10))DestroyWindow(window);
+                accumulator-=step;changed=true;if(smoke&&++smokeTicks==(uiSmoke?1040:audioSmoke?300:10))DestroyWindow(window);
             }
             if(changed)InvalidateRect(window,nullptr,FALSE);
             MsgWaitForMultipleObjectsEx(0,nullptr,1,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
@@ -336,5 +372,5 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show) {
         if(smoke){FILE* log=_wfopen((directory+(noAudioSmoke?L"audio-output-no-device.txt":L"audio-output.txt")).c_str(),L"w");if(log){fprintf(log,"Windows output device: %s; dropped buffers: %u\n",audioDevice.available()?"available":"unavailable",audioDevice.droppedFrames);fclose(log);}}
         if(uiLog){fprintf(uiLog,"%s: automated Windows messages; not a human visual acceptance test\n",uiFailed?"FAIL":"PASS");fclose(uiLog);}
         DeleteObject(headingFont);DeleteObject(bodyFont);DeleteObject(smallFont);return uiFailed?1:0;
-    }catch(const std::exception& e){MessageBoxA(nullptr,e.what(),"Crash Dummies - Startfehler",MB_ICONERROR);return 1;}
+    }catch(const std::exception& e){MessageBoxA(nullptr,e.what(),"Crash Dummies Native - Startup error",MB_ICONERROR);return 1;}
 }
