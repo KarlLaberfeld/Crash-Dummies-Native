@@ -31,8 +31,9 @@ connecting or regaining focus. One pad is shared by alternating players.
 - DirectInput-only controllers and vibration are unsupported.
 - Physical controller use, physical audio removal, human campaign acceptance
   and an independent Windows installation remain unverified.
-- The reconstructed code's licensing/provenance review remains open; this
-  pre-release stays in the private repository.
+- Project contributions use MIT (see LICENSE and PROVENANCE.md). The grant
+  does not cover original game assets or third-party rights in reconstructed
+  material. This pre-release stays in the private repository.
 
 ## Validation
 

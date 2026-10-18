@@ -19,10 +19,16 @@ the original developers, publishers or rights holders.
 - Development has used AI assistance. This does not establish copyright
   ownership or grant rights to original game code, expression or assets.
 
-No blanket open-source license has been assigned to the reconstructed game code.
-The alpha is distributed within the existing private repository for evaluation.
-Do not infer permission to redistribute original material from the repository's
-availability, the absence of a ROM, or an unofficial-project disclaimer.
-Any future public distribution or license grant needs an appropriate provenance
-and rights review. Original game content and trademarks remain with their
-respective rights holders.
+## MIT license scope
+
+The project's own contributions are offered under the MIT License in `LICENSE`,
+to the extent the contributors hold the necessary rights. The standard MIT text
+is unmodified. Its permissions, including commercial use and redistribution,
+are not restricted by this repository currently being private.
+
+The grant does not include the original ROM, extracted graphics/music/game data,
+trademarks or third-party rights that contributors do not hold. Reconstructing
+or translating the original game may involve protected expression; placing MIT
+in this repository does not settle that issue or establish clean-room provenance.
+Original rights holders retain their rights. Any broader distribution still
+requires appropriate review of the reconstructed material and its provenance.

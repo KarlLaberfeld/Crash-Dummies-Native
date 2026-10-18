@@ -109,6 +109,11 @@ Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.
 
 ROMs, extracted assets, recordings and reference-emulator binaries remain local.
-Original game content and trademarks belong to their respective owners. No
-blanket open-source license has been assigned to the reconstructed game code;
-see the provenance document. A ROM-free release is not a legal clearance.
+## License
+
+Project contributions are provided under the [MIT License](LICENSE), to the
+extent the contributors hold the rights to license them. The license does not
+grant rights to the original ROM, graphics, music, game data or trademarks.
+Reconstructed game code may involve third-party rights; MIT does not resolve
+that provenance question. See [provenance](docs/PROVENANCE.md).
+A ROM-free release is not a legal clearance.

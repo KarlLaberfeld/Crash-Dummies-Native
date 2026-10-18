@@ -6,7 +6,7 @@ import zipfile
 from pathlib import PurePosixPath
 
 EXPECTED = {'CrashDummiesNative.exe', 'build-info.json', 'RELEASE_NOTES.md',
-            'PROVENANCE.md', 'README.txt', 'Prepare-Assets.ps1', 'manifest.json'}
+            'PROVENANCE.md', 'LICENSE', 'README.txt', 'Prepare-Assets.ps1', 'manifest.json'}
 EXPECTED |= {'tools/' + name + '.py' for name in (
     'extract', 'extract_air', 'extract_ski', 'extract_bomb', 'extract_cruise',
     'extract_ui', 'extract_audio', 'analyze_audio')}

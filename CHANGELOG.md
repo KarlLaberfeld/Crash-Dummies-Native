@@ -11,6 +11,7 @@ TICD-Recompilation). This is an unfinished native Windows preview.
   disconnect pause and held-button protection after reconnect/focus changes.
 - English application shell and player-focused setup/control documentation.
 - ROM-free Windows x64 package with source/build identity and SHA-256 manifest.
+- MIT license for project contributions, with explicit original-material provenance limits.
 
 Exact original timing, full image/audio equivalence and final release acceptance
 remain incomplete. Saves, remapping and persistent high scores are not included.

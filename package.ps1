@@ -14,6 +14,7 @@ $distribution = Join-Path $PSScriptRoot 'dist'
 $packageRoot = Join-Path $distribution $identity
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 Copy-Item -LiteralPath $executable -Destination $packageRoot
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build/build-info.json') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/RELEASE_NOTES.md') -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs/PROVENANCE.md') -Destination $packageRoot

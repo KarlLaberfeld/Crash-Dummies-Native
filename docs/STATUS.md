@@ -1,12 +1,22 @@
 # Crash Dummies Native - project status
 
-## Alpha release preparation - October 18, 2026
+## Alpha release checkpoint - October 18, 2026
 
 The project/repository is now Crash Dummies Native (`Crash-Dummies-Native` on
 GitHub), and the executable is `CrashDummiesNative.exe`. The private visibility
 is retained. The local workspace path is unchanged so existing measurements
 remain usable. Historical executable names/hashes below refer to their actual
 checkpoints and have not been relabeled.
+
+MIT has been selected for project contributions; LICENSE is included in source
+and distribution. PROVENANCE.md explains that this does not grant original game
+asset rights or resolve third-party expression in reconstructed game code.
+
+Validation: 462 Python tests, 26 controller assertions, full native gameplay
+suites and three input-only campaigns pass. The packaged EXE passes 24 controller,
+16 normal and 17 failed-audio Windows checks, including all five stunt starts,
+from an extracted folder containing spaces and a different working directory.
+Physical controller/human acceptance and second-Windows qualification remain open.
 
 The alpha adds XInput controller input, reconnect/focus protection and disconnect
 pause, an English Windows shell, player-facing documentation and strict clean
