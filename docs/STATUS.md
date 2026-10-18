@@ -1,5 +1,17 @@
 # Crash Dummies Native - project status
 
+## Publication readiness review - October 18, 2026
+
+A technical pre-publication audit inspected every advertised branch/tag through
+published commit `70f446a1a566c7fe99433747816035f930cfb2c9`: 76 commits, 925 file
+blobs and the four actual downloaded alpha assets. No actionable credential,
+personal mailbox/path, or accidentally included original-file finding was
+identified. Issues/PRs/Actions were empty; Wiki/Discussions/Pages were disabled.
+See PUBLICATION_AUDIT.md for methods, exact scope, false-positive classification
+and limitations. Current descriptions use visibility-neutral wording; original
+versioned binaries and their checksums remain unchanged. This does not settle
+rights in reconstructed code or the project name. Visibility remains private.
+
 ## Alpha release checkpoint - October 18, 2026
 
 The project/repository is now Crash Dummies Native (`Crash-Dummies-Native` on

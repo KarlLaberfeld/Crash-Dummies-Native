@@ -7,12 +7,13 @@ It is unofficial and unaffiliated with the original rights holders.
 
 **0.1.0-alpha.1 is an experimental preview, not a complete or fully faithful port.**
 All five stunts are connected to the campaign, but original timing, presentation
-and audio validation remain incomplete.
+and audio validation remain incomplete. Controller support has automated coverage;
+physical controller testing is still outstanding. See the [feature and limitation
+table](#features-and-limitations) before downloading.
 
 ## Download and quick start
 
 1. Download the Windows x64 ZIP from [Releases](https://github.com/KarlLaberfeld/Crash-Dummies-Native/releases).
-   Releases currently belong to a private repository and require access.
 2. Extract the whole ZIP to a writable folder.
 3. Install Python 3.10+ for one-time asset preparation. In PowerShell, run this
    from the extracted directory:
@@ -109,6 +110,10 @@ Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.
 
 ROMs, extracted assets, recordings and reference-emulator binaries remain local.
+
+See the [publication audit](docs/PUBLICATION_AUDIT.md) for the checked repository
+and release scope. This is a technical inspection, not a legal approval.
+
 ## License
 
 Project contributions are provided under the [MIT License](LICENSE), to the

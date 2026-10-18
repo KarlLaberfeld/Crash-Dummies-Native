@@ -18,5 +18,6 @@ Expected behavior:
 Actual behavior:
 Does it happen again after restarting?
 
+Remove credentials, personal email addresses and local user paths from diagnostics.
 Attach only relevant text diagnostics. Do not upload ROMs, generated game data,
 original recordings or memory dumps containing them.

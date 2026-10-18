@@ -33,7 +33,7 @@ connecting or regaining focus. One pad is shared by alternating players.
   and an independent Windows installation remain unverified.
 - Project contributions use MIT (see LICENSE and PROVENANCE.md). The grant
   does not cover original game assets or third-party rights in reconstructed
-  material. This pre-release stays in the private repository.
+  material. See the repository provenance document before redistributing.
 
 ## Validation
 

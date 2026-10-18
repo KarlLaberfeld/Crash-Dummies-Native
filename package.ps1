@@ -71,7 +71,7 @@ completion tests do not replace original-reference or human play tests.
 The Windows application shell is in English. See the repository status for
 the current evidence and remaining work.
 
-Private project: https://github.com/KarlLaberfeld/Crash-Dummies-Native
+Project: https://github.com/KarlLaberfeld/Crash-Dummies-Native
 "@ | Set-Content -LiteralPath (Join-Path $packageRoot 'README.txt') -Encoding UTF8
 $hashes = @(Get-ChildItem -LiteralPath $packageRoot -File -Recurse | Sort-Object FullName | ForEach-Object {
     @{ path=$_.FullName.Substring($packageRoot.Length+1).Replace('\','/'); sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
