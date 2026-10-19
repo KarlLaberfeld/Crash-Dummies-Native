@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 scene continuation: 1,787 ordinary and 1,766 entry-pause Air retry
+updates match at 35,530 boundaries, 568,480 actor slots, 3,562 displays and
+7,124 complete vectors, including 63 non-HALT source completions. All 142,480
+published object slots match presence/live geometry/flags; all 91 graphics
+transfers complete correctly. Prior short controls overlap. Checks: optimized
+diagnostic, 683 handoff assertions, 518 Python tests, both prior resource controls
+and four startup/exit comparisons. See [scope](AIR_FOLLOWING_SCENES.md).
+The terminal update/final busy wait/outgoing handoff remains open, together with
+other stunt/player/reset/UI paths, unobserved work and production scheduling.
+Tile/color-buffer bytes, full rendered pixels/PCM and human/physical/independent
+Windows/final distribution acceptance remain required. Do not mark point 1 final.
+
 October 19 resource continuation: ordinary Air retry 1,295 updates and its
 entry-pause variant 1,000 match at 22,950 boundaries, 367,200 actor slots,
 2,295 displays and 4,590 complete vectors. All 48 requested graphics transfers

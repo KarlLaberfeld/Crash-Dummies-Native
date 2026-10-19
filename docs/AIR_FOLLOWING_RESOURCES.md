@@ -1,5 +1,10 @@
 # Restarted Air gameplay resource timing
 
+The subsequent [interrupted-scene checkpoint](AIR_FOLLOWING_SCENES.md) extends
+these controls through the remaining continuing updates and qualifies the
+previously open map/display/placement interruption. The scope below is the
+earlier resource checkpoint and overlaps that later evidence.
+
 October 19, 2026: the ordinary easy Air retry now agrees with the original
 through 1,295 complete updates, and the entry-pause/resume variant through
 1,000 updates. These extend the two existing 266-update controls. They qualify

@@ -44,6 +44,7 @@ def capture(args):
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested following gameplay IRQ')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],display=p.memory[0xc098],returnAddress=word(p.register_file.SP),tick=word(0xc00a),ready=p.memory[0xffae],phases={})
+            if pc==0x0040:opened['oam']=list(p.memory[0xc100:0xc1a0])
         elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now
             if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
@@ -65,11 +66,15 @@ def capture(args):
         write_json(args.out/'gameplay.incomplete.json',dict(accepted=False,requestedUpdates=extent,completedUpdates=updates,
             complete=complete,openInterrupt=opened,controlMemorySha256=digest,controlMatches=digest==manifest['controlMemorySha256'],points=points,interrupts=irqs))
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
-    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-extent,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
-    if getattr(args,'resource_transfers',False):
+    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    if getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
         rom=read_rom(args.rom);data.update(resourceTransfers=True,resourceChunks=list(rom[0xe08f:0xe0bf:4]))
+    if getattr(args,'busy_scenes',False):data['busyScenes']=True
     try:
-        if data.get('resourceTransfers'):
+        if data.get('busyScenes'):
+            from air_following_scene_reference import analyze as analyze_scenes
+            analyze_scenes(data)
+        elif data.get('resourceTransfers'):
             from air_following_resource_reference import analyze as analyze_resources
             analyze_resources(data)
         elif extent==1:analyze(data)
@@ -81,7 +86,7 @@ def capture(args):
         raise
     args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
-    print(json.dumps(dict(boundaries=len(points),services=extent,interrupts=len(irqs),controlDifferences=0),indent=2))
+    print(json.dumps(dict(boundaries=len(points),services=sum(r['kind']=='vblank' for r in irqs),interrupts=len(irqs),controlDifferences=0),indent=2))
 
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
@@ -153,6 +158,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
+    record.add_argument('--busy-scenes',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

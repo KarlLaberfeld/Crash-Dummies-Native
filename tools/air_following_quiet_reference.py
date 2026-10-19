@@ -31,9 +31,10 @@ def analyze(data,resources=False):
         if block[-1]['cycles']!=r['end']+16+56+48:raise ValueError('Unknown following quiet input gate')
     return [irqs[2*i+1] for i in range(n)]
 
-def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resources=False):
-    expected=analyze(data,resources=resources);n=data['updates']
-    if [len(rows) for rows in (points,entities,services,irqs,summary,entry)]!=[10*n,160*n,n,2*n,1,1]:raise ValueError('Incomplete native following quiet coverage')
+def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resources=False,scene_analysis=None):
+    expected=scene_analysis(data) if scene_analysis else analyze(data,resources=resources);n=data['updates']
+    nv=len(expected);ns=len(data['interrupts'])-nv
+    if [len(rows) for rows in (points,entities,services,irqs,summary,entry)]!=[10*n,160*n,nv,len(data['interrupts']),1,1]:raise ValueError('Incomplete native following quiet coverage')
     differences=[];occupied=0
     def check(category,index,wanted,actual):
         fields={k:[v,int(actual[k])] for k,v in wanted.items() if int(actual[k])!=v}
@@ -50,14 +51,18 @@ def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resourc
             check('actor',16*i+slot,values,native)
     for i,(p,q) in enumerate(zip(expected,services)):
         work=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],display=work['display'],effects=work['effects'],music=work['music'],inputHeld=p['held'],inputPressed=p['pressed']),q)
+    vectorCounts={'stat':0,'vblank':0}
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
-        if q['kind']!=p['kind'] or int(q['owner'])!=2:raise ValueError('Unknown native following quiet vector owner')
+        owner=2 if not scene_analysis or p['returnAddress']==0x261d else 1
+        if q['kind']!=p['kind'] or int(q['owner'])!=owner:raise ValueError('Unknown native following quiet vector owner')
         check('interrupt',i,dict(vectorCycle=p['start']-epoch),q)
         key='nextStat' if p['kind']=='stat' else 'nextVBlank'
-        if int(entry[0][key])+epoch+20+(i//2)*70224!=p['start']:raise ValueError('Detached following quiet deadline')
+        lag=p['start']-(int(entry[0][key])+epoch+20+vectorCounts[p['kind']]*70224)
+        if (lag!=0 if not scene_analysis or owner==2 else not 0<=lag<=20 or lag%4):raise ValueError('Detached following quiet deadline')
+        vectorCounts[p['kind']]+=1
     first=data['points'][0];end=data['points'][-1]
     if any(int(entry[0][k])!=v for k,v in dict(end=first['cycles']-epoch,tick=first['tick'],randomState=first['random'],displays=data['precedingDisplays'],entryPauseComplete=int(data.get('entryPauseConsumed',False))).items()):raise ValueError('Detached native following quiet entry')
-    check('summary',0,dict(end=end['cycles']-epoch,tick=end['tick'],countdown=int(entry[0]['countdown']),displays=int(entry[0]['displays'])+n,stats=int(entry[0]['stats'])+n,lcdEpoch=int(entry[0]['lcdEpoch']),nextStat=int(entry[0]['nextStat'])+n*70224,nextVBlank=int(entry[0]['nextVBlank'])+n*70224),summary[0])
+    check('summary',0,dict(end=end['cycles']-epoch,tick=end['tick'],countdown=int(entry[0]['countdown']),displays=int(entry[0]['displays'])+nv,stats=int(entry[0]['stats'])+ns,lcdEpoch=int(entry[0]['lcdEpoch']),nextStat=int(entry[0]['nextStat'])+ns*70224,nextVBlank=int(entry[0]['nextVBlank'])+nv*70224),summary[0])
     return differences,occupied
 
 def compare(args):

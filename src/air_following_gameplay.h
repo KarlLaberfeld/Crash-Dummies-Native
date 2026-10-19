@@ -29,7 +29,8 @@ inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const 
 
 // Bounded following Air quiet update and next counter wait. The actor/resource
 // body must be quiet: a crossing requires a separately qualified owner. Scene
-// and placement work use the existing native completion algorithms.
+// and placement work can accept services at their identified completion
+// boundaries; partial row publication still requires a separate owner.
 template<class Boundary,class Service,class Interrupt>
 AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& game,NativeAudio& sound,
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
@@ -45,11 +46,17 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
     clock.objectDisable=[&](int64_t,AirIrqOwner){state.lcdc&=~2;};
     auto point=[&](const char* name){boundary(name,clock.now,state,game);};
+    int scenePhase=0;bool rowFlagOwned=false,rowReady=false;AirPlacementRange range;
     auto display=[&](bool ready){
-        if(!ready||state.ready!=1)throw std::runtime_error("Following Air body needs an interrupted-work owner");
+        const bool ownedBody=scenePhase==1||scenePhase==2||scenePhase==4||scenePhase==5||
+            (scenePhase==3&&rowFlagOwned&&rowReady);
+        if(int(ready)!=state.ready||(!ready&&!ownedBody))throw std::runtime_error("Following Air body needs an interrupted-work owner");
         t.input.sample(sampleInput?sampleInput():t.input.held);
         if(t.input.held<0||t.input.held>255||(t.input.held&15)==15)throw std::runtime_error("Unowned restarted Air reset input");
-        int tick=game.ticks;game.displayTick(true);state.lcdc|=2;
+        int tick=game.ticks;bool refreshRangeScratch=game.hudCursor==12;game.displayTick(ready);state.lcdc|=2;
+        // The HUD progress division shares the placement scan's low-range
+        // scratch. A display can complete between its individual reads.
+        if(refreshRangeScratch)range.low=0;
         if(game.pendingSound>=0)sound.queueEffect(game.pendingSound);game.pendingSound=-1;sound.tick();
         if(game.displayWorkCycles<0||sound.effectWorkCycles<0||sound.musicWorkCycles<0)
             throw std::runtime_error("Unowned following Air display/audio");
@@ -82,18 +89,19 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     game.entities=resourceEntities;game.transferState=preparedTransfer;game.transferRemaining=preparedRemaining;
     game.transferFrame=preparedFrame;game.transferFlags=preparedFlags;point("sprites");
     game.entities=visibleEntities;game.reverseSprites=preparedReverse;game.sprites=SpriteLayer(preparedReverse);game.sprites.slots=priorSprites.slots;
+    scenePhase=1;
     int sprites=airSpriteClock(game,clock,display);
     if(sprites!=game.spriteWorkCycles)throw std::runtime_error("Incomplete following Air sprite work");point("spritesDone");
-    int clear=airSpriteClearClock(game.sprites,clock,display);
+    scenePhase=2;int clear=airSpriteClearClock(game.sprites,clock,display);
     if(clear!=game.clearWorkCycles)throw std::runtime_error("Incomplete following Air clear work");point("mapCallback");
-    AirMapPublication publication;int map=airMapClock(clock,priorCamera,game.cameraY,game.mapTransfer,display,nullptr,nullptr,&publication,&game);
+    scenePhase=3;AirMapPublication publication;int map=airMapClock(clock,priorCamera,game.cameraY,game.mapTransfer,display,&rowFlagOwned,&rowReady,&publication,&game);
     if(map!=game.mapWorkCycles||game.mapTransfer!=preparedMap)throw std::runtime_error("Incomplete following Air map work");
     game.lastMapCamera=game.cameraY;if(preparedMap)state.mapScratch=256+8*publication.destination;
     else state.mapScratch&=255; // C00D is also the row-publication gate.
     point("placements");
-    AirPlacementRange range;airPlacementClock(game,clock,range,display);point("done");
+    scenePhase=4;airPlacementClock(game,clock,range,display);point("done");
     if(game.result)throw std::runtime_error("Following Air quiet update ended the stunt; exit owner required");
-    clock.atomicWork(16,[]{},display,false);clock.atomicWork(4,[]{},display,false);clock.atomicWork(12,[]{},display,false);point("backEdge");
+    scenePhase=5;clock.atomicWork(16,[]{},display,false);clock.atomicWork(4,[]{},display,false);clock.atomicWork(12,[]{},display,false);point("backEdge");
     clock.atomicWork(8,[]{},display,false);clock.atomicWork(12,[&]{state.ready=1;},display,true);clock.wait(display,true);
     clock.atomicWork(4,[]{},display,true);clock.atomicWork(12,[&]{state.ready=0;},display,false);
     int fresh=0;clock.accessWork(12,8,[&]{fresh=t.input.pressed;},display,false);clock.atomicWork(8,[]{},display,false);

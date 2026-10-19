@@ -1,5 +1,29 @@
 # Crash Dummies Native - project status
 
+## Interrupted restarted Air scene timing - October 19, 2026
+
+The ordinary Air retry now matches 1,787 continuing updates; the entry-pause
+variant matches 1,766. Combined: 35,530 boundary comparisons (31,979 distinct
+samples), 568,480 actor slots / 168,395 occupied instances, 3,562 displays and
+7,124 complete vectors, zero differences. All 142,480 published object slots
+also match presence and live X/Y/flags, including interrupted preparation.
+There are 63 source-completion vectors outside the HALT wait and 91 completed
+graphics transfers. Previous quiet/resource controls overlap these totals.
+See [scene scope and reproduction](AIR_FOLLOWING_SCENES.md).
+
+Busy scene/placement/result-test services now retain the closed resource gate,
+counter/input/audio progression, object disable/enable and shared HUD/placement
+scratch. Actor/resource interruptions and partially staged-row displays remain
+guarded. Checks: O2 diagnostic, 683 native handoff assertions and 518 Python
+tests; both prior resource controls and all four startup/exit comparisons pass.
+The unchanged native-rule suites remain applicable. Production scheduling and
+the versioned alpha are unchanged; point 1 is incomplete.
+
+Next concrete owner: terminal update 1,788 (ordinary) / 1,767 (paused), its final
+busy display wait and outgoing/result handoff. Later Ski/player/shared-animation
+paths, final-life/reset, earlier UI/LCD, unobserved work and Windows scheduler
+integration remain open, together with all remaining ACCEPTANCE.md gates.
+
 ## Restarted Air resource timing - October 19, 2026
 
 The ordinary easy Air retry now matches 1,295 complete updates and its
