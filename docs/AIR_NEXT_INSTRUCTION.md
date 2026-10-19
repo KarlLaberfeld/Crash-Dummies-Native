@@ -130,6 +130,10 @@ evidence; the longer complete captures supersede it.
 
 ## Remaining work
 
+The prompt/exit and third Air entry/first update are now qualified in the
+[second-retry continuation](AIR_NEXT_RETRY.md). The remaining-work paragraph
+below describes this checkpoint's original boundary.
+
 Continue 032b's Start prompt/exit, then the next Air setup/entry. Preserve the
 completed text/cursor/scroll, three-life campaign and animation blocks from the
 immediately preceding native Air game. The current controls never press Start

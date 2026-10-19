@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 second-retry entry follow-up: both easy Air histories match the next
+Start prompt/exit, masked setup, LCD restart and third-attempt first update.
+New scope: 5,090 boundaries / 2,488 displays / 4,976 vectors / 3,694 polls /
+1,064 stores / 320 actor slots, zero differences. Corrected source 0387's
+allocation-selector reset while retaining three lives and the immediately
+preceding animation/timer state. Parent history and repeated child/prefix hashes
+are checked separately. O2 diagnostic, 52,878 result / 882 handoff / 4,200 work
+assertions, 647 Python tests and prior resource/startup/exit/successful-result
+controls pass. See [scope](AIR_NEXT_RETRY.md). Further third-attempt work, other
+stunt/player/reset/UI paths, unobserved work, production scheduling, full pixels/
+PCM and human/device/independent-Windows/distribution gates remain open.
+The production EXE/alpha are unchanged; point 1/final acceptance are incomplete.
+
 October 19 next-instruction follow-up: both easy Air retry histories now match
 0514's post-result handoff through player selection, background clear, three-life
 header, picture/music, 64 map selections and complete instruction text at 032b.

@@ -5,6 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 from air_reference import write_json
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x039c:'begin',0x039f:'scenePrepared',0x03a2:'resourceBank',0x03a8:'resourceCopy',0x03b9:'resourceReady',
         0x03bc:'hudReady',0x03c3:'lcdEnableCall',0x25ae:'lcdEnabled',0x03c6:'enableReturned',
@@ -16,15 +17,17 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[]
+    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
     include_pause=getattr(args,'include_entry_pause',False);point_names=dict(POINTS)
     if include_pause:point_names[0x1476]='pauseEntry'
     def word(a):return player.memory[a]+256*player.memory[a+1]
     def hook(pc):
         nonlocal armed,active,complete,opened
         if complete:return
+        scope.observe(pc,player.memory[0xc098],len(buttons))
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
-        if pc==0x2436 and (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in ((1,4,5,6) if include_pause else (4,5,6))):buttons.append(player.memory[0xff8a])
-        if pc==0x039c and armed:active=True
+        if pc==0x2436 and (scope.samples(player.memory[0xc098]) if scope.following else (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in ((1,4,5,6) if include_pause else (4,5,6)))):buttons.append(player.memory[0xff8a])
+        if pc==0x039c and scope.ready and armed:active=True
         if not active:return
         now=player._cycles()
         if pc in point_names:
@@ -46,7 +49,7 @@ def capture(args):
         elif pc in (0x2484,0x2555) and opened:opened['end']=now;irqs.append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in {*point_names,*IRQ_PHASES,0x268b,0x0040,0x0048,0x2484,0x2555}:player.hook_register(0,pc,hook,pc)
+        for pc in {*point_names,*IRQ_PHASES,0x268b,0x0040,0x0048,0x2484,0x2555,0x0462}:player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -55,7 +58,8 @@ def capture(args):
     finally:player.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete following entry or changed original control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,
-        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),productionSchedulerAccepted=False)
+        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset,productionSchedulerAccepted=False)
+    if scope.following:data['nextRetry']=True
     if include_pause:
         from air_following_pause_reference import analyze_paused_entry
         analyze_paused_entry(data)
@@ -140,7 +144,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--stage-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

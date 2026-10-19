@@ -10,10 +10,14 @@ extension of that control, not another independent gameplay case.
 ## Inheritance and work
 
 `airFollowingAirHandoff` constructs the next Air stage from decoded native
-assets. The prior native Air game supplies the partial second, sprite allocation
-direction and all sixteen semantic animation blocks. The source clears the
+assets. The prior native Air game supplies the partial second and all sixteen
+semantic animation blocks. The source clears the
 actor buffer but retains animation cursors, delay, period and loop fields.
 Only the two newly allocated actors reset their done/waiting flags.
+The sprite allocation selector is separately reset by 0387 during stage setup;
+it does not inherit. This was corrected by the
+[second-retry comparison](AIR_NEXT_RETRY.md), whose paused predecessor exposed
+the distinction that this earlier control could not reveal.
 The following entry supplies the new scene seed, counter, HUD cursor, fade
 phase and raw input history. Fresh edges are preserved; held buttons cannot
 manufacture a new edge. No reference state or observed duration drives this.

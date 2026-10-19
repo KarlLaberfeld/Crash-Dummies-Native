@@ -6,6 +6,7 @@ from extract_air import HANDLERS
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 from air_reference import write_json
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x03d8:'begin',0x03db:'savedPlayer',0x03de:'entitiesDone',0x03e4:'sprites',0x03e7:'spritesDone',0x03ed:'mapCallback',0x19a2:'placements',0x03fa:'done',0x03c7:'backEdge'}
 ORDER=[*POINTS.values(),'end']
@@ -18,6 +19,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     extent=getattr(args,'updates',1)
+    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
     outro=getattr(args,'outro',False)
     terminal=outro or getattr(args,'terminal',False)
     from air_exit_timing import POINTS as OUTRO_POINTS,intervals,display_services
@@ -29,9 +31,10 @@ def capture(args):
     def hook(pc):
         nonlocal armed,active,complete,opened,pause_seen,updates,outgoing
         if complete:return
-        if pc==0x268b and p.memory[0xc098] in (2,10):armed=True
+        if pc==0x268b and (not scope.following or scope.ready) and p.memory[0xc098] in (2,10):armed=True
+        scope.observe(pc,p.memory[0xc098],len(buttons))
         if pc==0x1476 and armed and not active:pause_seen=True
-        if pc==0x2436 and (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6)):buttons.append(p.memory[0xff8a])
+        if pc==0x2436 and (scope.samples(p.memory[0xc098]) if scope.following else (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6))):buttons.append(p.memory[0xff8a])
         closing=False
         if pc==0x03d8 and armed:
             if p.memory[0xc098]!=4:raise ValueError('Following gameplay control is not an Air retry')
@@ -71,7 +74,7 @@ def capture(args):
         elif pc in (0x2484,0x2555) and opened:opened['end']=now;(outro_irqs if outgoing else irqs).append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476}:p.hook_register(0,pc,hook,pc)
+        for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476,0x0462}:p.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':p.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
@@ -83,7 +86,8 @@ def capture(args):
         write_json(args.out/'gameplay.incomplete.json',dict(accepted=False,requestedUpdates=extent,completedUpdates=updates,
             complete=complete,openInterrupt=opened,controlMemorySha256=digest,controlMatches=digest==manifest['controlMemorySha256'],points=points,interrupts=irqs))
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
-    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs),entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    if scope.following:data['nextRetry']=True
     if terminal:data['terminalWait']=True
     if terminal or getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
         rom=read_rom(args.rom);data.update(resourceTransfers=True,resourceChunks=list(rom[0xe08f:0xe0bf:4]))
@@ -183,6 +187,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     record.add_argument('--busy-scenes',action='store_true')
+    record.add_argument('--next-retry',action='store_true')
     record.add_argument('--terminal',action='store_true',help='Include the last update and closed-gate final counter wait')
     record.add_argument('--outro',action='store_true',help='Also include audio stop and all outgoing fade waits, ending before result setup')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)

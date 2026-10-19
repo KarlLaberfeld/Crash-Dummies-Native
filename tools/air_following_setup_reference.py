@@ -9,6 +9,7 @@ from pathlib import Path
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x0355:'begin',0x0359:'lcdOffReturned',0x035f:'objectsCleared',0x0364:'stateReset',0x0367:'stagePointer'}
 FIELDS=('tick','countdown','player','stage','difficulty','lives','display','stat','lcdc','lyc','pendingRequests')
@@ -19,13 +20,15 @@ def capture(args):
         raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0)
+    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
     armed=False;active=False;complete=False;points=[];polls=[];writes=[];interrupts=[]
     def word(address):return player.memory[address]+256*player.memory[address+1]
     def hook(pc):
         nonlocal armed,active,complete
         if complete:return
+        scope.observe(pc,player.memory[0xc098])
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
-        if pc==0x0355 and armed:active=True
+        if pc==0x0355 and scope.ready and armed:active=True
         if not active:return
         now=player._cycles()
         if pc in POINTS:
@@ -41,7 +44,7 @@ def capture(args):
         elif pc in (0x0040,0x0048):interrupts.append(dict(cycles=now,kind='vblank' if pc==0x0040 else 'stat'))
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in (*POINTS,0x268b,0x2598,0x195d,0x0040,0x0048):player.hook_register(0,pc,hook,pc)
+        for pc in (*POINTS,0x268b,0x2598,0x195d,0x0040,0x0048,0x03d8):player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -51,6 +54,7 @@ def capture(args):
     if not complete or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete following prefix or changed original control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
         points=points,polls=polls,writes=writes,interrupts=interrupts,productionSchedulerAccepted=False)
+    if scope.following:data['nextRetry']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'prefix.json',data)
     print(json.dumps(dict(boundaries=len(points),polls=len(polls),writes=len(writes),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
@@ -118,7 +122,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--exit-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

@@ -21,7 +21,7 @@ int main(){
             require(game->ticks==65535&&game->randomState==0xf200&&game->randomState!=preceding->randomState,"Following display time and scene seed come from the native entry");
             require(game->hudCursor==2&&game->displayFadeRemaining==7&&game->mapTransfer,"The two startup displays retain their HUD/fade and map gate");
             require(game->lastMapCamera==((state.cameraY+128)&65535),"Initial map preparation retains its penultimate native world row");
-            require(game->reverseSprites==reverse&&game->sprites.descending()==reverse,"Sprite allocation direction survives the result and instruction");
+            require(!game->reverseSprites&&!game->sprites.descending(),"0387 resets allocation direction independently of the preceding game");
             require(game->held==(A|Left)&&game->previous==game->held&&!game->pressed,"Inherited held controls cannot manufacture a fresh gameplay edge");
             for(int i=0;i<16;++i){const auto& e=game->entities[i];const auto& old=preceding->entities[i];
                 require(e.anim==old.anim&&e.delay==old.delay&&e.period==old.period&&e.loop==old.loop&&e.loopStart==old.loopStart,"All sixteen native animation blocks survive the actor clear");
@@ -30,6 +30,23 @@ int main(){
             require(!game->result&&game->pendingSound==-1&&!game->transferState,"Fresh actor/resource outcome is separate from inherited animation state");
             c.timing.input.previous=32;c.timing.input.pressed=1;airFollowingAirHandoff(*game,*preceding,state);
             require(game->held==(A|Left)&&game->previous==Left&&game->pressed==A,"A genuine last-display fresh edge survives the handoff");
+        }
+        {
+            auto first=std::make_unique<AirGame>(*assets,*shared),second=std::make_unique<AirGame>(*assets,*shared),third=std::make_unique<AirGame>(*assets,*shared);
+            first->result=33;first->secondTicks=17;
+            for(int i=0;i<16;++i){first->entities[i].anim=100+i;first->entities[i].delay=10+i;}
+            AirFollowingSetup retry;retry.stage=1;retry.display=retry.stat=4;retry.hudCursor=2;
+            retry.cameraX=assets->levels[0].cameraX;retry.cameraY=assets->levels[0].cameraY;
+            auto& campaign=retry.instruction.map.campaign;campaign.lives[0]=4;
+            airFollowingAirHandoff(*second,*first,retry);
+            second->result=33;second->secondTicks=54;second->reverseSprites=true;
+            for(int i=0;i<16;++i){second->entities[i].anim=200+i;second->entities[i].delay=30+i;}
+            campaign.lives[0]=3;campaign.timing.tick=9027;retry.randomState=0x4100;
+            airFollowingAirHandoff(*third,*second,retry);
+            require(third->secondTicks==54&&third->secondTicks!=first->secondTicks,"A second retry inherits the immediately preceding attempt's partial second");
+            require(campaign.lives[0]==3&&third->ticks==9027&&third->randomState==0x4100,"Retry handoff preserves three lives and current entry clock/seed");
+            require(!third->reverseSprites&&!third->sprites.descending(),"New stage reset wins over the second attempt's reversed selector");
+            for(int i=0;i<16;++i)require(third->entities[i].anim==200+i&&third->entities[i].delay==30+i,"Every animation block comes from the second attempt, not its ancestor");
         }
         auto preceding=std::make_unique<AirGame>(*assets,*shared),game=std::make_unique<AirGame>(*assets,*shared);
         preceding->result=33;AirFollowingSetup state;state.stage=1;state.display=state.stat=4;state.hudCursor=2;state.cameraX=assets->levels[0].cameraX;state.cameraY=assets->levels[0].cameraY;

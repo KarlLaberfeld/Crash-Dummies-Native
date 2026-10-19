@@ -22,7 +22,9 @@ inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const 
     }
     game.secondTicks=preceding.secondTicks;game.ticks=t.tick;game.randomState=state.randomState;
     game.hudCursor=state.hudCursor;game.displayFadeRemaining=state.fadeRemaining;
-    game.reverseSprites=preceding.reverseSprites;game.sprites=SpriteLayer(game.reverseSprites);
+    // 0387 explicitly clears the sprite allocation selector after masked stage
+    // initialization. Animation blocks survive; this selector does not.
+    game.reverseSprites=false;game.sprites=SpriteLayer(false);
     auto decode=[](int raw){return ((raw&1)?A:0)|((raw&2)?B:0)|((raw&16)?Right:0)|
         ((raw&32)?Left:0)|((raw&64)?Up:0)|((raw&128)?Down:0);};
     game.held=decode(t.input.held);game.previous=decode(t.input.previous);game.pressed=decode(t.input.pressed);game.publishVideo();

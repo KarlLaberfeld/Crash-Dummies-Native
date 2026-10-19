@@ -91,6 +91,18 @@ class FollowingStageIntegrity(unittest.TestCase):
     def compare(self):return compare_stage(*self.values,1000)
     def test_both_complete_stages(self):
         self.assertEqual(self.compare(),[]);self.assertEqual(compare_stage(*stage_fixture(False),1000),[])
+    def test_next_retry_observes_explicit_allocation_reset(self):
+        self.data['nextRetry']=True
+        for p in self.data['points']:p['reverse']=1
+        self.data['points'][-1]['reverse']=0
+        self.assertEqual(self.compare(),[])
+    def test_next_retry_missing_allocation_observation_rejects(self):
+        self.data['nextRetry']=True
+        with self.assertRaises(ValueError):self.compare()
+    def test_next_retry_allocation_not_cleared_rejects(self):
+        self.data['nextRetry']=True
+        for p in self.data['points']:p['reverse']=1
+        with self.assertRaises(ValueError):self.compare()
     def test_missing_stage_phase_rejects(self):
         self.data['points'].pop(4)
         with self.assertRaises(ValueError):self.compare()

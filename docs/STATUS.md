@@ -1,5 +1,33 @@
 # Crash Dummies Native - project status
 
+## Second Air retry entry and first update - October 19, 2026
+
+Both easy Air histories now match from the next instruction's Start prompt
+through fresh input, complete fade/audio stop, masked setup, LCD restart and
+the third attempt's first update/next input gate. Added scope: 5,090 boundaries,
+2,488 displays / 4,976 vectors, 3,694 polls, 1,064 stores and 320 actor slots,
+zero differences. Long prompt waits are included; earlier parent gameplay/
+result/instruction coverage overlaps and is rechecked. See [scope](AIR_NEXT_RETRY.md).
+
+The three-life campaign and immediately preceding animation/partial-second
+state survive. Source 0387's explicit sprite-allocation reset fixes the one
+observed mismatch in the paused history; animation inheritance is independent.
+Controls append one fresh Start frame and 300 released frames to the unchanged
+parent history. Two unhooked replays agree per child and retain matching full
+parent-prefix hashes; the verifier keeps parent/child provenance separate.
+
+Checks: O2 diagnostic, 52,878 result / 882 handoff / 4,200 source-work assertions,
+647 Python tests, both prior resource controls, four startup/exit controls and
+the successful gameplay/IRQ/result control. Original data/recordings remain
+local. Production EXE/versioned alpha are unchanged.
+
+Next concrete owner: third-attempt gameplay beyond its first update, including
+timer rollover and interrupted work with inherited partial-second phases 54/33.
+Other stunt/player/shared-animation/final-life/reset/UI paths, unobserved work,
+production scheduling, full images/PCM, human/device/independent-Windows and
+final distribution remain open. Point 1/final acceptance are incomplete. The
+continuation automation remains PAUSED.
+
 ## Post-retry handoff and complete next instruction - October 19, 2026
 
 Both easy Air retry histories now match from the completed failure result at

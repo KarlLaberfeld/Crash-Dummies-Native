@@ -5,6 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
 from air_following_setup_reference import FIELDS
+from air_following_scope import FollowingAirCaptureScope
 
 COMMON={0x0367:'begin',0x036e:'stageReady',0x039c:'registersReady'}
 AIR={0x0b31:'stageEntry',0x0b49:'rootsReady',0x0b6d:'terrainReady',0x0b96:'mapReady',0x0ba0:'placementsReady',
@@ -18,12 +19,14 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);active=False;armed=False;complete=False;points=[];interrupts=[]
+    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
     def word(a):return player.memory[a]+256*player.memory[a+1]
     def hook(pc):
         nonlocal active,armed,complete
         if complete:return
+        scope.observe(pc,player.memory[0xc098])
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
-        if pc==0x0367 and armed:active=True
+        if pc==0x0367 and scope.ready and armed:active=True
         if not active:return
         if pc in (0x0040,0x0048):interrupts.append(dict(cycles=player._cycles(),kind='vblank' if pc==0x0040 else 'stat'));return
         selected=player.memory[0xc082];stage=player.memory[0xc088+8*selected]
@@ -32,11 +35,11 @@ def capture(args):
         points.append(dict(name=names[pc],cycles=player._cycles(),tick=word(0xc00a),countdown=word(0xc0b7),player=selected,stage=stage,
             difficulty=player.memory[0xc089+8*selected],lives=player.memory[0xc08a+8*selected],display=player.memory[0xc098],stat=player.memory[0xc099],
             lcdc=player.memory[0xff40],lyc=player.memory[0xff45],pendingRequests=player.memory[0xff0f]&3,interruptEnable=player.memory[0xffff]&3,
-            cameraX=word(0xff92),cameraY=word(0xff94),mapScratch=word(0xc00c),ready=player.memory[0xffae],musicEnabled=player.memory[0xffcf]))
+            cameraX=word(0xff92),cameraY=word(0xff94),mapScratch=word(0xc00c),ready=player.memory[0xffae],musicEnabled=player.memory[0xffcf],reverse=int(bool(player.memory[0xff90]))))
         if pc==0x039c:active=False;complete=True
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in {*COMMON,*AIR,*SKI,0x268b,0x0040,0x0048}:player.hook_register(0,pc,hook,pc)
+        for pc in {*COMMON,*AIR,*SKI,0x268b,0x0040,0x0048,0x03d8}:player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -45,6 +48,7 @@ def capture(args):
     finally:player.stop(save=False)
     if not complete or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete following stage or changed original control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=interrupts,productionSchedulerAccepted=False)
+    if scope.following:data['nextRetry']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'stage.json',data)
     print(json.dumps(dict(boundaries=len(points),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
@@ -55,6 +59,8 @@ def analyze(data):
     expected=['begin',*(AIR.values() if air else SKI.values()),'stageReady','registersReady']
     if [p['name'] for p in points]!=expected or any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Incomplete/reordered following stage')
     if data.get('interrupts')!=[]:raise ValueError('Unexpected masked stage service')
+    if data.get('nextRetry') and any('reverse' not in p for p in points):raise ValueError('Missing next-retry allocation selector')
+    if 'reverse' in points[-1] and points[-1]['reverse']!=0:raise ValueError('0387 did not reset sprite allocation')
     scalar=expected.index('scalarsReady');sprite=expected.index('spritesReady');song=expected.index('stageReady')
     for i,p in enumerate(points):
         if any(p[k]!=first[k] for k in ('tick','countdown','player','stage','difficulty','lives')) or p['pendingRequests']!=3 or p['interruptEnable']!=3:
@@ -102,7 +108,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--prefix-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)
