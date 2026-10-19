@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 two-life handoff follow-up: both existing Air histories match from
+third-result return through live-player selection/background clear, two-life
+header, music/picture, map transition and complete instruction text. New scope:
+3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712 polls / 4,572 stores
+plus 128 map selections, zero differences. The same control events/hashes are
+retained; both complete third-result/prefix chains remain exact. O2 diagnostic,
+708 Python tests, CLI guards and unchanged legacy following captures pass.
+See [scope](AIR_TWO_LIFE_INSTRUCTION.md). Subsequent Start/entry, other paths,
+production scheduling, full images/PCM and human/device/independent-Windows/
+distribution gates remain open. Production EXE/alpha unchanged; timing point 1
+and final acceptance are incomplete.
+
 October 19 third-failure/result follow-up: both easy Air histories match through
 terminal gameplay (1,789 / 1,604 updates), outgoing fade and complete result hold
 at 0514. Lives carry three to two. Gameplay totals: 33,930 boundaries / 542,880

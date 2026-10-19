@@ -121,6 +121,10 @@ Core gameplay rules are unchanged; their prior assertions were not repeated.
 
 ## Remaining acceptance
 
+The next two-life campaign/instruction handoff is now qualified through its
+complete text in the [next checkpoint](AIR_TWO_LIFE_INSTRUCTION.md). The
+paragraph below records this third-result checkpoint's original boundary.
+
 Next: attach the third failure's two-life result to its next campaign/instruction
 handoff using the just completed native game and result state. Changed-player/
 shared-animation, following Ski, genuine final-life/reset, earlier UI/LCD and

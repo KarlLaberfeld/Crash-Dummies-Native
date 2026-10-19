@@ -6,7 +6,7 @@
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
 // campaign, input and random state are the only continuation state supplied.
-inline void airProbeRetryResult(const std::string& base,const AirFollowingSetup& state,
+inline AirResultTransition airProbeRetryResult(const std::string& base,const AirFollowingSetup& state,
     const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
@@ -29,5 +29,6 @@ inline void airProbeRetryResult(const std::string& base,const AirFollowingSetup&
     auto result=airResultIncoming(prepared,game.result,end.tick,lives,end.input.held,sound,layouts,ui,point,service,irq,read);
     result=airResultFailureHold(result,game.result,result.input.held,sound,ui,point,service,irq,read);
     incoming.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives\n"<<result.end<<','<<result.lcdEpoch<<','<<result.tick<<','<<result.countdown<<','<<result.displays<<','<<result.stats<<','<<result.nextStat<<','<<result.nextVBlank<<','<<player<<','<<result.lives<<'\n';
+    return result;
 }
 }

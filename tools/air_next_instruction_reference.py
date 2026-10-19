@@ -76,11 +76,18 @@ def compare_chain(result,records,native,entry,prior_scroll,epoch):
     return differences
 
 
+def require_generation(result,records,after_retry):
+    if after_retry not in (1,2):raise ValueError('Unknown instruction generation')
+    if after_retry==2 and result.get('nextRetry') is not True:raise ValueError('Missing completed third-attempt result')
+    if any(data.get('afterRetry',1)!=after_retry for data in records.values()):raise ValueError('Mixed instruction generations')
+
+
 def compare(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text());startup=json.loads((args.startup/'startup.json').read_text())
-    result=json.loads((args.out/'result-transition.json').read_text())
+    result=json.loads(((getattr(args,'result_out',None) or args.out)/'result-transition.json').read_text())
     files=dict(handoff='handoff.json',header='header.json',picture='picture.json',map='transition.json',text='text.json')
     records={part:json.loads((args.out/name).read_text()) for part,name in files.items()}
+    after_retry=getattr(args,'after_retry',1);require_generation(result,records,after_retry)
     for record in [startup,result,*records.values()]:
         require_capture_reference(manifest,record)
         if manifest['controlDifferences'] or any(record[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')):raise ValueError('Mixed next instruction controls')
@@ -88,19 +95,22 @@ def compare(args):
     epoch=startup_epoch(startup)['epoch']
     def rows(path):
         with path.open(encoding='utf-8-sig',newline='') as f:return list(csv.DictReader(f))
-    base=str(args.native_base);native={}
+    base=str(args.native_base);instruction_base=base+('.third' if after_retry==2 else '');native={}
     for part in PARTS:
         keys=('services','irqs','polls','summary')+(('writes',) if part!='map' else ())
-        native[part]={'points':rows(Path(base+'.next-'+part+'.csv'))}
-        for key in keys:native[part][key]=rows(Path(base+'.next-'+part+'.'+('interrupts' if key=='irqs' else key)+'.csv'))
-    entry=rows(Path(base+'.following-incoming.summary.csv'));prior=rows(Path(base+'.instruction-exit.csv'))[-1:]
+        native[part]={'points':rows(Path(instruction_base+'.next-'+part+'.csv'))}
+        for key in keys:native[part][key]=rows(Path(instruction_base+'.next-'+part+'.'+('interrupts' if key=='irqs' else key)+'.csv'))
+    entry=rows(Path(base+('.next-incoming.summary.csv' if after_retry==2 else '.following-incoming.summary.csv')));prior=rows(Path(base+('.next-exit.csv' if after_retry==2 else '.instruction-exit.csv')))[-1:]
     differences=compare_chain(result,records,native,entry,prior,epoch)
     report=dict(comparedBoundaries=sum(len(v['points']) for v in native.values()),comparedServices=sum(len(v['services']) for v in native.values()),comparedInterrupts=sum(len(v['irqs']) for v in native.values()),comparedPolls=sum(len(v['polls']) for v in native.values()),comparedWrites=sum(len(v.get('writes',[])) for v in native.values()),mapSelections=64,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False)
-    write_json(Path(base+'.next-instruction.comparison.json'),report);print(json.dumps(report,indent=2))
+    report.update(afterRetry=after_retry,lives=result['points'][-1]['lives'])
+    write_json(Path(base+('.third-instruction.comparison.json' if after_retry==2 else '.next-instruction.comparison.json')),report);print(json.dumps(report,indent=2))
     if differences:raise ValueError('Native next instruction continuation differs')
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('native_base',type=Path)
     for key in ('capture','out','startup'):parser.add_argument('--'+key,type=Path,required=True)
+    parser.add_argument('--result-out',type=Path)
+    parser.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     compare(parser.parse_args())

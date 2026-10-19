@@ -103,11 +103,11 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: continue the two-life campaign handoff, remaining interrupted
+Next fidelity work: continue the fourth-attempt Start/entry, remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_THIRD_RESULT.md) qualifies
-two Air histories through the third failure and complete result hold in the diagnostic; it is not yet integrated
+The [latest timing comparison](docs/AIR_TWO_LIFE_INSTRUCTION.md) qualifies
+two Air histories through the third failure and following two-life instruction in the diagnostic; it is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.

@@ -2,8 +2,9 @@
 import copy,sys,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from air_following_scope import FollowingAirCaptureScope
-from air_next_instruction_reference import attachments,PARTS
+from air_following_scope import FollowingAirCaptureScope,instruction_capture_scope
+from air_next_instruction_reference import attachments,PARTS,require_generation
+from types import SimpleNamespace
 
 
 def fixture():
@@ -77,6 +78,40 @@ class AttachmentIntegrity(unittest.TestCase):
     def test_text_cannot_select_another_difficulty(self):self.records['text']['campaign']['difficulty']=1;self.rejected()
     def test_counter_cannot_skip_its_display(self):self.records['map']['points'][-1]['tick']+=1;self.rejected()
     def test_missing_vector_counter_is_detected(self):self.records['picture']['interrupts'].pop();self.rejected()
+    def test_two_life_campaign_is_retained(self):
+        self.result['points'][-1]['lives']=2
+        for p in self.records['handoff']['points']:p['lives0']=2
+        for p in self.records['header']['points']:p['lives']=2
+        states,_,_,_=attachments(self.result,self.records);self.assertEqual(states[-1]['lives'],2)
+    def test_two_life_header_cannot_return_to_three(self):
+        self.result['points'][-1]['lives']=2
+        for p in self.records['handoff']['points']:p['lives0']=2
+        self.rejected()
+
+
+class InstructionGeneration(unittest.TestCase):
+    def setUp(self):self.result,self.records=fixture()
+    def third(self):
+        self.result['nextRetry']=True
+        for data in self.records.values():data['afterRetry']=2
+    def test_legacy_generation_preserved(self):require_generation(self.result,self.records,1)
+    def test_third_generation_requires_completed_third_result(self):
+        for data in self.records.values():data['afterRetry']=2
+        with self.assertRaises(ValueError):require_generation(self.result,self.records,2)
+    def test_third_generation_accepted(self):self.third();require_generation(self.result,self.records,2)
+    def test_each_mixed_component_rejects(self):
+        self.third()
+        for data in self.records.values():
+            data['afterRetry']=1
+            with self.assertRaises(ValueError):require_generation(self.result,self.records,2)
+            data['afterRetry']=2
+    def test_legacy_cannot_relabel_later_recordings(self):
+        self.third()
+        with self.assertRaises(ValueError):require_generation(self.result,self.records,1)
+    def test_later_capture_requires_following(self):
+        with self.assertRaises(ValueError):instruction_capture_scope(SimpleNamespace(after_retry=2,following=False))
+    def test_capture_defaults_remain_legacy(self):self.assertEqual(instruction_capture_scope(SimpleNamespace()).retry,1)
+    def test_later_capture_selects_second_retry(self):self.assertEqual(instruction_capture_scope(SimpleNamespace(after_retry=2,following=True)).retry,2)
 
 
 if __name__=='__main__':unittest.main()

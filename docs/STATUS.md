@@ -1,5 +1,30 @@
 # Crash Dummies Native - project status
 
+## Two-life handoff and complete next instruction - October 19, 2026
+
+Both existing easy Air histories now match from the third failure's complete
+result through live-player selection, background clear, two-life header,
+music/picture, map transition and complete text at 032b. Combined new scope:
+3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712 polls / 4,572 stores
+plus 128 map selections, zero differences. The completed native result supplies
+two lives and its current timing/input state; software scroll 64 survives until
+the explicit next-map clear. See [scope](AIR_TWO_LIFE_INSTRUCTION.md).
+
+No control events/state/input files or hashes changed; the same controls already
+run long enough. Captures require the second retry's result generation and keep
+full raw input history. Both full third-result/accepted-prefix chains remain
+exact. Checks: O2 diagnostic, 708 Python tests, CLI extent/ownership guards and
+all five unchanged legacy following captures. Native semantic owners were not
+changed; their previous assertions remain applicable and were not repeated.
+Original assets/recordings stay local; production EXE and alpha are unchanged.
+
+Next concrete owner: fresh-Start prompt/exit and fourth-attempt entry, retaining
+two lives and the just completed third game's animation/timer state. Current
+controls never press Start again. Other stunt/player/shared-animation/final-life/
+reset/UI paths, unobserved work, production scheduling, full images/PCM and human/
+device/independent-Windows/distribution remain open. Timing point 1 and final
+acceptance are incomplete. Continuation automation remains ACTIVE.
+
 ## Complete third Air failure and result - October 19, 2026
 
 Both easy Air histories now match through third-attempt terminal gameplay,

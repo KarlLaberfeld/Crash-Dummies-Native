@@ -10,7 +10,7 @@ from reference_backend import reference_class,require_matching_backend,require_c
 from air_reference import write_json
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work,elapsed_work
 from air_loop_timing import stat_cycles
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import instruction_capture_scope
 
 POINTS={0x02ce:'begin',0x02e4:'playerLabelReady',0x02e7:'livesReady',0x02ee:'livesClamped',0x02f2:'livesPrinted',
     0x02fb:'stageLabelReady',0x02fe:'stageReady',0x0302:'stagePrinted',0x0312:'difficultyLabelReady',
@@ -21,7 +21,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     p=Reference(str(args.rom),window='null',sound_volume=0)
-    scope=FollowingAirCaptureScope(getattr(args,'following',False))
+    scope=instruction_capture_scope(args)
     active=False;complete=False;points=[];irqs=[];opened=None;polls=[];writes=[];buttons=[]
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
@@ -66,6 +66,7 @@ def capture(args):
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
         precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset,points=points,interrupts=irqs,polls=polls,writes=writes)
     if scope.following:data['followingResult']=True
+    if scope.following and scope.retry==2:data['afterRetry']=2
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'header.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),interrupts=len(irqs),polls=len(polls),writes=len(writes),begin=points[0],end=points[-1],controlDifferences=0),indent=2))
@@ -144,6 +145,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

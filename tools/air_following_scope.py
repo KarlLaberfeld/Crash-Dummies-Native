@@ -15,3 +15,9 @@ class FollowingAirCaptureScope:
 
     def samples(self,display):
         return display in (2,10) or self.instruction_seen and display in (1,4,5,6)
+
+
+def instruction_capture_scope(args):
+    following=getattr(args,'following',False);retry=getattr(args,'after_retry',1)
+    if retry!=1 and not following:raise ValueError('Later instruction selection requires --following')
+    return FollowingAirCaptureScope(following,retry)
