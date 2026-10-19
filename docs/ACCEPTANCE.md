@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 fourth-entry follow-up: both existing easy Air histories match the
+two-life fresh-Start prompt/exit, masked setup, fourth-attempt entry and first
+update. New scope: 886 boundaries / 386 displays / 772 vectors / 3,694 polls /
+1,064 stores / 320 actor slots, zero differences within scope. Current third-game
+timer phases 14 / 48 and all sixteen delay/period blocks survive. Repeated
+input-only parent/final controls and all 380 earlier native CSVs agree. O2
+diagnostic, 919 handoff assertions, 733 Python tests, CLI guards and five unchanged
+default captures pass. Never-allocated vacant done flags differ and are explicitly
+unqualified; this does not certify complete raw animation storage. See
+[scope](AIR_FOURTH_ENTRY.md). Subsequent gameplay, remaining campaigns/source
+work, production scheduling, images/PCM and human/device/independent-Windows/
+distribution gates remain open. Production EXE/alpha unchanged; timing point 1
+and final acceptance remain incomplete.
+
 October 19 two-life handoff follow-up: both existing Air histories match from
 third-result return through live-player selection/background clear, two-life
 header, music/picture, map transition and complete instruction text. New scope:

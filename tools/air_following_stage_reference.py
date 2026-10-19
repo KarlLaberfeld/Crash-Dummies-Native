@@ -5,7 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
 from air_following_setup_reference import FIELDS
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import retry_capture_scope
 
 COMMON={0x0367:'begin',0x036e:'stageReady',0x039c:'registersReady'}
 AIR={0x0b31:'stageEntry',0x0b49:'rootsReady',0x0b6d:'terrainReady',0x0b96:'mapReady',0x0ba0:'placementsReady',
@@ -19,7 +19,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);active=False;armed=False;complete=False;points=[];interrupts=[]
-    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
+    scope=retry_capture_scope(args)
     def word(a):return player.memory[a]+256*player.memory[a+1]
     def hook(pc):
         nonlocal active,armed,complete
@@ -49,6 +49,7 @@ def capture(args):
     if not complete or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete following stage or changed original control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=interrupts,productionSchedulerAccepted=False)
     if scope.following:data['nextRetry']=True
+    if scope.retry!=1:data['afterRetry']=scope.retry
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'stage.json',data)
     print(json.dumps(dict(boundaries=len(points),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
@@ -109,6 +110,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--prefix-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

@@ -9,7 +9,7 @@ from pathlib import Path
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import retry_capture_scope
 
 POINTS={0x0355:'begin',0x0359:'lcdOffReturned',0x035f:'objectsCleared',0x0364:'stateReset',0x0367:'stagePointer'}
 FIELDS=('tick','countdown','player','stage','difficulty','lives','display','stat','lcdc','lyc','pendingRequests')
@@ -20,7 +20,7 @@ def capture(args):
         raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0)
-    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
+    scope=retry_capture_scope(args)
     armed=False;active=False;complete=False;points=[];polls=[];writes=[];interrupts=[]
     def word(address):return player.memory[address]+256*player.memory[address+1]
     def hook(pc):
@@ -55,6 +55,7 @@ def capture(args):
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
         points=points,polls=polls,writes=writes,interrupts=interrupts,productionSchedulerAccepted=False)
     if scope.following:data['nextRetry']=True
+    if scope.retry!=1:data['afterRetry']=scope.retry
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'prefix.json',data)
     print(json.dumps(dict(boundaries=len(points),polls=len(polls),writes=len(writes),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
@@ -123,6 +124,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--exit-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

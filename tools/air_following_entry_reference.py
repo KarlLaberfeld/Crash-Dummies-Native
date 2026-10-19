@@ -5,7 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 from air_reference import write_json
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import retry_capture_scope
 
 POINTS={0x039c:'begin',0x039f:'scenePrepared',0x03a2:'resourceBank',0x03a8:'resourceCopy',0x03b9:'resourceReady',
         0x03bc:'hudReady',0x03c3:'lcdEnableCall',0x25ae:'lcdEnabled',0x03c6:'enableReturned',
@@ -17,7 +17,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[]
-    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
+    scope=retry_capture_scope(args)
     include_pause=getattr(args,'include_entry_pause',False);point_names=dict(POINTS)
     if include_pause:point_names[0x1476]='pauseEntry'
     def word(a):return player.memory[a]+256*player.memory[a+1]
@@ -60,6 +60,7 @@ def capture(args):
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,
         precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset,productionSchedulerAccepted=False)
     if scope.following:data['nextRetry']=True
+    if scope.retry!=1:data['afterRetry']=scope.retry
     if include_pause:
         from air_following_pause_reference import analyze_paused_entry
         analyze_paused_entry(data)
@@ -145,6 +146,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--stage-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

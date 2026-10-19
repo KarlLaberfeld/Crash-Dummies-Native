@@ -6,7 +6,7 @@ from extract_air import HANDLERS
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 from air_reference import write_json
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import retry_capture_scope
 
 POINTS={0x03d8:'begin',0x03db:'savedPlayer',0x03de:'entitiesDone',0x03e4:'sprites',0x03e7:'spritesDone',0x03ed:'mapCallback',0x19a2:'placements',0x03fa:'done',0x03c7:'backEdge'}
 ORDER=[*POINTS.values(),'end']
@@ -19,7 +19,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     extent=getattr(args,'updates',1)
-    scope=FollowingAirCaptureScope(getattr(args,'next_retry',False))
+    scope=retry_capture_scope(args)
     outro=getattr(args,'outro',False)
     terminal=outro or getattr(args,'terminal',False)
     from air_exit_timing import POINTS as OUTRO_POINTS,intervals,display_services
@@ -89,6 +89,7 @@ def capture(args):
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
     if scope.following:data['nextRetry']=True
+    if scope.retry!=1:data['afterRetry']=scope.retry
     if getattr(args,'partial_rows',False):data['partialRows']=True
     if terminal:data['terminalWait']=True
     if terminal or getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
@@ -190,6 +191,7 @@ if __name__=='__main__':
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     record.add_argument('--busy-scenes',action='store_true')
     record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     record.add_argument('--partial-rows',action='store_true',help='Capture partial-row crossings; comparison additionally requires matching byte-level map evidence')
     record.add_argument('--terminal',action='store_true',help='Include the last update and closed-gate final counter wait')
     record.add_argument('--outro',action='store_true',help='Also include audio stop and all outgoing fade waits, ending before result setup')

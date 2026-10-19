@@ -5,6 +5,9 @@ October 19, 2026. Native diagnostic continuation of the
 through the next completed instruction text at 032b. This does not yet start
 the fourth attempt or integrate the Windows scheduler.
 
+The subsequent Start/entry is qualified separately in
+[fourth Air entry](AIR_FOURTH_ENTRY.md); this checkpoint retains its original scope.
+
 Both existing ordinary/prior-entry-pause histories match the complete live-player
 selection, background clear, two-life header, music/picture loading, map
 transition and timed instruction text. Per history: 1,607 boundaries, 629 display

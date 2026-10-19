@@ -47,6 +47,16 @@ int main(){
             require(campaign.lives[0]==3&&third->ticks==9027&&third->randomState==0x4100,"Retry handoff preserves three lives and current entry clock/seed");
             require(!third->reverseSprites&&!third->sprites.descending(),"New stage reset wins over the second attempt's reversed selector");
             for(int i=0;i<16;++i)require(third->entities[i].anim==200+i&&third->entities[i].delay==30+i,"Every animation block comes from the second attempt, not its ancestor");
+            auto fourth=std::make_unique<AirGame>(*assets,*shared);
+            for(int phase:{14,48}){
+                third->result=33;third->secondTicks=phase;
+                for(int i=0;i<16;++i){third->entities[i].anim=300+i;third->entities[i].delay=50+i;third->entities[i].period=70+i;}
+                campaign.lives[0]=2;campaign.timing.tick=12000;retry.randomState=0x5200;
+                airFollowingAirHandoff(*fourth,*third,retry);
+                require(fourth->secondTicks==phase&&fourth->secondTicks!=second->secondTicks,"Fourth entry inherits the third game's current partial second");
+                require(campaign.lives[0]==2&&fourth->ticks==12000&&fourth->randomState==0x5200,"Fourth entry preserves two lives and its own clock/seed");
+                for(int i=0;i<16;++i)require(fourth->entities[i].anim==300+i&&fourth->entities[i].delay==50+i&&fourth->entities[i].period==70+i,"Fourth entry uses every immediately preceding animation block");
+            }
         }
         auto preceding=std::make_unique<AirGame>(*assets,*shared),game=std::make_unique<AirGame>(*assets,*shared);
         preceding->result=33;AirFollowingSetup state;state.stage=1;state.display=state.stat=4;state.hudCursor=2;state.cameraX=assets->levels[0].cameraX;state.cameraY=assets->levels[0].cameraY;

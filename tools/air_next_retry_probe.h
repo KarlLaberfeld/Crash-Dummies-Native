@@ -9,10 +9,11 @@ namespace ticd {
 // returned state. Original observations never enter this execution path.
 inline void airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false){
     if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
     if(result&&!terminal)throw std::runtime_error("Subsequent result requires terminal ownership");
     if(thirdInstructionExtent<0||thirdInstructionExtent>5||(thirdInstructionExtent&&!result))throw std::runtime_error("Subsequent instruction requires complete result ownership");
+    if(fourthEntry&&thirdInstructionExtent!=5)throw std::runtime_error("Fourth entry requires complete two-life instruction ownership");
     AirNextInstructionCsv exit(base+".next-exit","boundary,cycle,tick,countdown,scroll,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     auto exited=airInstructionExit(text,sound,ui,
         [&](const char* name,int64_t cycle,int tick,int countdown,int scroll,int bgp,int obp0,int obp1,bool enabled,const DisplayInput& input){exit.points<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<scroll<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<','<<input.held<<','<<input.pressed<<'\n';},
@@ -78,7 +79,12 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
         outro.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
         if(result){auto incoming=airProbeRetryResult(base,updated,*game,sound,ui,sample);
             if(thirdInstructionExtent){auto campaign=updated.instruction.map.campaign;campaign.lives[campaign.player]=incoming.lives;
-                airProbeNextInstruction(base+".third",campaign,incoming,game->result,stage,difficulty,updated.instruction.map.scroll,sound,ui,thirdInstructionExtent,sample);}}
+                auto typed=airProbeNextInstruction(base+".third",campaign,incoming,game->result,stage,difficulty,updated.instruction.map.scroll,sound,ui,thirdInstructionExtent,sample);
+                // Reuse the same prompt/setup/entry owners, attached to this
+                // completed game's animation and partial-second state. The
+                // bounded child stops after one update and cannot recurse.
+                if(fourthEntry)airProbeNextRetry(base+".fourth",typed,*game,assets,shared,stage,difficulty,sound,ui,sample);
+            }}
     }
 }
 }

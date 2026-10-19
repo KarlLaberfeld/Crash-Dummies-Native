@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Two-life fresh Start and fourth Air entry - October 19, 2026
+
+Both existing easy Air histories now match the next fresh-Start prompt/exit,
+LCD-off setup, fourth-attempt entry and first update/next input gate. Combined
+new scope: 886 boundaries / 386 displays / 772 vectors / 3,694 polls / 1,064
+stores / 320 actor slots, zero differences within this scope. Lives remain two;
+partial-second phases 14 / 48 come from the immediately preceding third game,
+not the older second game. All sixteen inherited delay/period blocks match.
+See [scope and reproduction](AIR_FOURTH_ENTRY.md).
+
+Input-only child controls preserve each complete third-result/text parent and
+append fresh Start for one frame, release and 300 frames. Two unhooked parent
+and final hashes agree per case; every instrumented endpoint matches. All 380
+earlier native CSVs remain byte-identical. Checks: O2 Windows diagnostic, 919
+native handoff assertions, 733 Python tests, CLI generation guards and five
+unchanged default retry captures. No source semantic owner or production
+scheduler changed. Production EXE/alpha and automation ACTIVE are unchanged.
+
+Additional checking exposed native done=true versus source false for never
+allocated vacant actor slots (ordinary slots 14/15, paused slot 15). These flags
+remain outside parity acceptance; occupied actor flags and all delay/period
+blocks are checked. This is not complete raw animation-storage parity. Original
+assets, controls, recordings and binaries stay local.
+
+Next concrete owner: fourth-attempt gameplay beyond its first update, retaining
+the current animation/timer and persistent row state. The never-allocated flag
+initialization still needs its own source-backed correction/qualification.
+Other stunt/player/shared-animation/final-life/reset/UI paths, unobserved work,
+production scheduling, full images/PCM and human/device/independent-Windows/
+distribution gates remain open. Timing point 1 and final acceptance are incomplete.
+
 ## Two-life handoff and complete next instruction - October 19, 2026
 
 Both existing easy Air histories now match from the third failure's complete
