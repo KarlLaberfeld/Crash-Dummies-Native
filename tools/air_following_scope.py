@@ -19,14 +19,14 @@ class FollowingAirCaptureScope:
 
 def instruction_capture_scope(args):
     following=getattr(args,'following',False);retry=getattr(args,'after_retry',1)
-    if type(retry) is not int or retry not in (1,2):raise ValueError('Unowned instruction generation')
+    if type(retry) is not int or retry not in (1,2,3):raise ValueError('Unowned instruction generation')
     if retry!=1 and not following:raise ValueError('Later instruction selection requires --following')
     return FollowingAirCaptureScope(following,retry)
 
 
 def retry_capture_scope(args):
     following=getattr(args,'next_retry',False);retry=getattr(args,'after_retry',1)
-    if type(retry) is not int or retry not in (1,2):raise ValueError('Unowned entry generation')
+    if type(retry) is not int or retry not in (1,2,3):raise ValueError('Unowned entry generation')
     if retry!=1 and not following:raise ValueError('Later entry selection requires --next-retry')
     return FollowingAirCaptureScope(following,retry)
 

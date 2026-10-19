@@ -38,6 +38,12 @@ class SidePushIntegrity(unittest.TestCase):
     def test_zero_branch_requires_rate_test(self):
         self.data=fixture(0);self.data['steering']=[p for p in self.data['steering'] if p['pc']!=0x6581];self.reject()
     def test_transfer_gate_requires_another_owner(self):self.data['steering'][2]['transfer']=1;self.reject()
+    def entry(self):
+        from air_following_gameplay_reference import ORDER
+        self.data.update(afterRetry=3,entryOnly=True,steering=[],points=[dict(index=i,name=name,cycles=100+i*100,lastForce=4) for i,name in enumerate(ORDER)])
+    def test_final_intro_retains_side_push(self):self.entry();self.assertEqual(analyze(self.data)['inheritedSidePush'],4)
+    def test_final_intro_cannot_clear_scratch(self):self.entry();self.data['points'][2]['lastForce']=0;self.reject()
+    def test_final_intro_cannot_claim_later_play(self):self.entry();self.data['points'][-1]['name']='terminalEnd';self.reject()
 
 
 if __name__=='__main__':unittest.main()

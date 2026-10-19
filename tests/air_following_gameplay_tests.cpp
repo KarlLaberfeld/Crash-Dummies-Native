@@ -61,6 +61,14 @@ int main(){
                     require(fourth->lastForce==force,"Result and stage setup retain side-push scratch until Play clears it");
                 }
             }
+            auto fifth=std::make_unique<AirGame>(*assets,*shared);
+            fourth->result=33;fourth->secondTicks=27;fourth->lastForce=-4;
+            for(int i=0;i<16;++i){fourth->entities[i].anim=400+i;fourth->entities[i].delay=70+i;fourth->entities[i].period=90+i;}
+            campaign.lives[0]=1;campaign.timing.tick=15000;retry.randomState=0x6300;
+            airFollowingAirHandoff(*fifth,*fourth,retry);
+            require(fifth->secondTicks==27&&fifth->lastForce==-4,"Final entry keeps the fourth game's current timer and side push");
+            require(campaign.lives[0]==1&&fifth->ticks==15000&&fifth->randomState==0x6300,"Final entry does not consume or reset the last life");
+            for(int i=0;i<16;++i)require(fifth->entities[i].anim==400+i&&fifth->entities[i].delay==70+i&&fifth->entities[i].period==90+i,"Final entry copies the fourth animation blocks, not an older retry");
         }
         auto preceding=std::make_unique<AirGame>(*assets,*shared),game=std::make_unique<AirGame>(*assets,*shared);
         preceding->result=33;AirFollowingSetup state;state.stage=1;state.display=state.stat=4;state.hudCursor=2;state.cameraX=assets->levels[0].cameraX;state.cameraY=assets->levels[0].cameraY;

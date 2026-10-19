@@ -1,5 +1,38 @@
 # Crash Dummies Native - project status
 
+## One-life instruction and final Air entry - October 19, 2026
+
+Both histories now match the completed one-life campaign/instruction and the
+fresh-Start exit, fifth/final Air entry and first update. Instruction scope:
+3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712 polls / 4,572 stores /
+128 map selections. New exit/setup/entry scope: 588 boundaries / 237 displays /
+474 vectors / 3,694 polls / 1,064 stores / 320 actor slots. All compared fields
+have zero differences. One life remains; current fourth-game phases 33 / 43,
+all sixteen delay/period blocks and retained side-push zero survive. Separate
+source scratch observations match all 20 first-update boundaries. See
+[scope and reproduction](AIR_FIFTH_ENTRY.md).
+
+The adapter returns an owning native game/state/result bundle, so fifth entry
+uses the actual completed fourth game/one-life transition. It does not reuse
+an older attempt or snapshot. Existing controls already finish the one-life
+text; only fresh Start for one frame and 300 released frames are appended for
+entry, with two matching unhooked parent/final hashes per history. All 488
+earlier native CSVs remain byte-identical. Both complete fourth-result chains
+pass again on the final diagnostic's parent output.
+
+Validation: O2 Windows diagnostic, both attached instruction/entry/scratch and
+parent-result comparisons, 945 native handoff assertions, 794 Python tests,
+CLI extent/ownership guards and five unchanged earlier two-life captures. Core
+semantic owners were unchanged; previous result/work/pause assertions retain
+their scope and were not repeated. ROM/data/recordings/binaries remain local.
+Production EXE/alpha unchanged; automation remains ACTIVE.
+
+Next concrete owner: fifth-attempt gameplay beyond its first update, then final
+life consumption and eliminated-player/game-over handling. Initial unused
+vacant done flags, other campaigns, earlier UI/reset/unobserved work, production
+scheduling, full images/PCM and human/device/independent-Windows/distribution
+gates remain open. Timing point 1 and final acceptance are incomplete.
+
 ## Complete fourth Air failure and one-life result - October 19, 2026
 
 Both easy Air histories now match terminal gameplay (1,788 ordinary / 1,764

@@ -15,15 +15,16 @@ BRANCHES=(0x5fd6,0x5ff3,0x5ff6,0x6574,0x6578,0x657b,0x657c,0x6581,0x602c,0x602f)
 def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text());gameplay=json.loads((args.out/'gameplay.json').read_text())
     require_capture_reference(manifest,gameplay)
-    if manifest['controlDifferences'] or gameplay.get('afterRetry')!=2 or any(gameplay[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')):raise ValueError('Requires unchanged fourth-gameplay recording')
+    if manifest['controlDifferences'] or gameplay.get('afterRetry') not in (2,3) or any(gameplay[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')):raise ValueError('Requires unchanged fourth/fifth-gameplay recording')
     if hashlib.sha256(args.rom.read_bytes()).hexdigest()!=manifest['romSha256']:raise ValueError('Changed ROM')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     selected={}
     for i,point in enumerate(gameplay['points']):selected.setdefault(point['cycles'],[]).append((i,point['name']))
     first=gameplay['points'][0]['cycles']
     transitions=[i for i,p in enumerate(gameplay['points']) if p['name']=='begin' and p['entities'][0]['handler']==0x5fc9 and p['entities'][0]['params'][0]==1]
-    if len(transitions)!=1:raise ValueError('Requires one observed Wait-to-Play transition')
-    begin=gameplay['points'][transitions[0]]['cycles'];end=gameplay['points'][transitions[0]+2]['cycles']
+    entry_only=gameplay.get('afterRetry')==3 and gameplay.get('updates',1)==1
+    if (not entry_only and len(transitions)!=1) or (entry_only and transitions):raise ValueError('Requires one observed Wait-to-Play transition or bounded final entry')
+    begin=-1 if entry_only else gameplay['points'][transitions[0]]['cycles'];end=-1 if entry_only else gameplay['points'][transitions[0]+2]['cycles']
     player=Reference(str(args.rom),window='null',sound_volume=0);rows=[];branches=[];previous=None
     def force():return (player.memory[0xffca]+128)%256-128
     def hook(pc):
@@ -46,7 +47,8 @@ def capture(args):
         digest=hashlib.sha256(bytes(player.memory[0x8000:0x10000])).hexdigest()
     finally:player.stop(save=False)
     if selected or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete side-push observation or changed control')
-    data=dict(reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,afterRetry=2,previousTerminal=previous,points=rows,steering=branches)
+    data=dict(reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,afterRetry=gameplay['afterRetry'],previousTerminal=previous,points=rows,steering=branches)
+    if entry_only:data['entryOnly']=True
     try:analyze(data)
     except ValueError:
         write_json(args.out/'side-push.rejected.json',data);raise
@@ -56,10 +58,14 @@ def capture(args):
 
 def analyze(data):
     rows=data['points'];previous=data.get('previousTerminal');branches=data['steering']
-    if data.get('afterRetry')!=2 or not rows or previous is None or previous['result']!=33 or not previous['cycles']<rows[0]['cycles']:raise ValueError('Missing preceding failed-game side push')
+    if data.get('afterRetry') not in (2,3) or not rows or previous is None or previous['result']!=33 or not previous['cycles']<rows[0]['cycles']:raise ValueError('Missing preceding failed-game side push')
     if rows[0]['lastForce']!=previous['lastForce']:raise ValueError('Detached side-push inheritance')
     if any(p['index']!=i or p['lastForce'] not in (-4,0,4,12) for i,p in enumerate(rows)):raise ValueError('Invalid side-push observations')
     if any(b['cycles']<a['cycles'] for a,b in zip(rows,rows[1:])):raise ValueError('Reordered side-push observations')
+    if data.get('entryOnly') is True:
+        from air_following_gameplay_reference import ORDER
+        if data['afterRetry']!=3 or len(rows)!=10 or [p['name'] for p in rows]!=ORDER or branches or any(p['lastForce']!=previous['lastForce'] for p in rows):raise ValueError('Unowned final-entry side-push change/extent')
+        return dict(inheritedSidePush=rows[0]['lastForce'],entryOnly=True)
     if any(b['cycles']<=a['cycles'] for a,b in zip(branches,branches[1:])):raise ValueError('Reordered steering observations')
     points={p['pc']:p for p in branches}
     if not {0x5fd6,0x5ff3,0x6574,0x6578,0x657b,0x5ff6,0x602c,0x602f}.issubset(points):raise ValueError('Incomplete first steering/clear branch')

@@ -12,19 +12,19 @@ from reference_backend import require_capture_reference
 from air_next_retry_reference import extension,attachments
 
 
-def generation(text,handoff,records):
-    if any(r.get('afterRetry')!=2 for r in (text,handoff,*records.values())):
-        raise ValueError('Fourth entry requires the completed two-life instruction generation')
+def generation(text,handoff,records,after_retry=2,lives=2):
+    if (after_retry,lives) not in ((2,2),(3,1)) or any(r.get('afterRetry')!=after_retry for r in (text,handoff,*records.values())):
+        raise ValueError('Retry entry requires the completed matching instruction generation')
     player=handoff['points'][-1]['player']
-    if handoff['points'][-1]['lives'+str(player)]!=2:
-        raise ValueError('Fourth entry requires two remaining lives')
+    if handoff['points'][-1]['lives'+str(player)]!=lives:
+        raise ValueError('Retry entry lost its remaining lives')
     attachments(text,handoff,records)
 
 
-def current_game_inheritance(preceding,play):
-    if preceding.get('nextRetry') is not True or preceding.get('terminalWait') is not True or preceding.get('afterRetry',1)!=1:
-        raise ValueError('Missing completed third game')
-    if play.get('afterRetry')!=2:raise ValueError('Missing fourth game selection')
+def current_game_inheritance(preceding,play,after_retry=2):
+    if after_retry not in (2,3) or preceding.get('nextRetry') is not True or preceding.get('terminalWait') is not True or preceding.get('afterRetry',1)!=after_retry-1:
+        raise ValueError('Missing immediately preceding completed game')
+    if play.get('afterRetry')!=after_retry:raise ValueError('Missing next game selection')
     last=preceding['points'][-1];first=play['points'][0]
     if last.get('name')!='terminalEnd' or last.get('result')!=33:
         raise ValueError('Unowned preceding failed game endpoint')

@@ -192,7 +192,7 @@ if __name__=='__main__':
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     record.add_argument('--busy-scenes',action='store_true')
     record.add_argument('--next-retry',action='store_true')
-    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
+    record.add_argument('--after-retry',type=int,choices=(1,2,3),default=1)
     record.add_argument('--partial-rows',action='store_true',help='Capture partial-row crossings; comparison additionally requires matching byte-level map evidence')
     record.add_argument('--terminal',action='store_true',help='Include the last update and closed-gate final counter wait')
     record.add_argument('--outro',action='store_true',help='Also include audio stop and all outgoing fade waits, ending before result setup')

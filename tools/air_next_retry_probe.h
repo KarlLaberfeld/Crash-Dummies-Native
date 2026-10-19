@@ -5,16 +5,23 @@
 #include <memory>
 
 namespace ticd {
+struct AirRetryProbeResult {
+    std::unique_ptr<AirGame> game;
+    AirFollowingSetup state;
+    AirResultTransition transition;
+    bool resultOwned=false;
+};
 // Output adapter only: each continuation uses the preceding native owner's
 // returned state. Original observations never enter this execution path.
-inline void airProbeNextRetry(const std::string& base,AirInstructionTextState text,
+inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false,int fifthInstructionExtent=0,bool fifthEntry=false){
     if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
     if(result&&!terminal)throw std::runtime_error("Subsequent result requires terminal ownership");
     if(thirdInstructionExtent<0||thirdInstructionExtent>5||(thirdInstructionExtent&&!result))throw std::runtime_error("Subsequent instruction requires complete result ownership");
     if(fourthEntry&&thirdInstructionExtent!=5)throw std::runtime_error("Fourth entry requires complete two-life instruction ownership");
     if(fourthResult&&!fourthEntry)throw std::runtime_error("Fourth result requires entry ownership");
+    if(fifthInstructionExtent<0||fifthInstructionExtent>5||(fifthInstructionExtent&&!fourthResult)|| (fifthEntry&&fifthInstructionExtent!=5))throw std::runtime_error("Fifth entry/instruction requires complete fourth-result ownership");
     if(fourthUpdates<1||fourthUpdates>100000||(fourthUpdates!=1&&!fourthEntry))throw std::runtime_error("Fourth gameplay extent requires entry ownership");
     AirNextInstructionCsv exit(base+".next-exit","boundary,cycle,tick,countdown,scroll,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     auto exited=airInstructionExit(text,sound,ui,
@@ -72,6 +79,7 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
         [&](auto... args){play.irq(args...);},sample,terminal&&update==updates-1,mapSnapshot);
     mapSnapshot("end",updated.instruction.map.campaign.timing.displays,updated.instruction.map.campaign.timing.end,updated,*game);
     play.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
+    AirResultTransition completed{};bool resultOwned=false;
     if(terminal){
         AirNextInstructionCsv outro(base+".next-outro","phase,index,start,end,tickBefore,tickAfter,elapsed,work,bgp,obp0,obp1,musicEnabled");
         std::ofstream objects(base+".next-outro.sprites.csv");if(!objects)throw std::runtime_error("Cannot open subsequent outgoing objects");
@@ -82,14 +90,20 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
                 for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];objects<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},
             [&](auto... args){outro.irq(args...);},sample);
         outro.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
-        if(result){auto incoming=airProbeRetryResult(base,updated,*game,sound,ui,sample);
+        if(result){auto incoming=airProbeRetryResult(base,updated,*game,sound,ui,sample);completed=incoming;resultOwned=true;
             if(thirdInstructionExtent){auto campaign=updated.instruction.map.campaign;campaign.lives[campaign.player]=incoming.lives;
                 auto typed=airProbeNextInstruction(base+".third",campaign,incoming,game->result,stage,difficulty,updated.instruction.map.scroll,sound,ui,thirdInstructionExtent,sample);
-                // Reuse the same prompt/setup/entry owners, attached to this
-                // completed game's animation and partial-second state. The
-                // Bounded child may finish its result, but cannot recurse again.
-                if(fourthEntry)airProbeNextRetry(base+".fourth",typed,*game,assets,shared,stage,difficulty,sound,ui,sample,fourthUpdates,fourthResult,fourthResult);
+                // Retain the actual completed fourth game/result while its
+                // one-life instruction and bounded fifth entry are observed.
+                if(fourthEntry){auto fourth=airProbeNextRetry(base+".fourth",typed,*game,assets,shared,stage,difficulty,sound,ui,sample,fourthUpdates,fourthResult,fourthResult);
+                    if(fifthInstructionExtent){
+                        if(!fourth.resultOwned)throw std::runtime_error("Missing completed fourth result");
+                        auto campaign=fourth.state.instruction.map.campaign;campaign.lives[campaign.player]=fourth.transition.lives;
+                        auto fifth=airProbeNextInstruction(base+".fifth",campaign,fourth.transition,fourth.game->result,stage,difficulty,fourth.state.instruction.map.scroll,sound,ui,fifthInstructionExtent,sample);
+                        if(fifthEntry)airProbeNextRetry(base+".fifth",fifth,*fourth.game,assets,shared,stage,difficulty,sound,ui,sample);
+                    }}
             }}
     }
+    return {std::move(game),updated,completed,resultOwned};
 }
 }

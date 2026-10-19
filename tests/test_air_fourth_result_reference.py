@@ -41,9 +41,9 @@ class ResultGeneration(unittest.TestCase):
             scope.observe(0x268b,10);scope.observe(0x03d8,4)
             for _ in range(5):scope.observe(0x03d8,4)
         scope.observe(0x0462,10,400);self.assertTrue(scope.result_seen);self.assertEqual(scope.display_offset,400)
-    def test_third_entry_generation_is_not_implicitly_opened(self):
+    def test_unsupported_entry_generation_is_not_implicitly_opened(self):
         for fn in (instruction_capture_scope,retry_capture_scope):
-            with self.assertRaises(ValueError):fn(SimpleNamespace(following=True,next_retry=True,after_retry=3))
+            with self.assertRaises(ValueError):fn(SimpleNamespace(following=True,next_retry=True,after_retry=4))
 
 
 class SavedCounterCompletion(unittest.TestCase):

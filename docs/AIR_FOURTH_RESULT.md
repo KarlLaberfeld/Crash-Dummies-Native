@@ -1,5 +1,9 @@
 # Complete fourth Air failure and one-life result
 
+Follow-up: [one-life instruction and final entry](AIR_FIFTH_ENTRY.md) extends
+these results through the following instruction and fifth-attempt first update.
+This checkpoint retains its original result scope.
+
 October 19, 2026. Extends both accepted
 [fourth-attempt continuations](AIR_SIDE_PUSH_INHERITANCE.md) through terminal
 gameplay, outgoing fade, result setup/incoming and the complete failed-result

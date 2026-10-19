@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 final-entry follow-up: both histories match complete one-life
+instruction (3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712 polls /
+4,572 stores / 128 map selections), then fresh-Start exit, fifth entry and first
+update (588 boundaries / 237 displays / 474 vectors / 3,694 polls / 1,064 stores /
+320 actor slots). Current phases 33 / 43, one life and inherited animation/
+side-push state agree; 20 supplemental scratch boundaries match. All compared
+fields have zero differences. Both full fourth-result chains and 488 native
+parent CSVs remain exact. O2 diagnostic, 945 handoff assertions, 794 Python
+tests, CLI guards and five earlier-capture regressions pass. See
+[scope](AIR_FIFTH_ENTRY.md). Later final gameplay/life consumption, eliminated
+players/game over, vacant flags, other campaigns, production scheduling,
+images/PCM and final Windows/device/distribution gates remain open. Production
+EXE/alpha unchanged; final acceptance incomplete.
+
 October 19 fourth-result follow-up: both histories match through fourth failure,
 outgoing fade and full result, with two lives becoming one. Gameplay: 35,520
 boundaries / 568,320 actor slots / 3,561 displays / 7,122 vectors / 142,440 object
