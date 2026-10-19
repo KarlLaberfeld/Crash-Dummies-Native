@@ -1,5 +1,33 @@
 # Crash Dummies Native - project status
 
+## Masked post-game-over title reset - October 20, 2026
+
+Both existing zero-savings Air histories now match the inherited LCD-off wait,
+map/object/selector reset and fixed title-graphics copy work through data-bank
+restoration. New combined scope: 20 boundaries / 4,256 equality polls / 4,640
+stores, no interrupt services, zero differences. All 666 earlier complete
+native CSVs remain exact. See [scope and reproduction](AIR_TITLE_RESET.md).
+
+Native continuation uses the actual game-over return and LCD epoch. Display,
+countdown and audio stay frozen while services are masked; both requests become
+pending before LCD disable. All 2,048 map cells and 256 object bytes clear;
+the held-input sentinel changes without resampling the pressed edge. Original
+score/name storage stays unchanged. The copy work is qualified; complete title
+graphics payload/pixels, post-reset title layout and LCD restart are not.
+
+Validation: optimized native Windows diagnostic, both attached full-chain
+comparisons, 27,087 native title-reset assertions, CLI ownership guard and 848
+Python tests. New native tests are part of the regular test build. Shared
+owners are unchanged; earlier integration qualification retains its scope.
+Regular Windows EXE rebuilt from committed source; diagnostic timing remains
+outside its production scheduler. No new release or automation change;
+ROM/data/recordings/binaries stay local.
+
+Next concrete owner: the post-reset first-boot decision/title layout and LCD
+restart. Qualifying-score/name entry, vacant flags, other campaigns/players/
+stunts, remaining UI/reset/work, production timing, full images/PCM and final
+human/device/independent-Windows/distribution gates remain open.
+
 ## Non-ranking high score and title-reset entry - October 20, 2026
 
 Both existing zero-savings Air histories now match all eight high-score

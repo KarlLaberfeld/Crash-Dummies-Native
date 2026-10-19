@@ -1,5 +1,9 @@
 # Non-ranking score and game-over return
 
+Follow-up: the [masked title-reset prefix](AIR_TITLE_RESET.md) now continues
+both histories through LCD disable, clears and fixed graphics-copy work.
+Title layout, LCD restart and graphics payload/pixels remain unqualified.
+
 October 20, 2026. Continues both accepted [final-life results](AIR_FINAL_RESULT.md)
 from the end of the fixed hold through high-score rejection, the no-survivor
 test and all outgoing fade waits. Ends at title-reset entry, before its first

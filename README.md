@@ -103,13 +103,14 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: qualifying high-score/name entry and title reset/entry after game over,
+Next fidelity work: qualifying high-score/name entry and title layout/restart after game over,
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_GAME_OVER_RETURN.md) qualifies
-both existing Air histories through non-ranking score checks and the outgoing
-fade to title-reset entry. Actual title initialization and qualifying name entry remain unqualified.
+The [latest timing comparison](docs/AIR_TITLE_RESET.md) qualifies
+both existing Air histories through the masked post-game-over title reset,
+map/object clears and fixed title-graphics copy work. Title layout/LCD restart,
+graphics payload/pixels and qualifying name entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

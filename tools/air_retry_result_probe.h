@@ -4,6 +4,7 @@
 #include "air_result_accounting.h"
 #include "air_final_result.h"
 #include "air_game_over_return.h"
+#include "air_title_reset.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -40,7 +41,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -68,6 +69,14 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
             [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){returned.service(index,cycle,tick,countdown,display,effects,music,input);},
             [&](auto... args){returned.irq(args...);},sample);
         returned.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,lives0,lives1,savings\n"<<result.end<<','<<result.lcdEpoch<<','<<result.tick<<','<<result.countdown<<','<<result.displays<<','<<result.stats<<','<<result.nextStat<<','<<result.nextVBlank<<",0,0,"<<failedCampaignSavings<<'\n';
+    }
+    if(titleReset){
+        if(!titleReturn)throw std::runtime_error("Title reset requires full game-over return");
+        AirNextInstructionCsv reset(base+".title-reset","boundary,cycle,tick,countdown,inputHeld,inputPressed,lcdc,bank","cycle,address,value","ly");
+        auto prepared=airTitleResetPrefix(result,sound,
+            [&](const char* name,int64_t cycle,const AirTitleReset& r){reset.points<<name<<','<<cycle<<','<<r.timing.tick<<','<<r.timing.countdown<<','<<r.timing.input.held<<','<<r.timing.input.pressed<<','<<r.lcdc<<','<<r.bank<<'\n';},
+            [&](auto... args){reset.poll(args...);},[&](auto... args){reset.write(args...);});
+        reset.summary<<"end,lcdEpoch,lcdDisabled,pollReads,pendingRequests,tick,countdown,displays,stats,display,stat,servicesMasked\n"<<prepared.timing.end<<','<<prepared.timing.lcdEpoch<<','<<prepared.lcdDisabled<<','<<prepared.pollReads<<','<<prepared.pendingRequests<<','<<prepared.timing.tick<<','<<prepared.timing.countdown<<','<<prepared.timing.displays<<','<<prepared.timing.stats<<','<<prepared.display<<','<<prepared.stat<<','<<prepared.servicesMasked<<'\n';
     }
     return result;
 }

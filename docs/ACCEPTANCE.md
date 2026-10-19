@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 masked title-reset follow-up: both zero-savings histories match the
+inherited line-145 wait, map/object/selector clears and fixed graphics-copy work
+through data-bank restoration. New scope: 20 boundaries / 4,256 polls / 4,640
+stores, no interrupt services, zero differences; all 666 earlier complete
+native CSVs remain exact. O2 diagnostic, both attached chains, 27,087 native
+title-reset assertions and 848 Python tests pass. See [scope](AIR_TITLE_RESET.md).
+Title layout/LCD restart, complete graphics payload/pixels, qualifying name
+entry, other paths, production timing and remaining full image/audio/human/
+device/Windows/distribution gates remain open. No release; final acceptance
+incomplete.
+
 October 20 no-score return follow-up: both zero-savings histories match eight
 rank rejections, no surviving players, outgoing fade and title-reset entry.
 New scope: 240 boundaries / 16 rows / 32 score bytes / 64 displays / 128 vectors,
