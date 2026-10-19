@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 resource continuation: ordinary Air retry 1,295 updates and its
+entry-pause variant 1,000 match at 22,950 boundaries, 367,200 actor slots,
+2,295 displays and 4,590 complete vectors. All 48 requested graphics transfers
+complete correctly, including 181 upload batches and 34 map-priority deferrals;
+input/timer, queued effects and native display/audio work agree. Previous short
+controls overlap these totals. Checks: 683 handoff, 4,200 source-work, 819,624
+Air assertions and 486 Python tests; four preceding startup/exit comparisons
+remain exact. See [scope](AIR_FOLLOWING_RESOURCES.md). The next ordinary update
+interrupts map preparation and remains unqualified, along with subsequent busy
+display/placement/exit, other handoffs, reset/UI and production scheduling.
+Full images/PCM and human/physical/independent-host/final distribution acceptance
+remain open. The final-release gates below still apply.
+
 October 18 alpha preparation: XInput support and a ROM-free versioned private
 pre-release are separate from final fidelity acceptance. Release validation is
 reported in RELEASE_NOTES.md and the release validation attachment. Physical

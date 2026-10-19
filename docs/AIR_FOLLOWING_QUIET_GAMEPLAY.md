@@ -1,5 +1,10 @@
 # Following Air restart through quiet gameplay
 
+October 19 continuation: [resource timing](AIR_FOLLOWING_RESOURCES.md) extends
+these two controls through complete graphics transfers and longer active play.
+The 266-update checkpoint below retains its original scope and overlaps that
+later evidence.
+
 The native diagnostic now continues two easy Air retry variants through 266
 updates each: ordinary entry and entry pause/resume. Both match their complete
 original controls with zero differences. This covers the full rise, the wait

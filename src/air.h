@@ -70,6 +70,7 @@ struct AirGame {
     int mapWorkCycles=0,placementWorkCycles=0,spriteWorkCycles=0,clearWorkCycles=0;
     std::array<int,16> spriteEntityWorkCycles{};
     std::array<AirEntity,16> spriteInputEntities{};
+    std::array<AirEntity,16> resourceInputEntities{}; // Diagnostic snapshot before the resource callback.
     std::vector<int> resourceCompletionCosts; // Diagnostic source boundaries; no runtime clock input.
     int resourceWorkCycles=0,animationWorkCycles=0,entityWorkCycles=-1;
     // -2 = unoccupied; -1 = handler body not yet reconstructed.

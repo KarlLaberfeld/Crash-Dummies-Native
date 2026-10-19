@@ -103,9 +103,12 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: complete Air resource-transfer/timing branches, other
+Next fidelity work: complete interrupted Air map/display/placement work, other
 stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
+The [latest timing comparison](docs/AIR_FOLLOWING_RESOURCES.md) qualifies
+restarted Air graphics transfers in the diagnostic; it is not yet integrated
+into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.
 

@@ -35,7 +35,11 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
     auto& t=state.instruction.map.campaign.timing;
     if(state.stage!=1||state.ready||game.result||!game.measureWork||!game.entities[0].alive||
-       game.transferState||game.transferRemaining||game.pendingSound!=-1||!sound.enabled||sound.pendingEffect!=-1||((t.input.pressed&8)&&!state.entryPauseComplete))
+       game.transferState<0||game.transferState>2||game.transferRemaining<0||
+       (game.transferState==1)!=(game.transferRemaining>0)||
+       (game.transferState&& (game.transferFrame<0||game.transferFrame>=12))||
+       (game.transferState&&game.transferRemaining>game.assets.transferChunks[game.transferFrame])||
+       game.pendingSound!=-1||!sound.enabled||sound.pendingEffect!=-1||((t.input.pressed&8)&&!state.entryPauseComplete))
         throw std::runtime_error("Unowned following Air quiet update");
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
@@ -58,16 +62,25 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     };
     point("begin");quiet(96);point("savedPlayer");
     const auto priorSprites=game.sprites;bool priorMap=game.mapTransfer,priorReverse=game.reverseSprites;int priorCamera=game.lastMapCamera;
+    const int priorTransfer=game.transferState,priorRemaining=game.transferRemaining,priorFrame=game.transferFrame,priorFlags=game.transferFlags;
     auto decode=[](int raw){return ((raw&1)?A:0)|((raw&2)?B:0)|((raw&16)?Right:0)|
         ((raw&32)?Left:0)|((raw&64)?Up:0)|((raw&128)?Down:0);};
     game.previous=decode(t.input.previous);game.updateGame(decode(t.input.held),true,true);const auto visibleEntities=game.entities;
-    game.entities=game.spriteInputEntities;bool preparedMap=game.mapTransfer,preparedReverse=game.reverseSprites;
+    const auto resourceEntities=game.spriteInputEntities;
+    const int preparedTransfer=game.transferState,preparedRemaining=game.transferRemaining,preparedFrame=game.transferFrame,preparedFlags=game.transferFlags;
+    game.entities=game.resourceInputEntities;bool preparedMap=game.mapTransfer,preparedReverse=game.reverseSprites;
+    game.transferState=priorTransfer;game.transferRemaining=priorRemaining;game.transferFrame=priorFrame;game.transferFlags=priorFlags;
     game.sprites=priorSprites;game.reverseSprites=priorReverse;game.mapTransfer=priorMap;game.lastMapCamera=priorCamera;
-    if(game.transferState||game.transferRemaining||game.pendingSound<-1||game.pendingSound>=26||game.animationFaults||game.entityWorkCycles<96)
+    if(game.pendingSound<-1||game.pendingSound>=26||game.animationFaults||game.entityWorkCycles<96)
         throw std::runtime_error("Unowned following Air quiet actor/resource outcome");
     quiet(game.entityWorkCycles-96);point("entitiesDone");
     int resource=0;for(int cost:game.resourceCompletionCosts){resource+=cost;quiet(cost);}
-    if(resource!=game.resourceWorkCycles)throw std::runtime_error("Incomplete following Air resource work");point("sprites");
+    if(resource!=game.resourceWorkCycles)throw std::runtime_error("Incomplete following Air resource work");
+    // The entire callback is quiet here. Commit its native queue/frame outcome
+    // only after completion, so entitiesDone still exposes the requested pose.
+    // Any interrupt within the callback remains an unqualified hard boundary.
+    game.entities=resourceEntities;game.transferState=preparedTransfer;game.transferRemaining=preparedRemaining;
+    game.transferFrame=preparedFrame;game.transferFlags=preparedFlags;point("sprites");
     game.entities=visibleEntities;game.reverseSprites=preparedReverse;game.sprites=SpriteLayer(preparedReverse);game.sprites.slots=priorSprites.slots;
     int sprites=airSpriteClock(game,clock,display);
     if(sprites!=game.spriteWorkCycles)throw std::runtime_error("Incomplete following Air sprite work");point("spritesDone");

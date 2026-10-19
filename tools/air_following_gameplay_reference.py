@@ -38,6 +38,7 @@ def capture(args):
             points.append(dict(name='end' if closing else POINTS[pc],cycles=now,tick=word(0xc00a),secondTicks=p.memory[0xc083],seconds=(seconds>>4)*10+(seconds&15),random=word(0xc09e),
                 ready=p.memory[0xffae],map=p.memory[0xc00d],lastMapCamera=word(0xff96),mapScratch=word(0xc00c),cameraX=word(0xff92),cameraY=word(0xff94),hudCursor=p.memory[0xc04c],fadeRemaining=p.memory[0xffc9],
                 held=p.memory[0xff8a],pressed=p.memory[0xff8b],lcdc=p.memory[0xff40],display=p.memory[0xc098],transfer=p.memory[0xffb6],remaining=p.memory[0xffb5],effect=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6],reverse=int(bool(p.memory[0xff90])),
+                transferFrame=p.memory[0xffb9],transferFlags=p.memory[0xffba],
                 entities=[dict(frame=p.memory[0xc200+i*16],flags=p.memory[0xc205+i*16],handler=word(0xc206+i*16),x=word(0xc201+i*16),y=word(0xc203+i*16),params=list(p.memory[0xc209+i*16:0xc210+i*16]),state=p.memory[0xc302+i*16],delay=p.memory[0xc303+i*16],period=p.memory[0xc304+i*16]) for i in range(16)]))
             if closing and not complete:points.append(dict(points[-1],name='begin'))
         elif pc in (0x0040,0x0048):
@@ -59,10 +60,19 @@ def capture(args):
             else:raise ValueError('Unknown original control event')
         digest=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
-    if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete first following update or changed control')
+    if not complete or opened or digest!=manifest['controlMemorySha256']:
+        args.out.mkdir(parents=True,exist_ok=True)
+        write_json(args.out/'gameplay.incomplete.json',dict(accepted=False,requestedUpdates=extent,completedUpdates=updates,
+            complete=complete,openInterrupt=opened,controlMemorySha256=digest,controlMatches=digest==manifest['controlMemorySha256'],points=points,interrupts=irqs))
+        raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-extent,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    if getattr(args,'resource_transfers',False):
+        rom=read_rom(args.rom);data.update(resourceTransfers=True,resourceChunks=list(rom[0xe08f:0xe0bf:4]))
     try:
-        if extent==1:analyze(data)
+        if data.get('resourceTransfers'):
+            from air_following_resource_reference import analyze as analyze_resources
+            analyze_resources(data)
+        elif extent==1:analyze(data)
         else:
             from air_following_quiet_reference import analyze as analyze_quiet
             analyze_quiet(data)
@@ -142,7 +152,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

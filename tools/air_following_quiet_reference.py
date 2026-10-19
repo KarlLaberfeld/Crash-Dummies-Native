@@ -7,7 +7,7 @@ from air_timing import vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 from air_reference import write_json
 from reference_backend import require_capture_reference
 
-def analyze(data):
+def analyze(data,resources=False):
     n=data.get('updates',0);points=data.get('points',[]);irqs=data.get('interrupts',[])
     if data.get('version')!=1 or not isinstance(n,int) or n<2 or len(points)!=10*n or len(irqs)!=2*n or data.get('precedingDisplays',-1)<0:raise ValueError('Incomplete following quiet extent')
     first=dict(data,updates=1,points=points[:10],interrupts=irqs[:2]);analyze_first(first)
@@ -17,7 +17,7 @@ def analyze(data):
         if update and dict(block[0],name='end')!=points[10*update-1]:raise ValueError('Detached following quiet update')
         if block[1]['cycles']-block[0]['cycles']!=96 or block[8]['cycles']-block[7]['cycles']!=32:raise ValueError('Unknown following quiet prefix/back-edge')
         for i,p in enumerate(block):
-            if p['ready'] or p['display']!=4 or p['lcdc']!=0xe7 or p['transfer'] or p['remaining'] or not -1<=p['effect']<26 or p['held']&15==15 or p['pressed']&~p['held'] or p['pressed']&8 and not(update==0 and i<9 and data.get('entryPauseConsumed') is True):raise ValueError('Unowned following quiet state/input: '+str(dict(update=update,boundary=p['name'],**{k:p[k] for k in ('ready','display','lcdc','transfer','remaining','effect','held','pressed')})))
+            if p['ready'] or p['display']!=4 or p['lcdc']!=0xe7 or (not resources and (p['transfer'] or p['remaining'])) or not -1<=p['effect']<26 or p['held']&15==15 or p['pressed']&~p['held'] or p['pressed']&8 and not(update==0 and i<9 and data.get('entryPauseConsumed') is True):raise ValueError('Unowned following quiet state/input: '+str(dict(update=update,boundary=p['name'],**{k:p[k] for k in ('ready','display','lcdc','transfer','remaining','effect','held','pressed')})))
             if p['tick']!=(block[0]['tick']+(i==9))&65535 or len(p['entities'])!=16:raise ValueError('Incomplete following quiet counter/actors')
             if not 0<=p['secondTicks']<60 or not 0<=p['seconds']<=99:raise ValueError('Invalid following quiet timer')
             if any(e['frame']!=255 and(e['handler'] not in HANDLERS or len(e['params'])!=7) for e in p['entities']):raise ValueError('Unknown following quiet actor')
@@ -31,8 +31,8 @@ def analyze(data):
         if block[-1]['cycles']!=r['end']+16+56+48:raise ValueError('Unknown following quiet input gate')
     return [irqs[2*i+1] for i in range(n)]
 
-def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch):
-    expected=analyze(data);n=data['updates']
+def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resources=False):
+    expected=analyze(data,resources=resources);n=data['updates']
     if [len(rows) for rows in (points,entities,services,irqs,summary,entry)]!=[10*n,160*n,n,2*n,1,1]:raise ValueError('Incomplete native following quiet coverage')
     differences=[];occupied=0
     def check(category,index,wanted,actual):

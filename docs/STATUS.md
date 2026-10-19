@@ -1,5 +1,32 @@
 # Crash Dummies Native - project status
 
+## Restarted Air resource timing - October 19, 2026
+
+The ordinary easy Air retry now matches 1,295 complete updates and its
+entry-pause/resume variant 1,000: 22,950 boundary comparisons (20,657 distinct
+samples), 367,200 actor slots / 94,385 occupied instances, 2,295 displays and
+4,590 complete vectors, zero differences. Native requests, deferred uploads,
+frame/flag publication, queue acknowledgements, input/timer/HUD and audio work
+agree. Together these cover 48 complete graphics transfers, 181 upload batches
+and 34 map-priority deferrals. Prior 266-update and intermediate controls overlap.
+See [resource scope and reproduction](AIR_FOLLOWING_RESOURCES.md).
+
+The diagnostic now retains pre-resource actor state and commits the prepared
+resource outcome after the quiet callback. Original observations never drive
+native state or time. Checks: O2 diagnostic, 683 native handoff assertions,
+4,200 source-work assertions, 819,624 Air assertions and 486 Python tests;
+all four preceding startup/exit reference controls remain exact.
+
+Next concrete owner: the ordinary retry's 1,296th update, where STAT interrupts
+map preparation at 00:1f0e and busy display/placement/wait work follows. A longer
+rejected control is saved locally. Later handoffs, final-life/reset, earlier UI,
+unobserved work and production scheduler integration remain open. Full pixels/
+PCM and other ACCEPTANCE.md gates are still required; timing point 1 is not
+complete. The production Windows scheduler and versioned alpha are unchanged.
+The user reports that the repository is now public; older private-visibility
+statements below describe their historical checkpoints. The continuation
+automation remains PAUSED unless explicitly resumed.
+
 ## Publication readiness review - October 18, 2026
 
 A technical pre-publication audit inspected every advertised branch/tag through

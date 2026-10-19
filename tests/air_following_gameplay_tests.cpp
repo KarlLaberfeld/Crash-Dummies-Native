@@ -58,6 +58,28 @@ int main(){
         require(t.tick==9&&clock.displays==7&&clock.statServices==8,"Paused displays continue the native counters and deadlines");
         require(state.hudCursor==2&&state.fadeRemaining==7&&state.display==4&&state.lcdc==0xe7&&!sound.paused&&state.entryPauseComplete,"Pause freezes HUD/fade and restores selector, objects and audio while consuming its Start call");
         require(clock.nextStat==t.lcdEpoch+3*AirClock::Frame+AirClock::StatLine&&clock.nextVBlank==t.lcdEpoch+3*AirClock::Frame+AirClock::VBlankLine,"Pause cannot return to the initial main game's LCD epoch");
+        // Synthetic assets distinguish a requested frame from its retained
+        // visible predecessor, including a map-priority deferred upload.
+        assets->definitions[0].frame=1;assets->frames[1].resource.resize(1);assets->frames[1].resource[0].fill(1);
+        assets->transferChunks[0]=13;assets->frames[0].resource.resize(13);for(auto& colors:assets->frames[0].resource)colors.fill(2);
+        game->start(0);game->measureWork=true;game->entities[0].handler=AirHandler::Hide;
+        game->updateGame(0,true,true);
+        require(game->resourceInputEntities[0].frame==0&&game->resourceInputEntities[0].flags==8,"Resource input snapshot retains the newly requested hidden pose");
+        require(game->spriteInputEntities[0].frame==1&&game->spriteInputEntities[0].flags==0,"Sprite preparation retains the old pose until its resource finishes");
+        require(game->transferState==1&&game->transferRemaining==13&&game->transferFrame==0&&game->transferFlags==8,"Resource callback owns the complete new descriptor and requested flags");
+        int resourceCost=0;for(int cost:game->resourceCompletionCosts)resourceCost+=cost;
+        require(resourceCost==game->resourceWorkCycles,"Request completion boundaries retain source work");
+        game->displayTick(true);require(game->transferRemaining==13&&game->entities[0].frame==1,"A pending background row defers the resource transfer");
+        game->mapTransfer=false;
+        for(int n=0;n<4;++n){game->displayTick(true);
+            require(game->transferRemaining==std::max(0,13-4*(n+1)),"A display uploads at most four resource chunks");
+            require(game->entities[0].frame==(n==3?0:1)&&game->entities[0].flags==(n==3?8:0),"Frame and flags publish together only on the last upload");
+            require(game->spriteResources.colors(0)[0]==(n==3?2:1),"The resource buffer swaps only when every chunk is loaded");
+        }
+        require(game->transferState==2,"Completed display upload retains its acknowledgement until the resource callback");
+        game->entities[0].handler=AirHandler::Idle;game->updateGame(0,true,true);
+        require(game->transferState==0&&!game->transferRemaining&&game->entities[0].frame==0,"The following resource callback consumes completion without undoing the new pose");
+        game->start(0);require(!game->resourceInputEntities[0].alive,"Starting again clears the diagnostic resource snapshot");
         printf("Following Air handoff checks: %d passed (synthetic; no original parity claim)\n",checks);return 0;
     }catch(const std::exception& e){fprintf(stderr,"Following Air handoff failed after %d checks: %s\n",checks,e.what());return 1;}
 }
