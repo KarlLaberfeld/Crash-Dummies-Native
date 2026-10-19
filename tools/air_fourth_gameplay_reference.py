@@ -9,24 +9,27 @@ from air_fourth_entry_reference import compare as entry_compare
 from reference_backend import require_capture_reference
 
 
-def native_prefix(first,continued):
+def native_prefix(first,continued,attempt='fourth'):
+    if attempt not in ('fourth','fifth'):raise ValueError('Unowned native continuation generation')
+    instruction='third' if attempt=='fourth' else 'fifth'
+    prefix='.'+attempt+'.next-gameplay'
     checked=[]
     for path in sorted(p for p in first.parent.glob(first.name+'*') if p.is_file() and p.name.endswith('.csv')):
         suffix=path.name[len(first.name):]
-        if suffix=='.fourth.next-gameplay.summary.csv':continue
+        if suffix==prefix+'.summary.csv':continue
         other=Path(str(continued)+suffix)
         if not other.is_file():raise ValueError('Missing continued native prefix: '+suffix)
         a=path.read_bytes();b=other.read_bytes()
-        if suffix=='.fourth.next-gameplay.map.csv':
+        if suffix==prefix+'.map.csv':
             lines=a.splitlines(keepends=True)
             if not lines or not lines[-1].startswith(b'end,'):raise ValueError('Missing accepted row endpoint')
             a=b''.join(lines[:-1])
-        if suffix.startswith('.fourth.next-gameplay'):
-            if not b.startswith(a):raise ValueError('Changed first native fourth update: '+suffix)
+        if suffix.startswith(prefix):
+            if not b.startswith(a):raise ValueError('Changed first native retry update: '+suffix)
         elif a!=b:raise ValueError('Changed accepted native entry history: '+suffix)
         checked.append(suffix)
-    required=['','.third.next-text.summary.csv','.fourth.next-entry.summary.csv','.fourth.next-gameplay.csv','.fourth.next-gameplay.entities.csv','.fourth.next-gameplay.services.csv','.fourth.next-gameplay.interrupts.csv','.fourth.next-gameplay.sprites.csv','.fourth.next-gameplay.map.csv']
-    if not set(required).issubset(checked):raise ValueError('Incomplete accepted fourth-entry native coverage')
+    required=['','.'+instruction+'.next-text.summary.csv','.'+attempt+'.next-entry.summary.csv']+[prefix+suffix for suffix in ('.csv','.entities.csv','.services.csv','.interrupts.csv','.sprites.csv','.map.csv')]
+    if not set(required).issubset(checked):raise ValueError('Incomplete accepted retry-entry native coverage')
     return checked
 
 

@@ -139,7 +139,8 @@ unchanged. Semantic core owners were not modified, so previous result/work/
 pause assertion scopes remain applicable and were not repeated. Production
 EXE/alpha are unchanged. Automation settings were not changed by this work.
 
-Next: continue fifth-attempt gameplay, then reconstruct final-life consumption,
+Follow-up: [complete fifth gameplay/outgoing fade](AIR_FIFTH_GAMEPLAY.md) now
+matches both histories. Next: reconstruct final-life consumption,
 eliminated-player selection and game-over behavior. Initial vacant done flags,
 other stunt/player/UI/reset paths, unobserved work, production integration,
 complete image/audio parity and final human/controller/independent-Windows/

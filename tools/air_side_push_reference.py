@@ -6,7 +6,7 @@ select observations only; they are never supplied to native execution.
 import argparse,csv,hashlib,json
 from pathlib import Path
 from air_reference import write_json
-from air_following_gameplay_reference import POINTS
+from air_following_gameplay_reference import POINTS,TERMINAL_POINTS
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 
 BRANCHES=(0x5fd6,0x5ff3,0x5ff6,0x6574,0x6578,0x657b,0x657c,0x6581,0x602c,0x602f)
@@ -20,6 +20,7 @@ def capture(args):
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     selected={}
     for i,point in enumerate(gameplay['points']):selected.setdefault(point['cycles'],[]).append((i,point['name']))
+    observed_points={**POINTS,**(TERMINAL_POINTS if gameplay.get('terminalWait') is True else {})}
     first=gameplay['points'][0]['cycles']
     transitions=[i for i,p in enumerate(gameplay['points']) if p['name']=='begin' and p['entities'][0]['handler']==0x5fc9 and p['entities'][0]['params'][0]==1]
     entry_only=gameplay.get('afterRetry')==3 and gameplay.get('updates',1)==1
@@ -32,13 +33,13 @@ def capture(args):
         now=player._cycles()
         if pc==0x0403 and now<first:
             previous=dict(cycles=now,lastForce=force(),result=player.memory[0xc095],player=player.memory[0xc082])
-        if now in selected and pc in POINTS:
+        if now in selected and pc in observed_points:
             for index,name in selected.pop(now):rows.append(dict(index=index,name=name,cycles=now,lastForce=force()))
         if begin<=now<=end and pc in BRANCHES:
             branches.append(dict(pc=pc,cycles=now,lastForce=force(),rate=(player.memory[0xffa5]+128)%256-128,transfer=player.memory[0xffb6]))
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in {*POINTS,0x0403}:player.hook_register(0,pc,hook,pc)
+        for pc in {*observed_points,0x0403}:player.hook_register(0,pc,hook,pc)
         for pc in BRANCHES:player.hook_register(1,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])

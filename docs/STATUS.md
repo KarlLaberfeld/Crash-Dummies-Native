@@ -1,5 +1,39 @@
 # Crash Dummies Native - project status
 
+## Complete final Air gameplay and outgoing fade - October 19, 2026
+
+Both easy Air histories now match the complete fifth/final attempt (1,789
+ordinary / 1,762 earlier-paused updates) and outgoing audio stop/fade. Gameplay:
+35,510 boundaries / 568,160 actor slots / 3,559 displays / 7,118 vectors /
+142,360 object slots. Complete row proof covers 7,130 boundaries / 7,529,280
+bytes, including entry. Supplemental side-push proof covers all 35,510
+boundaries. Outgoing: 148 phases / 64 displays / 128 vectors / 2,560 object slots.
+All compared fields have zero differences. See
+[scope and reproduction](AIR_FIFTH_GAMEPLAY.md).
+
+Current phases 33 / 43 survive, with 23 timer rollovers each; 91 resource
+requests/completions and 344 uploads match. The ordinary blocked terminal tile
+endpoint uses the marked zero-write retained owner; paused tiles are unblocked.
+All 614 earlier native CSV scopes retain exact complete bytes or their explicit
+first-update prefix. Two unhooked input-only extensions per case preserve both
+parent and final hashes; all instrumented captures match the same child hash.
+
+The adapter extends the existing native update/outgoing owners with explicit
+fifth extent/terminal guards. No semantic core timing owner changed, and no
+observed schedule/state is loaded to restart this attempt. Validation: O2
+Windows diagnostic, both complete attached comparisons, 810 Python tests and
+seven CLI guards. Prior semantic assertion scopes retain their coverage and
+were not needlessly repeated. ROM/data/recordings/binaries stay local.
+Production EXE/scheduler/alpha unchanged; automation settings unchanged (last
+observed PAUSED).
+
+Next concrete owner: final-life result accounting and its distinct zero-life
+branch, then eliminated-player selection/game over. Existing non-final result
+guards remain strict. Vacant done flags, other campaigns/stunts/players,
+earlier UI/reset/unobserved work, production scheduling, full images/PCM and
+human/device/independent-Windows/distribution gates remain open. Timing point 1
+and final acceptance are incomplete.
+
 ## One-life instruction and final Air entry - October 19, 2026
 
 Both histories now match the completed one-life campaign/instruction and the

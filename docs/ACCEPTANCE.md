@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 final-gameplay follow-up: both final Air attempts now match through
+terminal gameplay (1,789 / 1,762 updates), audio stop and outgoing fade. Gameplay:
+35,510 boundaries / 568,160 actor slots / 3,559 displays / 7,118 vectors /
+142,360 object slots; rows: 7,130 boundaries / 7,529,280 bytes; side push: 35,510
+boundaries; outgoing: 148 phases / 64 displays / 128 vectors, all differences
+zero. All 614 earlier native CSV scopes retain full bytes or explicit first-
+update prefix. O2 diagnostic, 810 Python tests and seven CLI guards pass. See
+[scope](AIR_FIFTH_GAMEPLAY.md). Final-life result/game over, vacant flags, other
+campaigns, production scheduling, full images/PCM and final Windows/device/
+distribution gates remain open. Production EXE/alpha unchanged; final
+acceptance incomplete.
+
 October 19 final-entry follow-up: both histories match complete one-life
 instruction (3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712 polls /
 4,572 stores / 128 map selections), then fresh-Start exit, fifth entry and first
