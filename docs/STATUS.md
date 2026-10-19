@@ -1,5 +1,43 @@
 # Crash Dummies Native - project status
 
+## Final life and game-over result - October 19, 2026
+
+Both existing easy Air histories now match the final failed result through
+one life becoming zero, game-over banner/zero savings, song 13, incoming fade
+and the fixed 480-display hold. Combined new scope: 20 prefix boundaries /
+4,242 equality polls / 2,108 result boundaries / 1,028 displays / 2,056 vectors /
+372 glyph readiness polls / 62 stores; all compared fields have zero
+differences. All 630 earlier complete native CSVs remain byte-identical.
+See [scope and reproduction](AIR_FINAL_RESULT.md).
+
+The separate final owner keeps the non-final API's last-life rejection. Its
+taken branch consumes exactly one life before drawing game over. The empty
+first-visible-frame text owner is bounded to non-window/non-scrolling geometry
+after the first restart line; arbitrary first-frame access stays unqualified.
+The noise instrument-table work now charges register-bit testing, four cycles
+less than pulse memory-bit testing. A separate six-voice original observation
+isolates that branch; all complete final music services now agree.
+
+Native savings are zero because this diagnostic campaign began at zero and
+all five attempts failed, so no payout ran. Nonzero original savings and later
+high-score/name/player/title flow remain unqualified. Version 03 adds only a
+local decoded diagnostic banner; the five earlier layout bodies and every
+other UI extraction output remain exact. No ROM/data/recordings/binaries are
+added to Git. Two input-only unhooked parent/final extensions per case agree.
+
+Validation: O2 Windows diagnostic, both attached original comparisons, 29,712
+native final-result assertions, 52,920 result-clock assertions and 825 Python
+tests. Regular Windows build/self-tests cover the shared audio change; timing
+remains outside the production scheduler. All three native integration
+scenarios pass (one player, two players, eliminated player). Release/alpha and automation settings
+are unchanged (automation last observed PAUSED).
+
+Next concrete owner: high-score selection/name entry after the completed
+game-over hold, then eliminated-player/title return. Vacant flags, other
+campaigns/stunts/players, earlier UI/reset/unobserved work, production scheduling,
+full images/PCM and human/device/independent-Windows/distribution gates remain
+open. Timing point 1 and final acceptance are incomplete.
+
 ## Complete final Air gameplay and outgoing fade - October 19, 2026
 
 Both easy Air histories now match the complete fifth/final attempt (1,789

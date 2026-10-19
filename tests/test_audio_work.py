@@ -83,5 +83,13 @@ class MusicWorkTests(unittest.TestCase):
         state['fixed']=3
         self.assertEqual(note_cycles(0,state,[24,3],254),note_cycles(0,state,[24,3],100))
 
+    def test_both_noise_instrument_lookups_test_register_bit(self):
+        state=dict(stage=255,envelopeCounter=1,volume=0,releaseCounter=0,tableValue=3,tableNext=5)
+        self.assertEqual(envelope_cycles(3,state),284)
+        self.assertEqual(envelope_cycles(5,state),284)
+        self.assertEqual(envelope_cycles(0,state)-envelope_cycles(3,state),4)
+        state['tableValue']=255
+        self.assertEqual(envelope_cycles(0,state)-envelope_cycles(3,state),4)
+
 
 if __name__=='__main__':unittest.main()

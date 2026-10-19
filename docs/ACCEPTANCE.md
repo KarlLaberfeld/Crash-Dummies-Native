@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 final-life follow-up: both histories match final result setup,
+the single life decrement to zero, game-over banner/zero savings, song 13,
+incoming fade and fixed 480-display hold. New scope: 20 prefix boundaries /
+4,242 equality polls / 2,108 result boundaries / 1,028 displays / 2,056 vectors /
+372 glyph readiness polls / 62 stores, zero differences. All 630 earlier
+complete native CSVs remain exact. The bounded empty first-visible-frame text
+owner and the source-identified noise register-bit work now cover this route.
+O2 diagnostic, 29,712 final-result / 52,920 result-clock assertions and 825 Python
+tests pass. See [scope](AIR_FINAL_RESULT.md). High-score/name/player/title flow,
+nonzero-savings original cases, vacant flags, other campaigns, production
+scheduling, images/PCM and final Windows/device/distribution gates remain open.
+No new release; final acceptance incomplete.
+
 October 19 final-gameplay follow-up: both final Air attempts now match through
 terminal gameplay (1,789 / 1,762 updates), audio stop and outgoing fade. Gameplay:
 35,510 boundaries / 568,160 actor slots / 3,559 displays / 7,118 vectors /

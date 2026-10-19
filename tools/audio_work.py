@@ -30,7 +30,8 @@ def envelope_cycles(index, state):
         value=state['tableValue']
         # A release expiration advances the table index before its lookup.
         if release==1:value=state['tableNext']
-        cost+=84 if index==5 else 88
+        # Both noise voices use BIT 7,A; pulse voices use BIT 7,[HL].
+        cost+=84 if index in (3,5) else 88
         if value & 128:return cost+12
         cost+=8
         if value<16:cost+=20

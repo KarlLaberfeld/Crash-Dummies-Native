@@ -56,17 +56,22 @@ inline int airResultCountdownWork(int& countdown){
     if(countdown==1)return 228;
     --countdown;return 272;
 }
-template<class Boundary,class Service,class Interrupt>
-AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
+template<bool FinalLife,class Boundary,class Service,class Interrupt>
+AirResultTransition airResultIncomingOwned(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
     const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt,
     std::function<int()> sampleInput={},
-    std::function<void(unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int)> celebrationObserver={}){
+    std::function<void(unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int)> celebrationObserver={},
+    std::function<void(int)> lifeObserver={}){
     const bool perfect=result&4;
     if(!(result&1)||prefix.pendingRequests!=3||prefix.end<=prefix.lcdDisabled||sound.enabled||
        (perfect&&(result!=7||!layouts.perfectProfile||prefix.display!=2||prefix.stat!=4||prefix.countdown!=720)))
         throw std::runtime_error("Unowned Air result transition/celebration/startup");
-    if((held&15)==15||(!(result&2)&&lives<=1))
+    if((held&15)==15||(FinalLife?(result!=33&&result!=17)||lives!=1:(!(result&2)&&lives<=1)))
         throw std::runtime_error("Result reset/final-life transition needs its separate owner");
+    if constexpr(FinalLife){
+        if(prefix.display!=10||prefix.stat!=0||prefix.countdown!=600||held<0||held>255)
+            throw std::runtime_error("Final-life prefix requires its failure selectors/countdown/input");
+    }
     if(perfect){
         if(prefix.celebration.randomState<0||prefix.celebration.randomState>65535)
             throw std::runtime_error("Invalid perfect-result native seed");
@@ -77,7 +82,7 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     AirResultTransition state;state.tick=tick;state.lives=lives;state.input.held=state.input.previous=held;int64_t now=prefix.end;
     state.perfect=perfect;state.celebration=prefix.celebration;state.countdown=perfect?720:600;
     const bool success=result&2;int bgp=ui.fadePalettes[7],obp0=bgp&0xcf,obp1=bgp&0xf3;
-    auto point=[&](const char* name,int64_t cycle){boundary(name,cycle,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
+    auto point=[&](const char* name,int64_t cycle){if(lifeObserver)lifeObserver(state.lives);boundary(name,cycle,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
     point("playerReady",now);
     if(success){
         // 0462 predicates, table dispatch, successful Air text and its RET.
@@ -118,10 +123,16 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     // services run in source priority before the callee's first operation.
     clock.vblank(display,false,AirIrqOwner::PendingStartup);clock.stat(AirIrqOwner::PendingStartup);
     if(!success){
-        // Current-player pointer, decrement of a non-final life and branch.
-        // Life exhaustion is a separate result/ending transition.
+        // Current-player pointer and the single life decrement. The final
+        // taken JP owns a distinct endpoint before any game-over layout.
         clock.atomicWork(16,[]{},display,false);for(int cost:{4,4,4,8,4,8,16,8,4})clock.atomicWork(cost,[]{},display,false);
-        clock.atomicWork(8,[&]{--state.lives;},display,false);clock.atomicWork(12,[]{},display,false);
+        clock.atomicWork(8,[&]{--state.lives;},display,false);
+        if constexpr(FinalLife){
+            point("lifeStored",clock.now);clock.atomicWork(16,[]{},display,false);point("lifeExhausted",clock.now);
+            state.end=clock.now;state.displays=clock.displays;state.stats=clock.statServices;
+            state.nextStat=clock.nextStat;state.nextVBlank=clock.nextVBlank;return state;
+        }
+        clock.atomicWork(12,[]{},display,false);
         point("failureWait",clock.now);clock.wait(display,false);point("failureWaitReturned",clock.now);
         clock.atomicWork(8,[]{},display,false);point("musicEntry",clock.now);
         // At the captured source phase the entire reset precedes the next
@@ -152,6 +163,17 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     }
     point("fadeReturned",clock.now);state.end=clock.now;state.displays=clock.displays;state.stats=clock.statServices;
     state.nextStat=clock.nextStat;state.nextVBlank=clock.nextVBlank;return state;
+}
+
+// Established incoming/hold callers continue to reject the final life. Only
+// the separate final-result owner invokes the bounded zero-life prefix.
+template<class Boundary,class Service,class Interrupt>
+AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,int tick,int lives,int held,NativeAudio& sound,
+    const AirResultLayoutAssets& layouts,const UiAssets& ui,Boundary&& boundary,Service&& service,Interrupt&& interrupt,
+    std::function<int()> sampleInput={},
+    std::function<void(unsigned,int,const AirCelebration&,const std::array<unsigned char,160>&,int)> celebrationObserver={}){
+    return airResultIncomingOwned<false>(prefix,result,tick,lives,held,sound,layouts,ui,
+        boundary,service,interrupt,sampleInput,celebrationObserver);
 }
 
 template<class Boundary,class Service,class Interrupt>

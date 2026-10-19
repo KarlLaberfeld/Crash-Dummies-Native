@@ -5,8 +5,9 @@
 
 namespace ticd {
 // Bounded steady-frame DMG graphics readiness candidate, not a CPU emulator.
-// Geometry/scroll come from native publication. The first LCD-on frame and
-// changing geometry are deliberately outside this owner's scope. Normal-line
+// Geometry/scroll come from native publication. The first LCD-on line and
+// changing geometry are outside scope; only the explicit empty-result text
+// owner below admits later visible lines in the first frame. Normal-line
 // Geometry durations follow published DMG scrolling/window/OBJ rules. The
 // counter-wait phase and inclusive edges are derived from the pinned reference
 // event ordering; those conventions are not yet qualified against hardware.
@@ -16,6 +17,9 @@ struct AirPauseLcd {
     int scrollX=0,windowX=7,windowY=136;
     int objectHeight=16,objectDisableLine=135;
     bool enabled=true,objectsEnabled=true,windowEnabled=true;
+    // Separately qualified result text: empty OAM, no window/scroll, visible
+    // lines after the first restart line. No first-line/access owner implied.
+    bool resultFirstVisibleFrame=false;
     int transferEnd(int line) const {return transferEndForGeometry(line,false);}
 private:
     int transferEndForGeometry(int line,bool cancellationUpperBound) const {
@@ -62,7 +66,8 @@ private:
 public:
     int mode(int64_t time) const {
         if(!enabled)return 0;
-        if(time<AirClock::Frame)return -1; // LCD-enable/first-line owner pending.
+        if(time<AirClock::Frame&&!(resultFirstVisibleFrame&&time>=456&&time<143*456&&
+            !objectsEnabled&&!windowEnabled&&scrollX==0))return -1;
         // Experimental clock deadlines identify counter-wait IRQ acceptance,
         // not the earlier graphics-line boundary. The independent DMG source
         // asserts VBlank five dots into the line; aligned DMG HALT polling

@@ -118,7 +118,8 @@ coverage; those unchanged owners were not retested without a new hypothesis.
 ROM, extracted assets, original recordings and executable diagnostics remain
 ignored/local. Automation settings were not changed.
 
-Next: reconstruct the final-life result branch, then eliminated-player
+Follow-up: [final-life result and game-over hold](AIR_FINAL_RESULT.md) now
+match both histories. Next: high-score/name entry, then eliminated-player
 selection/game over. The original takes the zero-life branch after decrement
 instead of the non-final failure wait/music/hold sequence. Existing non-final
 native guards remain strict. Never-allocated vacant done flags, other

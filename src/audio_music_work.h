@@ -42,7 +42,9 @@ inline int audioEnvelopeWork(int index,const MusicVoice& v,int tableValue=-1,int
         if(counter!=1)return cost;
         int value=release==1?tableNext:tableValue;
         if(value<0)return -1;
-        cost+=index==5?84:88;
+        // Both noise voices test bit 7 in A (8 cycles), whereas pulse
+        // voices test [HL] (12). The lookup itself is otherwise shared.
+        cost+=(index==3||index==5)?84:88;
         if(value&128)return cost+12;
         cost+=8;
         cost+=value<16?20:16+((index==0||index==4)?64:60);

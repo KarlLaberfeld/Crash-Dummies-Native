@@ -29,7 +29,7 @@ class ResultSelection(unittest.TestCase):
     def test_wrong_selector_cannot_count_as_entry(self):
         self.instruction();self.scope.observe(0x03d8,6);self.instruction();self.entry();self.assertFalse(self.scope.ready)
     def test_unowned_retry_index_rejects(self):
-        for retry in (0,4,True,1.0):
+        for retry in (0,5,True,1.0):
             with self.assertRaises(ValueError):FollowingAirCaptureScope(True,retry)
 
 

@@ -5,14 +5,14 @@
 namespace ticd {
 struct AirResultTextCommand {int kind=0,a=0,b=0;};
 struct AirResultTextAssets {
-    std::array<std::vector<AirResultTextCommand>,5> layouts;
-    bool perfectLabels=false;
+    std::array<std::vector<AirResultTextCommand>,6> layouts;
+    bool perfectLabels=false,finalLabel=false;
     static AirResultTextAssets load(const char* path){
         std::ifstream file(path,std::ios::binary);char magic[8];
-        if(!file.read(magic,8)||(std::string(magic,8)!="TICDRL01"&&std::string(magic,8)!="TICDRL02"))throw std::runtime_error("Missing result text layouts");
+        if(!file.read(magic,8)||(std::string(magic,8)!="TICDRL01"&&std::string(magic,8)!="TICDRL02"&&std::string(magic,8)!="TICDRL03"))throw std::runtime_error("Missing result text layouts");
         AirResultTextAssets data;
-        data.perfectLabels=std::string(magic,8)=="TICDRL02";
-        for(int i=0;i<(data.perfectLabels?5:3);++i){auto& list=data.layouts[i];unsigned char bytes[2];if(!file.read(reinterpret_cast<char*>(bytes),2))throw std::runtime_error("Truncated result text count");
+        data.finalLabel=std::string(magic,8)=="TICDRL03";data.perfectLabels=data.finalLabel||std::string(magic,8)=="TICDRL02";
+        for(int i=0;i<(data.finalLabel?6:data.perfectLabels?5:3);++i){auto& list=data.layouts[i];unsigned char bytes[2];if(!file.read(reinterpret_cast<char*>(bytes),2))throw std::runtime_error("Truncated result text count");
             int size=bytes[0]+256*bytes[1];if(size<1||size>4096)throw std::runtime_error("Invalid result text count");
             for(int i=0;i<size;++i){unsigned char args[3];if(!file.read(reinterpret_cast<char*>(args),3))throw std::runtime_error("Truncated result text");
                 if(args[0]>4||(args[0]==4)!=(i==size-1)||(args[0]==0&&args[1]>127)||

@@ -103,13 +103,13 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: final-life/result and game-over handling,
+Next fidelity work: high-score/name entry and player/title return after game over,
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_FIFTH_GAMEPLAY.md) qualifies
-both existing Air histories through complete final-attempt gameplay and its
-outgoing fade. Subsequent final-life consumption remains unqualified.
+The [latest timing comparison](docs/AIR_FINAL_RESULT.md) qualifies
+both existing Air histories through final-life consumption, the game-over
+result and its fixed hold. Subsequent high-score/player/title flow remains unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and
