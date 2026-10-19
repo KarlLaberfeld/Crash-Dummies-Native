@@ -12,6 +12,13 @@ from reference_backend import require_capture_reference
 QUEUE=('transfer','remaining','transferFrame','transferFlags')
 
 
+def qualify_rows(manifest,data,native,epoch):
+    from air_map_reference import compare_rows
+    require_capture_reference(manifest,data)
+    if not data.get('nextRetry') or any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')):raise ValueError('Missing matching partial-row provenance')
+    return compare_rows(data,native,epoch)
+
+
 def analyze(data):
     if data.get('resourceTransfers') is not True:
         raise ValueError('Resource continuation requires explicit capture scope')
@@ -94,6 +101,12 @@ def compare(args):
     path=args.native_csv
     values=[rows(path)]+[rows(path.with_suffix('.'+key+'.csv')) for key in ('entities','services','interrupts','summary')]+[rows(args.entry_summary)]
     differences,occupied,extent=compare_resources(data,*values,epoch)
+    row_boundaries=row_bytes=0
+    if data.get('partialRows'):
+        row_data=json.loads((args.out/'map.json').read_text())
+        row_native=rows(path.with_suffix('.map.csv'))
+        differences.extend(dict(category='rowPublication',detail=d) for d in qualify_rows(manifest,row_data,row_native,epoch))
+        row_boundaries=len(row_native);row_bytes=row_boundaries*1056
     sprite_slots=0
     if data.get('busyScenes'):
         from air_following_scene_reference import compare_publications
@@ -102,7 +115,8 @@ def compare(args):
         differences.extend(dict(category='spritePublication',**difference) for difference in compare_publications(data,sprites))
     report=dict(comparedUpdates=data['updates'],comparedBoundaries=len(values[0]),comparedActorSlots=len(values[1]),
         comparedOccupiedActors=occupied,comparedServices=len(values[2]),comparedInterrupts=len(values[3]),
-        **{k:v for k,v in extent.items() if k!='services'},comparedPublishedSpriteSlots=sprite_slots,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False)
+        **{k:v for k,v in extent.items() if k!='services'},comparedPublishedSpriteSlots=sprite_slots,
+        comparedRowBoundaries=row_boundaries,comparedRowBytes=row_bytes,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False)
     write_json(path.with_suffix('.resource-comparison.json'),report);print(json.dumps(report,indent=2))
     if differences:raise ValueError('Native restarted Air resource continuation differs')
 

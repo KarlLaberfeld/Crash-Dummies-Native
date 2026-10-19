@@ -1,6 +1,7 @@
 #pragma once
 #include "air_next_instruction_probe.h"
 #include "air_following_gameplay.h"
+#include "air_retry_result_probe.h"
 #include <memory>
 
 namespace ticd {
@@ -8,8 +9,9 @@ namespace ticd {
 // returned state. Original observations never enter this execution path.
 inline void airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false){
     if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
+    if(result&&!terminal)throw std::runtime_error("Subsequent result requires terminal ownership");
     AirNextInstructionCsv exit(base+".next-exit","boundary,cycle,tick,countdown,scroll,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     auto exited=airInstructionExit(text,sound,ui,
         [&](const char* name,int64_t cycle,int tick,int countdown,int scroll,int bgp,int obp0,int obp1,bool enabled,const DisplayInput& input){exit.points<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<scroll<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<','<<input.held<<','<<input.pressed<<'\n';},
@@ -26,11 +28,24 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
     auto prepared=airFollowingStageSetup(setup,profiles.profiles.at((stage-1)*4+difficulty),sound,
         [&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& c=s.instruction.map.campaign;staged.points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<s.stage<<','<<s.difficulty<<','<<c.lives[c.player]<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<','<<s.cameraX<<','<<s.cameraY<<','<<s.mapScratch<<','<<s.ready<<','<<sound.enabled<<'\n';});
     staged.finish(prepared.instruction.map.campaign,stage,difficulty,prepared.instruction.map.scroll);
+    // Stage setup already owns the LCD-off map workload. Materialize its
+    // decoded storage here, before observing the two initial display copies.
+    auto mapSeed=std::make_unique<AirGame>(assets,shared);mapSeed->start(difficulty,prepared.instruction.map.campaign.player);
+    if(!exited.backgroundOwned)throw std::runtime_error("Subsequent row storage lacks its native instruction background");
+    AirMapPublication entryMap;entryMap.initialize(*mapSeed,&exited.background);
+    std::ofstream map(base+".next-gameplay.map.csv");if(!map)throw std::runtime_error("Cannot open subsequent row publication");
+    map<<"boundary,service,cycle,pending,row";for(int i=0;i<32;++i)map<<",buffer"<<i;for(int i=0;i<1024;++i)map<<",tile"<<i;map<<'\n';
+    const unsigned mapOrigin=prepared.instruction.map.campaign.timing.displays;
+    auto writeMap=[&](const char* name,unsigned index,int64_t cycle,bool pending,const AirMapPublication& row){map<<name<<','<<(index-mapOrigin)<<','<<cycle<<','<<pending<<','<<row.destination;
+        for(int value:row.buffer)map<<','<<value;for(int value:row.tiles)map<<','<<value;map<<'\n';};
     AirNextInstructionCsv entry(base+".next-entry","boundary,cycle,tick,countdown,display,stat,lcdc,lyc,pendingRequests,cameraX,cameraY,mapScratch,randomState,ready,musicEnabled,inputHeld,inputPressed");
     auto entered=airFollowingEntry(prepared,sound,
-        [&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& t=s.instruction.map.campaign.timing;entry.points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<','<<s.cameraX<<','<<s.cameraY<<','<<s.mapScratch<<','<<s.randomState<<','<<s.ready<<','<<sound.enabled<<','<<t.input.held<<','<<t.input.pressed<<'\n';},
-        [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){entry.service(index,cycle,tick,0,display,effects,music,input);},
+        [&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& t=s.instruction.map.campaign.timing;entry.points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<','<<s.cameraX<<','<<s.cameraY<<','<<s.mapScratch<<','<<s.randomState<<','<<s.ready<<','<<sound.enabled<<','<<t.input.held<<','<<t.input.pressed<<'\n';
+            if(std::string(name)=="enableReturned")writeMap("startup",mapOrigin,cycle,true,entryMap);},
+        [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){entry.service(index,cycle,tick,0,display,effects,music,input);
+            auto before=cycle+180+704+280+116;writeMap("before",index,before,true,entryMap);entryMap.publish();writeMap("after",index,before+24+736,true,entryMap);},
         [&](auto... args){entry.irq(args...);},sample);
+    entered.rowPublication=entryMap;entered.rowPublicationReady=true;
     const auto& e=entered.instruction.map.campaign.timing;
     entry.summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining,entryPauseComplete\n"<<e.end<<','<<e.tick<<','<<e.countdown<<','<<e.displays<<','<<e.stats<<','<<e.lcdEpoch<<','<<e.nextStat<<','<<e.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<','<<entered.entryPauseComplete<<'\n';
     auto game=std::make_unique<AirGame>(assets,shared);airFollowingAirHandoff(*game,preceding,entered);
@@ -39,6 +54,7 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
     sprites<<"service,slot,present,x,y,flags\n";
     actors<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)actors<<",param"<<i;actors<<'\n';
     if(game->entities[0].handler!=AirHandler::Intro)throw std::runtime_error("Second retry requires native intro entry");
+    auto mapSnapshot=[&](const char* name,unsigned index,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){writeMap(name,index,cycle,g.mapTransfer,s.rowPublication);};
     auto updated=entered;
     for(int update=0;update<updates;++update)updated=airFollowingAirQuietUpdate(updated,*game,sound,
         [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
@@ -46,7 +62,20 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
             for(int i=0;i<16;++i){const auto& a=g.entities[i];actors<<name<<','<<i<<','<<a.alive<<','<<(a.alive?a.frame:255)<<','<<((a.flags&~2)|(a.offscreen?2:0))<<','<<int(a.handler)<<','<<a.x<<','<<a.y<<','<<a.animDone<<','<<a.frameWaiting<<','<<a.delay<<','<<a.period;for(int value:a.params)actors<<','<<value;actors<<'\n';}},
         [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);
             for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];sprites<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},
-        [&](auto... args){play.irq(args...);},sample);
+        [&](auto... args){play.irq(args...);},sample,terminal&&update==updates-1,mapSnapshot);
+    mapSnapshot("end",updated.instruction.map.campaign.timing.displays,updated.instruction.map.campaign.timing.end,updated,*game);
     play.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
+    if(terminal){
+        AirNextInstructionCsv outro(base+".next-outro","phase,index,start,end,tickBefore,tickAfter,elapsed,work,bgp,obp0,obp1,musicEnabled");
+        std::ofstream objects(base+".next-outro.sprites.csv");if(!objects)throw std::runtime_error("Cannot open subsequent outgoing objects");
+        objects<<"service,slot,present,x,y,flags\n";
+        updated=airFollowingAirOutro(updated,*game,sound,ui,
+            [&](const char* name,int index,int64_t begin,int64_t end,int before,int after,int work,int bgp,int obp0,int obp1,bool enabled){outro.points<<name<<','<<index<<','<<begin<<','<<end<<','<<before<<','<<after<<','<<(end-begin)<<','<<work<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<'\n';},
+            [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){outro.service(index,cycle,tick,0,display,effects,music,input);
+                for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];objects<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},
+            [&](auto... args){outro.irq(args...);},sample);
+        outro.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
+        if(result)airProbeRetryResult(base,updated,*game,sound,ui,sample);
+    }
 }
 }

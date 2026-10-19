@@ -77,15 +77,20 @@ def compare(args):
     def rows(path):
         with path.open(encoding='utf-8-sig',newline='') as stream:return list(csv.DictReader(stream))
     base=str(args.native_base)
+    scope=getattr(args,'native_scope','following')
+    if scope not in ('following','next'):raise ValueError('Unknown subsequent result scope')
+    if scope=='next' and any(not r.get('nextRetry') for r in records[:3]):raise ValueError('Missing third-attempt result scope')
     files=dict(prefix='.following-result.csv',polls='.following-result.polls.csv',prefixSummary='.following-result.summary.csv',points='.following-incoming.csv',services='.following-incoming.services.csv',irqs='.following-incoming.interrupts.csv',summary='.following-incoming.summary.csv',entry='.following-outro.summary.csv')
+    files={key:suffix.replace('.following-','.'+scope+'-') for key,suffix in files.items()}
     native={k:rows(Path(base+suffix)) for k,suffix in files.items()}
     differences=compare_result(*records,native,epoch)
     report=dict(comparedPrefixBoundaries=len(native['prefix']),comparedPolls=len(native['polls']),comparedResultBoundaries=len(native['points']),comparedServices=len(native['services']),comparedInterrupts=len(native['irqs']),failureHoldAccepted=records[1].get('failureHold',False),livesBefore=records[0]['points'][0]['state']['lives'],livesAfter=records[1]['points'][-1]['lives'],differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False)
-    write_json(Path(base+'.following-result.comparison.json'),report);print(json.dumps(report,indent=2))
+    write_json(Path(base+'.'+scope+'-result.comparison.json'),report);print(json.dumps(report,indent=2))
     if differences:raise ValueError('Native restarted result setup/transition differs')
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('native_base',type=Path)
     for key in ('capture','out','startup'):parser.add_argument('--'+key,type=Path,required=True)
+    parser.add_argument('--native-scope',choices=('following','next'),default='following')
     compare(parser.parse_args())

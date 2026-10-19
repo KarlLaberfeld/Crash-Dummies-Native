@@ -1,5 +1,38 @@
 # Crash Dummies Native - project status
 
+## Complete third Air failure and result - October 19, 2026
+
+Both easy Air histories now match through third-attempt terminal gameplay,
+outgoing fade and complete result hold/return at 0514. Ordinary: 1,789 updates;
+prior entry pause: 1,604. Gameplay totals: 33,930 boundaries / 542,880 actor
+slots / 3,412 displays / 6,824 vectors. Attached outgoing work adds 148 phases /
+64 displays / 128 vectors; result adds 22 prefix boundaries / 4,243 polls /
+2,096 incoming/hold boundaries / 1,028 displays / 2,056 vectors. Lives decrease
+from three to two. All differences are zero. Earlier 1,000-update prefixes and
+campaign/entry chains overlap previous acceptance. See [scope](AIR_THIRD_RESULT.md).
+
+Persistent native row storage now handles the paused history's two partial-row
+display crossings. Complete row proof: 6,836 boundaries / 7,218,816 bytes,
+including the two entry displays per case. The unwritten startup ring row 22
+retains its instruction text until a later row overwrites it. Native storage
+comes from semantic UI stores and decoded map preparation. Two ordinary STAT
+returns in placement's shared offset helper require caller 1ae0. The ordinary
+blocked terminal tile endpoint uses explicitly marked retained unblocked data
+across an observed zero-write interval; other arbitrary blocked reads reject.
+
+Controls append 1,000 unchanged input frames; two unhooked replays match each
+accepted parent-prefix hash and new endpoint. Checks: O2 diagnostic, 52,920
+result / 883 handoff / 4,264 work assertions, 698 Python tests, both accepted
+entry/1,000-update chains and prior resource/startup/exit/successful-result
+regressions. Legacy following-result captures are unchanged. Original assets/
+recordings stay local; production EXE and alpha are unchanged.
+
+Next concrete owner: two-life campaign/instruction handoff from the third
+failure, retaining its current native result and game state. Other stunt/player/
+shared-animation/final-life/reset/UI paths, unobserved work, production scheduling,
+full images/PCM and human/device/independent-Windows/distribution gates remain
+open. Timing point 1 and final acceptance are incomplete. Automation stays ACTIVE.
+
 ## Third Air attempt: timer and resource continuation - October 19, 2026
 
 Both easy Air histories now match through 1,000 third-attempt updates each:

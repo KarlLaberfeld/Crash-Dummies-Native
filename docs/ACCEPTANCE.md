@@ -1,5 +1,20 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 third-failure/result follow-up: both easy Air histories match through
+terminal gameplay (1,789 / 1,604 updates), outgoing fade and complete result hold
+at 0514. Lives carry three to two. Gameplay totals: 33,930 boundaries / 542,880
+actor slots / 3,412 displays / 6,824 vectors; outgoing: 148 phases / 64 displays /
+128 vectors; result: 22 prefix boundaries / 4,243 polls / 2,096 boundaries /
+1,028 displays / 2,056 vectors, zero differences. These include prior prefixes.
+Both partial-row crossings and retained instruction row 22 match 6,836 row
+boundaries / 7,218,816 bytes. The ordinary blocked terminal tile endpoint has
+explicit zero-write retained evidence, not an arbitrary readable-VRAM claim.
+O2 diagnostic, 52,920 result / 883 handoff / 4,264 work assertions, 698 Python
+tests and accepted-prefix/prior regressions pass. See [scope](AIR_THIRD_RESULT.md).
+Next campaign handoff, other paths, production scheduling, full images/PCM and
+human/device/independent-Windows/distribution remain open. Production EXE/alpha
+unchanged; timing point 1 and final acceptance are incomplete.
+
 October 19 third-attempt continuation: both easy Air histories match 1,000
 updates each, including inherited 54/33 timer phases, 25 second rollovers and
 41 completed resource requests. Totals (including the prior first updates):

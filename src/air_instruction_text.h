@@ -6,6 +6,9 @@ struct AirInstructionTextState {
     AirInstructionMapState map;
     int speed=0,delay=0,skipMask=0,anchor=0,row=0,cursor=0x9800;
     bool skipped=false;int skipContext=0;
+    // Native storage projection filled by semantic writer stores.
+    bool backgroundOwned=false;
+    std::array<uint8_t,1024> background{};
 };
 // Identified timed UI language, not cartridge instructions. Glyph delays,
 // five-part row scrolls and substitutions own their source operations. The

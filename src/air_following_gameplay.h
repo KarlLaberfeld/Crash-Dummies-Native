@@ -33,11 +33,12 @@ inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const 
 // Bounded following Air quiet update and next counter wait. The actor/resource
 // body must be quiet: a crossing requires a separately qualified owner. Scene
 // and placement work can accept services at their identified completion
-// boundaries; partial row publication still requires a separate owner. The
+// boundaries; persistent source-owned row storage preserves partial publication. The
 // explicit terminal extent retains the busy gate and omits the next input test.
 template<class Boundary,class Service,class Interrupt>
 AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& game,NativeAudio& sound,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={},bool terminal=false){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={},bool terminal=false,
+    std::function<void(const char*,unsigned,int64_t,const AirFollowingSetup&,const AirGame&)> mapSnapshot={}){
     auto& t=state.instruction.map.campaign.timing;
     if(state.stage!=1||state.ready||game.result||!game.measureWork||!game.entities[0].alive||
        game.transferState<0||game.transferState>2||game.transferRemaining<0||
@@ -49,15 +50,24 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
     clock.objectDisable=[&](int64_t,AirIrqOwner){state.lcdc&=~2;};
+    if(!state.rowPublicationReady){
+        state.rowPublication.initialize(game,state.instruction.backgroundOwned?&state.instruction.background:nullptr);state.rowPublicationReady=true;
+        if(mapSnapshot)mapSnapshot("startup",clock.displays,clock.now,state,game);
+    }
     auto point=[&](const char* name){boundary(name,clock.now,state,game);};
     int scenePhase=0;bool rowFlagOwned=false,rowReady=false;AirPlacementRange range;
     auto display=[&](bool ready){
         const bool ownedBody=scenePhase==1||scenePhase==2||scenePhase==4||scenePhase==5||
-            (scenePhase==3&&rowFlagOwned&&rowReady);
+            (scenePhase==3&&rowFlagOwned&&state.rowPublicationReady&&(rowReady||state.instruction.backgroundOwned));
         if(int(ready)!=state.ready||(!ready&&!ownedBody))throw std::runtime_error("Following Air body needs an interrupted-work owner");
         t.input.sample(sampleInput?sampleInput():t.input.held);
         if(t.input.held<0||t.input.held>255||(t.input.held&15)==15)throw std::runtime_error("Unowned restarted Air reset input");
-        int tick=game.ticks;bool refreshRangeScratch=game.hudCursor==12;game.displayTick(ready);state.lcdc|=2;
+        int tick=game.ticks;bool refreshRangeScratch=game.hudCursor==12;
+        int64_t mapEntry=clock.now+20+180+704+280+116;
+        if(mapSnapshot)mapSnapshot("before",clock.displays,mapEntry,state,game);
+        if(game.mapTransfer)state.rowPublication.publish();
+        if(mapSnapshot)mapSnapshot("after",clock.displays,mapEntry+24+(game.mapTransfer?736:40),state,game);
+        game.displayTick(ready);state.lcdc|=2;
         // The HUD progress division shares the placement scan's low-range
         // scratch. A display can complete between its individual reads.
         if(refreshRangeScratch)range.low=0;
@@ -98,9 +108,9 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     if(sprites!=game.spriteWorkCycles)throw std::runtime_error("Incomplete following Air sprite work");point("spritesDone");
     scenePhase=2;int clear=airSpriteClearClock(game.sprites,clock,display);
     if(clear!=game.clearWorkCycles)throw std::runtime_error("Incomplete following Air clear work");point("mapCallback");
-    scenePhase=3;AirMapPublication publication;int map=airMapClock(clock,priorCamera,game.cameraY,game.mapTransfer,display,&rowFlagOwned,&rowReady,&publication,&game);
+    scenePhase=3;int map=airMapClock(clock,priorCamera,game.cameraY,game.mapTransfer,display,&rowFlagOwned,&rowReady,&state.rowPublication,&game);
     if(map!=game.mapWorkCycles||game.mapTransfer!=preparedMap)throw std::runtime_error("Incomplete following Air map work");
-    game.lastMapCamera=game.cameraY;if(preparedMap)state.mapScratch=256+8*publication.destination;
+    game.lastMapCamera=game.cameraY;if(preparedMap)state.mapScratch=256+8*state.rowPublication.destination;
     else state.mapScratch&=255; // C00D is also the row-publication gate.
     point("placements");
     scenePhase=4;airPlacementClock(game,clock,range,display);point("done");

@@ -367,6 +367,7 @@ int main(){
         for(bool held:{false,true}){
             sound.playMusic(2);AirInstructionTextState text;text.map.display=text.map.stat=5;text.map.lyc=95;text.map.lcdc=0xd1;
             text.cursor=0x9b20;text.row=25;text.map.scroll=64;
+            text.backgroundOwned=true;text.background.fill(77);
             text.map.campaign.timing.end=2*AirClock::Frame+AirClock::VBlankLine+3000;
             text.map.campaign.timing.nextStat=3*AirClock::Frame+95*456;text.map.campaign.timing.nextVBlank=3*AirClock::Frame+AirClock::VBlankLine;
             text.map.campaign.timing.countdown=1;if(held)text.map.campaign.timing.input.held=8;
@@ -382,6 +383,8 @@ int main(){
                 [&](const char*,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Instruction exit vectors have source owners");},
                 [](int64_t,int){},[&](int64_t,int address,int value){require(address==0x9b20+writes++&&value==2,"The prompt starts at the completed text cursor");},
                 [&]{return held||services>=2?8:0;});
+            require(exited.backgroundOwned&&exited.background[0]==77,"Instruction exit retains inherited native background outside its prompt");
+            for(int i=0;i<20;++i)require(exited.background[0x320+i]==(held?77:2),"Prompt stores update native background only when the prompt is drawn");
             require(waits==32&&palettes==8&&writes==(held?0:20)&&inputWaits==(held?0:3)&&services==(held?33:36)&&!sound.enabled&&exited.map.campaign.timing.tick==services,"Held Start bypasses the prompt; fresh Start ends its own wait before 32 fade services and one final wait");
         }
         for(int stage:{1,2})for(int line:{0,143,145,146}){

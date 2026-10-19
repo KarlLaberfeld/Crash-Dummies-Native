@@ -103,6 +103,15 @@ class NativePrefixIntegrity(unittest.TestCase):
     def test_missing_accepted_native_scope_rejects(self):
         Path(str(self.first)+'.next-gameplay.sprites.csv').unlink()
         with self.assertRaises(ValueError):native_prefix(self.first,self.long)
+    def test_longer_row_capture_retains_prefix_before_its_new_end(self):
+        suffix='.next-gameplay.map.csv';self.suffixes.append(suffix)
+        Path(str(self.first)+suffix).write_bytes(b'header\nstartup,0\nbefore,0\nafter,0\nend,1\n')
+        Path(str(self.long)+suffix).write_bytes(b'header\nstartup,0\nbefore,0\nafter,0\nbefore,1\nafter,1\nend,2\n')
+        self.assertEqual(len(native_prefix(self.first,self.long)),8)
+    def test_row_prefix_requires_its_accepted_endpoint(self):
+        suffix='.next-gameplay.map.csv';self.suffixes.append(suffix)
+        for base in (self.first,self.long):Path(str(base)+suffix).write_bytes(b'header\nstartup,0\nbefore,0\n')
+        with self.assertRaises(ValueError):native_prefix(self.first,self.long)
 
 
 if __name__=='__main__':unittest.main()

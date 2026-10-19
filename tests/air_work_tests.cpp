@@ -307,6 +307,10 @@ int main(){
             auto rowGame=std::make_unique<AirGame>(*game);rowGame->difficulty=0;rowGame->cameraY=0xae80;
             AirMapPublication startup;startup.initialize(*rowGame);
             require(startup.destination==23,"LCD-off startup's 32 rows retain the original final destination");
+            std::array<uint8_t,1024> instructionMap;instructionMap.fill(77);
+            AirMapPublication inherited;inherited.initialize(*rowGame,&instructionMap);
+            for(int cell=0;cell<32;++cell)require(inherited.tiles[22*32+cell]==77,"The unwritten startup ring row retains its native instruction background");
+            for(int cell=0;cell<32;++cell)require(inherited.tiles[23*32+cell]==startup.tiles[23*32+cell],"Prepared rows overwrite inherited background independently");
             for(int cell=0;cell<16;++cell)for(int half=0;half<2;++half)
                 require(startup.buffer[2*cell+half]==AirMapPublication::cellTile(*rowGame,0xaf80,0xaf00,cell,half),"Startup retains the last prepared row without using captured storage");
             for(int byte=0;byte<32;++byte){

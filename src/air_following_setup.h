@@ -1,6 +1,7 @@
 #pragma once
 #include "air_instruction_exit.h"
 #include "air_video_work.h"
+#include "air_map_publication.h"
 
 namespace ticd {
 struct AirFollowingSetup {
@@ -9,6 +10,8 @@ struct AirFollowingSetup {
     int64_t lcdDisabled=0;
     int pendingRequests=0,pollReads=0;
     bool entryPauseComplete=false;
+    bool rowPublicationReady=false;
+    AirMapPublication rowPublication;
     int cameraX=0,cameraY=0,mapScratch=0,ready=0,randomState=0,hudCursor=0,fadeRemaining=8;
     std::array<unsigned char,256> objects{},actors{};
 };

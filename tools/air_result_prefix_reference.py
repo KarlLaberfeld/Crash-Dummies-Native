@@ -12,6 +12,7 @@ from pathlib import Path
 from air_reference import write_json
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x0409:'begin',0x040d:'lcdOffReturned',0x0413:'objectsCleared',0x0425:'registersReady',
         0x042f:'mapsCleared',0x044d:'flagsReady',0x0450:'tilesBank',0x045c:'tilesReady',0x045f:'dataBank',0x0462:'playerReady'}
@@ -29,13 +30,15 @@ def capture(args):
         raise ValueError('Requires a matching independently controlled original')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
-    following=getattr(args,'following',False);armed=not following
+    next_retry=getattr(args,'next_retry',False);following=getattr(args,'following',False) or next_retry;armed=not following
+    scope=FollowingAirCaptureScope(following,2 if next_retry else 1)
     active=False;complete=False;points=[];polls=[];off=None
     def hook(pc):
         nonlocal active,complete,off,armed
         if complete:return
+        scope.observe(pc,player.memory[0xc098])
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
-        if pc==0x0409 and armed and player.memory[0xc098]==4:active=True
+        if pc==0x0409 and scope.ready and armed and player.memory[0xc098]==4:active=True
         if not active:return
         point_names=PERFECT_POINTS if player.memory[0xc095]&4 else POINTS
         if pc in point_names:
@@ -53,7 +56,7 @@ def capture(args):
         elif pc==0x25a2:off=dict(cycles=player._cycles(),lcd=player.lcd_snapshot(),interruptFlags=player.memory[0xff0f])
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in (*PERFECT_POINTS,0x2598,0x25a2,0x268b):player.hook_register(0,pc,hook,pc)
+        for pc in (*PERFECT_POINTS,0x2598,0x25a2,0x268b,0x03d8):player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -63,6 +66,7 @@ def capture(args):
     if control!=manifest['controlMemorySha256'] or not complete:raise ValueError('Incomplete result prefix or changed original control')
     data=dict(version=2 if points[0]['result']&4 else 1,romSha256=manifest['romSha256'],controlMemorySha256=control,reference=metadata,points=points,polls=polls,lcdOff=off)
     if following:data['followingResult']=True
+    if next_retry:data['nextRetry']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-prefix.json',data)
     print(json.dumps(dict(points=len(points),pollReads=len(polls),controlDifferences=0),indent=2))
 
@@ -151,6 +155,7 @@ def compare(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
+    record.add_argument('--next-retry',action='store_true')
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)

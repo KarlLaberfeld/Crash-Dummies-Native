@@ -19,7 +19,10 @@ AirInstructionTextState airInstructionExit(AirInstructionTextState state,NativeA
         service(clock.displays,clock.now+20,tick,timing.countdown,144,sound.effectWorkCycles,sound.musicWorkCycles,timing.input);
         return 1592+144+sound.effectWorkCycles+sound.musicWorkCycles;
     };
-    AirResultWriter writer(clock,timing.lcdEpoch,display,poll,write);writer.layer=0x9800;writer.cursor=state.cursor;writer.row=state.row;
+    auto store=[&](int64_t cycle,int address,int value){
+        if(state.backgroundOwned&&address>=0x9800&&address<0x9c00)state.background[address-0x9800]=value;
+        write(cycle,address,value);};
+    AirResultWriter writer(clock,timing.lcdEpoch,display,poll,store);writer.layer=0x9800;writer.cursor=state.cursor;writer.row=state.row;
     int bgp=0xe4,obp0=0xc4,obp1=0xe0;
     auto work=[&](std::initializer_list<int> costs){writer.work(costs);};
     auto point=[&](const char* name){boundary(name,clock.now,timing.tick,timing.countdown,state.map.scroll,bgp,obp0,obp1,sound.enabled,timing.input);};

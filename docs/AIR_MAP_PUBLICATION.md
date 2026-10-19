@@ -1,5 +1,12 @@
 # Source-owned Air row staging and publication
 
+The [third-failure continuation](AIR_THIRD_RESULT.md) now reuses this owner
+across following updates and qualifies two additional partial-row displays.
+Following startup can seed the published map from native instruction stores:
+ring row 22 is not overwritten by that level's initial row loop. Its retained
+text, subsequent overwrite and complete staging/publication match the original.
+The earlier successful-control evidence below retains its own scope and hashes.
+
 `src/air_map_publication.h` reconstructs the original 32-byte staging row and
 32x32 background map. LCD-off startup prepares and copies the 32 source rows.
 Later preparation computes the destination from the previous camera, picks the

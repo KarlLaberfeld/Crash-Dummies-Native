@@ -106,6 +106,10 @@ were not changed; the preceding 52,878 result / 882 handoff / 4,200 work and
 
 ## Remaining work
 
+Third-attempt terminal/outgoing/result continuation is now qualified in the
+[next checkpoint](AIR_THIRD_RESULT.md). The paragraph below records this
+1,000-update checkpoint's original boundary.
+
 Continue the third attempt through its terminal update and result, with any
 new interrupted-work owner justified by actual observations. Other stunt,
 player/shared-animation, final-life/reset and earlier UI/LCD paths still need

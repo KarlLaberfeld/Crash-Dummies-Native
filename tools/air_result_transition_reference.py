@@ -15,6 +15,7 @@ from air_timing import vblank_work,vblank_bookkeeping_work,VBLANK_FIXED,elapsed_
 from air_loop_timing import stat_cycles,wait_active_cycles
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x0462:'playerReady',0x0471:'successTextReady',0x0474:'portraitReady',
         0x0477:'musicReady',0x047a:'enable',0x047b:'enableFollower',0x047e:'fadeReturned',
@@ -31,7 +32,8 @@ def capture(args):
         raise ValueError('Requires a matching independently controlled original')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
-    following=getattr(args,'following',False);armed=not following;buttons=[]
+    next_retry=getattr(args,'next_retry',False);following=getattr(args,'following',False) or next_retry;armed=not following;buttons=[]
+    scope=FollowingAirCaptureScope(following,2 if next_retry else 1)
     active=False;complete=False;points=[];interrupts=[];opened=None
     selected={**POINTS,**(HOLD_POINTS if args.failure_hold else {})}
     def word(a):return player.memory[a]+256*player.memory[a+1]
@@ -39,9 +41,10 @@ def capture(args):
         nonlocal active,complete,opened,armed
         if complete:return
         now=player._cycles()
+        scope.observe(pc,player.memory[0xc098],len(buttons))
         if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
         if following and pc==0x2436 and (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in (1,4,5,6)):buttons.append(player.memory[0xff8a])
-        if pc==0x0462 and armed and player.memory[0xc098] in (2,10):active=True
+        if pc==0x0462 and scope.ready and armed and player.memory[0xc098] in (2,10):active=True
         if not active:return
         if pc in selected:
             points.append(dict(name=selected[pc],cycles=now,pc=pc,tick=word(0xc00a),
@@ -77,7 +80,7 @@ def capture(args):
             opened['end']=now;interrupts.append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in (*selected,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x151e,0x249b,0x268b):player.hook_register(0,pc,hook,pc)
+        for pc in (*selected,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x151e,0x249b,0x268b,0x03d8):player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -89,6 +92,7 @@ def capture(args):
     data=dict(version=3 if points[0]['result']&4 else 2,failureHold=args.failure_hold,romSha256=manifest['romSha256'],controlMemorySha256=control,
         reference=metadata,points=points,interrupts=interrupts)
     if following:data['followingResult']=True
+    if next_retry:data['nextRetry']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-transition.json',data)
     samples=buttons if following else [r['held'] for r in interrupts if r['kind']=='vblank']
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in samples))
@@ -260,6 +264,7 @@ if __name__=='__main__':
     record=sub.add_parser('capture');record.add_argument('rom',type=Path)
     record.add_argument('--failure-hold',action='store_true')
     record.add_argument('--following',action='store_true',help='Measure the result after the first Air retry, retaining all preceding raw display inputs')
+    record.add_argument('--next-retry',action='store_true')
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)

@@ -64,6 +64,7 @@ def capture(args):
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested following gameplay IRQ')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],display=p.memory[0xc098],returnAddress=word(p.register_file.SP),tick=word(0xc00a),ready=p.memory[0xffae],phases={})
+            if 0x20<=opened['returnAddress']<=0x24:opened['callerAddress']=word(p.register_file.SP+2)
             if pc==0x0040:opened['oam']=list(p.memory[0xc100:0xc1a0])
         elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now
@@ -88,6 +89,7 @@ def capture(args):
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
     if scope.following:data['nextRetry']=True
+    if getattr(args,'partial_rows',False):data['partialRows']=True
     if terminal:data['terminalWait']=True
     if terminal or getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
         rom=read_rom(args.rom);data.update(resourceTransfers=True,resourceChunks=list(rom[0xe08f:0xe0bf:4]))
@@ -188,6 +190,7 @@ if __name__=='__main__':
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     record.add_argument('--busy-scenes',action='store_true')
     record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--partial-rows',action='store_true',help='Capture partial-row crossings; comparison additionally requires matching byte-level map evidence')
     record.add_argument('--terminal',action='store_true',help='Include the last update and closed-gate final counter wait')
     record.add_argument('--outro',action='store_true',help='Also include audio stop and all outgoing fade waits, ending before result setup')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)

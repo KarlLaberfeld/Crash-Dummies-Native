@@ -117,6 +117,11 @@ recordings remain ignored/local. Tests and regression logs use
 
 ## Next work
 
+Later third-attempt work qualifies the bounded shared placement offset helper,
+its parameter-copy tail and two partial-row displays with mandatory complete
+row-storage evidence; see [scope](AIR_THIRD_RESULT.md). The earlier rejection
+limits and remaining-work notes here describe this checkpoint's scope.
+
 The ordinary 1,788th and paused 1,767th updates terminate the stunt. Their
 terminal update, final busy display wait and outgoing fade are now separately
 qualified in AIR_FOLLOWING_TERMINAL.md. Result setup/incoming/accounting and

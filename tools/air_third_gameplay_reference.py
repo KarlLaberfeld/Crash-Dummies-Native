@@ -21,6 +21,10 @@ def native_prefix(first_base,long_base):
         if suffix.startswith('.next-gameplay.summary'):continue
         other=Path(str(long_base)+suffix)
         a=path.read_bytes().replace(b'\r\n',b'\n');b=other.read_bytes().replace(b'\r\n',b'\n')
+        if suffix=='.next-gameplay.map.csv':
+            lines=a.splitlines(keepends=True)
+            if not lines or not lines[-1].startswith(b'end,'):raise ValueError('Missing accepted native row endpoint')
+            a=b''.join(lines[:-1]) # The longer recording ends after additional services.
         if suffix.startswith('.next-gameplay'):
             if not b.startswith(a):raise ValueError('Changed native first-update prefix: '+suffix)
         elif a!=b:raise ValueError('Changed native entry history: '+suffix)

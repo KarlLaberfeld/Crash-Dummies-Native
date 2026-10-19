@@ -21,8 +21,8 @@ struct AirMapPublication {
         destination=destinationRow(oldCamera);
         for(int cell=0;cell<16;++cell)for(int half=0;half<2;++half)buffer[2*cell+half]=cellTile(game,oldCamera,camera,cell,half);
     }
-    void initialize(const AirGame& game){
-        buffer.fill(0);tiles.fill(0);destination=0;int oldCamera=0;
+    void initialize(const AirGame& game,const std::array<uint8_t,1024>* inherited=nullptr){
+        buffer.fill(0);if(inherited)tiles=*inherited;else tiles.fill(0);destination=0;int oldCamera=0;
         // 1e77 prepares/copies 32 rows while LCD-off. The source first row
         // starts with the cleared previous camera; later rows step upward.
         for(int row=0;row<32;++row){int camera=(game.cameraY+0x1000-128*row)&65535;

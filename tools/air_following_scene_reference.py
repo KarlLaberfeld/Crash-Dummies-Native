@@ -8,7 +8,7 @@ from extract_air import HANDLERS
 from air_timing import vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 
 
-def scene_owner(block,irq):
+def scene_owner(block,irq,row_publication=False):
     phase=next((i for i in range(9) if block[i]['cycles']<irq['start']<block[i+1]['cycles']),None)
     pc=irq['returnAddress'];ready=irq['ready']
     terminal=block[-1]['name']=='terminalEnd'
@@ -24,13 +24,18 @@ def scene_owner(block,irq):
         if pc in ((0x03fd,0x03fe,0x0400) if terminal else (0x03fd,0x03fe,0x03c7)) and ready==0:return 1
         raise ValueError('Unknown following result-test completion')
     if ready!=0:raise ValueError('Scene interrupt opened the resource gate')
+    # Placement allocation's 1adf table-offset helper. Its source work is
+    # already split into RST/offset/store/return completion boundaries by the
+    # native placement owner. Require the nested caller: this shared helper
+    # address alone cannot identify which semantic operation was interrupted.
+    if phase==6 and 0x20<=pc<=0x22 and irq.get('callerAddress')==0x1ae0:return 1
     # Identified source helpers represented by airSprite/Map/PlacementClock.
     ranges={3:((0x1bfb,0x1d3f),(0x23dd,0x241d),(0x03e7,0x03e7)),
             4:((0x1b90,0x1bfa),(0x03ea,0x03ed)),
-            5:((0x1ead,0x1f16),),6:((0x19a2,0x1b02),(0x03fa,0x03fa))}
+            5:((0x1ead,0x1f16),),6:((0x19a2,0x1b0e),(0x03fa,0x03fa))}
     if phase not in ranges or not any(a<=pc<=b for a,b in ranges[phase]):
         raise ValueError('Interrupt outside identified following scene completion')
-    if irq['kind']=='vblank' and phase==5 and pc!=0x1f16:
+    if irq['kind']=='vblank' and phase==5 and pc!=0x1f16 and not row_publication:
         raise ValueError('Display during partial row preparation needs a row-storage owner')
     return 1
 
@@ -61,7 +66,7 @@ def analyze(data):
             if r['kind'] not in counts or not block[0]['cycles']<r['start']<r['end']<block[-1]['cycles'] or r['selector']!=4 or r['display']!=4:
                 raise ValueError('Incomplete following scene interrupt')
             if local and r['start']<=local[-1]['end']+16:raise ValueError('Overlapping following scene interrupts')
-            owner=scene_owner(block,r);nonwait+=owner==1;counts[r['kind']]+=1
+            owner=scene_owner(block,r,data.get('partialRows') is True);nonwait+=owner==1;counts[r['kind']]+=1
             if r['kind']=='stat' and r['end']-r['start']!=288:raise ValueError('Unknown scene STAT work')
             local.append(r)
         if not local or local[-1]['kind']!='vblank' or local[-1]['returnAddress']!=0x261d or local[-1]['ready']!=int(not terminal):

@@ -109,6 +109,8 @@ int main(){
         catch(const std::runtime_error&){rejected=true;}
         require(rejected,"A continuing-update owner cannot silently accept the terminal result");
         int points=0,terminalServices=0;int64_t done=0,waitStart=0;
+        state.rowPublicationReady=true;state.rowPublication.buffer.fill(3);state.rowPublication.tiles.fill(5);state.rowPublication.destination=7;
+        game->lastMapCamera=game->cameraY;
         state=airFollowingAirQuietUpdate(state,*game,sound,
             [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){++points;
                 if(std::string(name)=="done")done=cycle;
@@ -116,6 +118,7 @@ int main(){
                 if(std::string(name)=="terminalEnd")require(cycle>waitStart&&!s.ready&&s.instruction.map.campaign.timing.input.pressed==8,"Terminal return retains the last display edge without a gameplay input gate");},
             [&](auto...){++terminalServices;},[](auto...){},[]{return 8;},true);
         require(points==10&&terminalServices==1,"Terminal update publishes complete boundaries and its final display");
+        require(state.rowPublicationReady&&state.rowPublication.buffer[0]==3&&state.rowPublication.tiles[0]==5&&state.rowPublication.destination==7,"Following updates preserve existing row storage when no new row is prepared");
         require(game->transferRemaining==13&&game->transferState==1,"Terminal display cannot upload the pending resource");
         unowned->result=0;unowned->finishTimer=2;rejected=false;
         try{airFollowingAirQuietUpdate(state,*unowned,sound,[](auto...){},[](auto...){},[](auto...){},[]{return 0;},true);}
