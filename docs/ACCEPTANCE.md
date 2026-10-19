@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 side-push follow-up: the paused fourth-attempt discrepancy is resolved
+by inheriting native FFCA/lastForce from the preceding Air game. The existing
+60/92-cycle steering work now selects the original branch; no offset or fitted
+allowance was added. Both 1,000-update histories match 20,000 boundaries /
+320,000 actor slots / 2,000 displays / 4,000 vectors / 80,000 published object
+slots, including their first updates. Supplemental side-push proof adds 20,000
+matching boundaries and original inherited/first-input/clear observations.
+All differences within these scopes are zero. O2 Windows diagnostic, 927 handoff
+/ 4,272 work assertions and 757 Python tests pass. See
+[scope](AIR_SIDE_PUSH_INHERITANCE.md). Later fourth gameplay/result, vacant done
+flags, other campaigns/source work, production scheduling, images/PCM and final
+device/Windows/distribution gates remain open. Production EXE/alpha unchanged;
+timing point 1 and final acceptance remain incomplete.
+
 October 19 fourth-gameplay follow-up: ordinary history matches 1,000 fourth
 updates (including first): 10,000 boundaries / 160,000 actor slots / 1,000 displays /
 2,000 vectors / 40,000 published object slots, zero differences within scope;

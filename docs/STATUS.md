@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Retained side push fixes paused fourth-game timing - October 19, 2026
+
+The 32-cycle discrepancy is resolved without a fitted cost/offset. FFCA retains
+the preceding game's side push across result/instruction/stage setup. Native
+handoff now inherits `lastForce`; the paused case retains 4, ordinary 0. At the
+first Play input, 6578/657b returns early for nonzero scratch (60 cycles), while
+zero reaches the rate test (92). Only 602d clears it, after input/probe work.
+The existing work formula was correct; the handoff state had been reset early.
+See [source proof and reproduction](AIR_SIDE_PUSH_INHERITANCE.md).
+
+Both 1,000-update fourth histories now match: 20,000 boundaries / 320,000 actor
+slots / 2,000 displays / 4,000 vectors / 80,000 published object slots, zero
+differences within scope. These totals include the accepted first updates.
+Inherited phases 14 / 48 advance 738 times each with 12 / 13 rollovers; 41
+requests / 154 uploads / 41 completions match. Supplemental FFCA comparison
+adds 20,000 matching boundaries and observes the preceding failed endpoints,
+first input branch and exact XOR/LDH clear. Full-control hashes are unchanged.
+Earlier/first-update native scopes remain exact (220 / 224 checked files).
+
+Validation: O2 native Windows diagnostic, both attached resource/object/prefix
+chains and supplemental FFCA comparisons, 927 native handoff / 4,272 source-work
+assertions, 757 Python tests. Original assets, controls, recordings and binaries
+stay local. Production scheduler/EXE and alpha unchanged; automation stays ACTIVE.
+
+Next concrete owner: fourth-attempt continuation through terminal gameplay,
+outgoing fade and result, retaining current timer/animation/row/scratch state.
+Unused vacant done flags remain a documented mismatch. Other campaigns, final
+life/reset/UI, unobserved work, production scheduling, images/PCM and human/
+device/independent-Windows/distribution gates remain open. Timing point 1 and
+final acceptance remain incomplete.
+
 ## Fourth Air continuation: ordinary accepted, paused discrepancy - October 19, 2026
 
 Ordinary fourth-attempt gameplay now matches 1,000 updates: 10,000 boundaries /

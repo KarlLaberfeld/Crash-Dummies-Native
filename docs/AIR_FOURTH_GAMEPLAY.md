@@ -1,5 +1,9 @@
 # Fourth Air gameplay continuation
 
+Follow-up: [retained side-push inheritance](AIR_SIDE_PUSH_INHERITANCE.md) resolves
+the paused discrepancy and qualifies both 1,000-update histories. The checkpoint
+below retains the original failure evidence and its original scope.
+
 October 19, 2026. Continuation of [two-life fourth entry](AIR_FOURTH_ENTRY.md).
 The ordinary history matches 1,000 fourth-attempt updates. The earlier-paused
 history exposes a timing discrepancy and is not accepted through that extent.

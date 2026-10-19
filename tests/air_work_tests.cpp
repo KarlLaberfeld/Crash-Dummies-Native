@@ -120,6 +120,13 @@ int main(){
         require(g.tilt==-1&&g.speed==-5&&inputCost==788,"Input cost follows ordered left/right and acceleration/braking decisions");
         g.cameraY=0;g.held=Left;g.transferState=1;g.speed=-20;
         require(airInputWork(g)==324,"Transfer-gated steering and forced ascent include their early returns");
+        g.cameraY=15*256;g.held=Left|A;g.ticks=3;g.rate=0;g.transferState=0;g.tilt=0;g.speed=0;
+        for(int force:{-4,0,4,12}){
+            g.lastForce=force;
+            require(airInputWork(g)==(force?436:468),"Retained side push returns at 657b before the zero-rate test, saving its 32 instruction cycles");
+            g.input();require(g.tilt==0&&g.speed==0,"Both zero-rate input paths retain the same visible state despite distinct work");
+        }
+        g.lastForce=0;
         g.cameraY=15*256;g.speed=-7;g.tilt=0;g.probes={};g.probes[2]=2;
         require(airWallWork(g)==488,"Wall crash initialization includes both entity-address helper calls");
         g.speed=-6;require(airWallWork(g)==504,"Wall clamp checks the strict signed boundary");

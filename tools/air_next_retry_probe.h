@@ -52,6 +52,8 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
     const auto& e=entered.instruction.map.campaign.timing;
     entry.summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining,entryPauseComplete\n"<<e.end<<','<<e.tick<<','<<e.countdown<<','<<e.displays<<','<<e.stats<<','<<e.lcdEpoch<<','<<e.nextStat<<','<<e.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<','<<entered.entryPauseComplete<<'\n';
     auto game=std::make_unique<AirGame>(assets,shared);airFollowingAirHandoff(*game,preceding,entered);
+    std::ofstream sidePush(base+".next-gameplay.side-push.csv");if(!sidePush)throw std::runtime_error("Cannot open inherited side-push observations");
+    sidePush<<"boundary,cycle,lastForce\n";
     AirNextInstructionCsv play(base+".next-gameplay","boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result");
     std::ofstream actors(base+".next-gameplay.entities.csv"),sprites(base+".next-gameplay.sprites.csv");if(!actors||!sprites)throw std::runtime_error("Cannot open next retry actors/sprites");
     sprites<<"service,slot,present,x,y,flags\n";
@@ -61,6 +63,7 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
     auto updated=entered;
     for(int update=0;update<updates;++update)updated=airFollowingAirQuietUpdate(updated,*game,sound,
         [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
+            sidePush<<name<<','<<cycle<<','<<g.lastForce<<'\n';
             play.points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<','<<g.result<<'\n';
             for(int i=0;i<16;++i){const auto& a=g.entities[i];actors<<name<<','<<i<<','<<a.alive<<','<<(a.alive?a.frame:255)<<','<<((a.flags&~2)|(a.offscreen?2:0))<<','<<int(a.handler)<<','<<a.x<<','<<a.y<<','<<a.animDone<<','<<a.frameWaiting<<','<<a.delay<<','<<a.period;for(int value:a.params)actors<<','<<value;actors<<'\n';}},
         [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);

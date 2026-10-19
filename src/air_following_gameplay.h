@@ -20,6 +20,10 @@ inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const 
         e.anim=old.anim;e.delay=old.delay;e.period=old.period;e.loop=old.loop;e.loopStart=old.loopStart;
         if(!e.alive){e.animDone=old.animDone;e.frameWaiting=old.frameWaiting;}
     }
+    // FFCA survives result/instruction/stage setup. The first Play input can
+    // still test that previous side push at 6578/658c; 602d clears it only
+    // after input and probe preparation. Resetting it selects a longer path.
+    game.lastForce=preceding.lastForce;
     game.secondTicks=preceding.secondTicks;game.ticks=t.tick;game.randomState=state.randomState;
     game.hudCursor=state.hudCursor;game.displayFadeRemaining=state.fadeRemaining;
     // 0387 explicitly clears the sprite allocation selector after masked stage

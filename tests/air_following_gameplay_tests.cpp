@@ -56,6 +56,10 @@ int main(){
                 require(fourth->secondTicks==phase&&fourth->secondTicks!=second->secondTicks,"Fourth entry inherits the third game's current partial second");
                 require(campaign.lives[0]==2&&fourth->ticks==12000&&fourth->randomState==0x5200,"Fourth entry preserves two lives and its own clock/seed");
                 for(int i=0;i<16;++i)require(fourth->entities[i].anim==300+i&&fourth->entities[i].delay==50+i&&fourth->entities[i].period==70+i,"Fourth entry uses every immediately preceding animation block");
+                for(int force:{-4,0,4,12}){
+                    third->lastForce=force;airFollowingAirHandoff(*fourth,*third,retry);
+                    require(fourth->lastForce==force,"Result and stage setup retain side-push scratch until Play clears it");
+                }
             }
         }
         auto preceding=std::make_unique<AirGame>(*assets,*shared),game=std::make_unique<AirGame>(*assets,*shared);
