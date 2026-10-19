@@ -2,6 +2,7 @@
 #include "air_following_setup.h"
 #include "air_placement_clock.h"
 #include "air_scene_clock.h"
+#include "audio_work.h"
 
 namespace ticd {
 // Following Air entry inherits semantic animation blocks and the partial
@@ -30,10 +31,11 @@ inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const 
 // Bounded following Air quiet update and next counter wait. The actor/resource
 // body must be quiet: a crossing requires a separately qualified owner. Scene
 // and placement work can accept services at their identified completion
-// boundaries; partial row publication still requires a separate owner.
+// boundaries; partial row publication still requires a separate owner. The
+// explicit terminal extent retains the busy gate and omits the next input test.
 template<class Boundary,class Service,class Interrupt>
 AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& game,NativeAudio& sound,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={},bool terminal=false){
     auto& t=state.instruction.map.campaign.timing;
     if(state.stage!=1||state.ready||game.result||!game.measureWork||!game.entities[0].alive||
        game.transferState<0||game.transferState>2||game.transferRemaining<0||
@@ -100,12 +102,65 @@ AirFollowingSetup airFollowingAirQuietUpdate(AirFollowingSetup state,AirGame& ga
     else state.mapScratch&=255; // C00D is also the row-publication gate.
     point("placements");
     scenePhase=4;airPlacementClock(game,clock,range,display);point("done");
-    if(game.result)throw std::runtime_error("Following Air quiet update ended the stunt; exit owner required");
-    scenePhase=5;clock.atomicWork(16,[]{},display,false);clock.atomicWork(4,[]{},display,false);clock.atomicWork(12,[]{},display,false);point("backEdge");
-    clock.atomicWork(8,[]{},display,false);clock.atomicWork(12,[&]{state.ready=1;},display,true);clock.wait(display,true);
-    clock.atomicWork(4,[]{},display,true);clock.atomicWork(12,[&]{state.ready=0;},display,false);
-    int fresh=0;clock.accessWork(12,8,[&]{fresh=t.input.pressed;},display,false);clock.atomicWork(8,[]{},display,false);
-    if(fresh&8)throw std::runtime_error("Following Air next update requires its pause owner");clock.atomicWork(12,[]{},display,false);point("end");
+    if(game.result&&!terminal)throw std::runtime_error("Following Air quiet update ended the stunt; exit owner required");
+    if(terminal&&!(game.result&1))throw std::runtime_error("Following Air terminal extent did not end the stunt");
+    scenePhase=5;clock.atomicWork(16,[]{},display,false);clock.atomicWork(4,[]{},display,false);
+    clock.atomicWork(terminal?8:12,[]{},display,false);
+    if(terminal){point("terminalWait");clock.wait(display,false);point("terminalEnd");}
+    else{
+        point("backEdge");
+        clock.atomicWork(8,[]{},display,false);clock.atomicWork(12,[&]{state.ready=1;},display,true);clock.wait(display,true);
+        clock.atomicWork(4,[]{},display,true);clock.atomicWork(12,[&]{state.ready=0;},display,false);
+        int fresh=0;clock.accessWork(12,8,[&]{fresh=t.input.pressed;},display,false);clock.atomicWork(8,[]{},display,false);
+        if(fresh&8)throw std::runtime_error("Following Air next update requires its pause owner");clock.atomicWork(12,[]{},display,false);point("end");
+    }
+    t.end=clock.now;t.tick=game.ticks;t.nextStat=clock.nextStat;t.nextVBlank=clock.nextVBlank;t.displays=clock.displays;t.stats=clock.statServices;
+    state.hudCursor=game.hudCursor;state.fadeRemaining=game.displayFadeRemaining;return state;
+}
+
+// Restarted Air's 0403..0409 exit retains this LCD epoch, prepared scene and
+// closed upload gate. Only counter waits own interrupts in the qualified fade;
+// an audio reset or palette operation crossing a service remains guarded.
+template<class Phase,class Service,class Interrupt>
+AirFollowingSetup airFollowingAirOutro(AirFollowingSetup state,AirGame& game,NativeAudio& sound,const UiAssets& ui,
+    Phase&& phase,Service&& service,Interrupt&& interrupt,std::function<int()> sampleInput={}){
+    if(state.stage!=1||state.ready||state.display!=4||state.stat!=4||!(game.result&1)||
+       !game.measureWork||!sound.measureWork||!sound.enabled||game.pendingSound!=-1)
+        throw std::runtime_error("Unowned following Air outgoing fade");
+    auto& t=state.instruction.map.campaign.timing;AirClock clock;
+    clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;
+    clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    clock.objectDisable=[&](int64_t,AirIrqOwner){state.lcdc&=~2;};
+    auto display=[&](bool ready){
+        if(ready)throw std::runtime_error("Outgoing Air opened resource gate");
+        t.input.sample(sampleInput?sampleInput():t.input.held);
+        if(t.input.held<0||t.input.held>255||(t.input.held&15)==15)throw std::runtime_error("Unowned outgoing Air reset input");
+        int tick=game.ticks;game.displayTick(false);state.lcdc|=2;
+        if(game.pendingSound!=-1||sound.pendingEffect!=-1)throw std::runtime_error("Unowned outgoing Air effect");
+        sound.tick();
+        if(game.displayWorkCycles<0||sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned outgoing Air display/audio");
+        service(clock.displays,clock.now+20,tick,game.displayWorkCycles,sound.effectWorkCycles,sound.musicWorkCycles,t.input);
+        return 1592+game.displayWorkCycles+sound.effectWorkCycles+sound.musicWorkCycles;
+    };
+    auto quiet=[&](int work){
+        if(clock.now+work>=std::min(clock.nextStat,clock.nextVBlank))throw std::runtime_error("Interrupted outgoing Air operation needs its completion owner");
+        clock.work(work,display,false);
+    };
+    int bgp=ui.fadePalettes[0],obp0=bgp&0xcf,obp1=bgp&0xf3;
+    auto span=[&](const char* name,int index,int work,auto&& operation){
+        auto start=clock.now;int tick=game.ticks;operation();
+        phase(name,index,start,clock.now,tick,game.ticks,work<0?clock.lastWaitWork:work,bgp,obp0,obp1,sound.enabled);
+    };
+    span("audioStop",0,audioStopWork(),[&]{quiet(audioStopWork());sound.stop();});
+    span("fadeEntry",0,44,[&]{quiet(44);});
+    for(int segment=0;segment<8;++segment){
+        span("palette",segment,76,[&]{quiet(76);bgp=ui.fadePalettes[segment];obp0=bgp&0xcf;obp1=bgp&0xf3;});
+        for(int wait=0;wait<4;++wait){
+            span("wait",4*segment+wait,-1,[&]{clock.wait(display,false);});
+            int tail=wait<3?16:segment<7?28:40;
+            span("tail",4*segment+wait,tail,[&]{quiet(tail);});
+        }
+    }
     t.end=clock.now;t.tick=game.ticks;t.nextStat=clock.nextStat;t.nextVBlank=clock.nextVBlank;t.displays=clock.displays;t.stats=clock.statServices;
     state.hudCursor=game.hudCursor;state.fadeRemaining=game.displayFadeRemaining;return state;
 }

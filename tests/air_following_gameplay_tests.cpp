@@ -80,6 +80,43 @@ int main(){
         game->entities[0].handler=AirHandler::Idle;game->updateGame(0,true,true);
         require(game->transferState==0&&!game->transferRemaining&&game->entities[0].frame==0,"The following resource callback consumes completion without undoing the new pose");
         game->start(0);require(!game->resourceInputEntities[0].alive,"Starting again clears the diagnostic resource snapshot");
+        // A terminal actor must take the shorter result branch and the final
+        // busy counter wait, without a next-input gate or graphics upload.
+        game->measureWork=true;game->entities[0].handler=AirHandler::FinishDelay;game->finishTimer=1;game->resultFlags=33;
+        game->transferState=1;game->transferRemaining=13;game->transferFrame=0;game->transferFlags=8;
+        state.ready=0;state.entryPauseComplete=false;state.lcdc=0xe7;
+        t.end=100000;t.nextStat=145000;t.nextVBlank=149104;t.displays=t.stats=0;t.tick=game->ticks;
+        t.input={};sound.enabled=sound.measureWork=true;
+        auto unowned=std::make_unique<AirGame>(*game);bool rejected=false;
+        try{airFollowingAirQuietUpdate(state,*unowned,sound,[](auto...){},[](auto...){},[](auto...){},[]{return 0;});}
+        catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"A continuing-update owner cannot silently accept the terminal result");
+        int points=0,terminalServices=0;int64_t done=0,waitStart=0;
+        state=airFollowingAirQuietUpdate(state,*game,sound,
+            [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){++points;
+                if(std::string(name)=="done")done=cycle;
+                if(std::string(name)=="terminalWait"){waitStart=cycle;require(cycle-done==28&&g.result==33&&!s.ready,"Terminal result test has its own 28-cycle busy branch");}
+                if(std::string(name)=="terminalEnd")require(cycle>waitStart&&!s.ready&&s.instruction.map.campaign.timing.input.pressed==8,"Terminal return retains the last display edge without a gameplay input gate");},
+            [&](auto...){++terminalServices;},[](auto...){},[]{return 8;},true);
+        require(points==10&&terminalServices==1,"Terminal update publishes complete boundaries and its final display");
+        require(game->transferRemaining==13&&game->transferState==1,"Terminal display cannot upload the pending resource");
+        unowned->result=0;unowned->finishTimer=2;rejected=false;
+        try{airFollowingAirQuietUpdate(state,*unowned,sound,[](auto...){},[](auto...){},[](auto...){},[]{return 0;},true);}
+        catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"A terminal owner cannot force an unfinished native stunt to end");
+        UiAssets ui;for(int i=0;i<8;++i)ui.fadePalettes[i]=i==7?0:228-i*4;
+        auto unsafe=state;unsafe.instruction.map.campaign.timing.nextStat=t.end+4;rejected=false;
+        try{airFollowingAirOutro(unsafe,*game,sound,ui,[](auto...){},[](auto...){},[](auto...){},[]{return 0;});}
+        catch(const std::runtime_error&){rejected=true;}
+        require(rejected&&sound.enabled,"A service inside partially reset audio needs a separate owner");
+        int outgoingPhases=0,outgoingDisplays=0,outgoingIrqs=0;const auto before=t;
+        state=airFollowingAirOutro(state,*game,sound,ui,
+            [&](const char*,int,int64_t begin,int64_t end,int,int,int,int,int,int,bool enabled){++outgoingPhases;require(end>begin&&!enabled,"Outgoing phases retain disabled music and advance their clock");},
+            [&](unsigned,int64_t,int,int,int effects,int music,const DisplayInput&){++outgoingDisplays;require(effects==64&&music==60,"Outgoing displays retain silent effect/music callback work");},
+            [&](const char*,int64_t,AirIrqOwner owner){++outgoingIrqs;require(owner==AirIrqOwner::CounterWait,"Only the bounded outgoing waits own services");},[]{return 0;});
+        require(outgoingPhases==74&&outgoingDisplays==32&&outgoingIrqs==64,"Complete outgoing fade owns all eight palette stages and 32 waits");
+        require(!sound.enabled&&!state.ready&&game->transferRemaining==13&&game->transferState==1,"Outgoing fade preserves the closed upload gate");
+        require(t.end>before.end&&t.tick==((before.tick+32)&65535)&&t.nextVBlank==before.nextVBlank+32*AirClock::Frame,"Outgoing time retains the terminal epoch and exact following deadlines");
         printf("Following Air handoff checks: %d passed (synthetic; no original parity claim)\n",checks);return 0;
     }catch(const std::exception& e){fprintf(stderr,"Following Air handoff failed after %d checks: %s\n",checks,e.what());return 1;}
 }

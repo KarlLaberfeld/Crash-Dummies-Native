@@ -9,6 +9,8 @@ from air_reference import write_json
 
 POINTS={0x03d8:'begin',0x03db:'savedPlayer',0x03de:'entitiesDone',0x03e4:'sprites',0x03e7:'spritesDone',0x03ed:'mapCallback',0x19a2:'placements',0x03fa:'done',0x03c7:'backEdge'}
 ORDER=[*POINTS.values(),'end']
+TERMINAL_POINTS={0x0400:'terminalWait',0x0403:'terminalEnd'}
+TERMINAL_ORDER=ORDER[:8]+list(TERMINAL_POINTS.values())
 FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','mapScratch','cameraX','cameraY','hudCursor','fadeRemaining','held','pressed','lcdc','display','transfer','remaining','effect','reverse')
 
 def capture(args):
@@ -16,11 +18,16 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     extent=getattr(args,'updates',1)
+    outro=getattr(args,'outro',False)
+    terminal=outro or getattr(args,'terminal',False)
+    from air_exit_timing import POINTS as OUTRO_POINTS,intervals,display_services
+    outgoing=False;outro_points=[];outro_irqs=[]
+    observed_points={**POINTS,**(TERMINAL_POINTS if terminal else {})}
     if not 1<=extent<=100000:raise ValueError('Invalid following update extent')
     p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False;updates=0
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
-        nonlocal armed,active,complete,opened,pause_seen,updates
+        nonlocal armed,active,complete,opened,pause_seen,updates,outgoing
         if complete:return
         if pc==0x268b and p.memory[0xc098] in (2,10):armed=True
         if pc==0x1476 and armed and not active:pause_seen=True
@@ -29,32 +36,42 @@ def capture(args):
         if pc==0x03d8 and armed:
             if p.memory[0xc098]!=4:raise ValueError('Following gameplay control is not an Air retry')
             if not active:active=True
-            else:updates+=1;closing=True;complete=updates==extent
+            else:
+                updates+=1;closing=True;complete=updates==extent
+                if terminal and complete:raise ValueError('Requested terminal extent still continues gameplay')
         if not active:return
         now=p._cycles()
-        if pc in POINTS:
+        if terminal and not outgoing and pc==0x0403:
+            updates+=1
+            if updates!=extent:raise ValueError('Terminal update does not match requested extent')
+            complete=not outro
+        if pc in observed_points and not outgoing:
             seconds=p.memory[0xc084]
             if seconds&15>9 or seconds>>4>9:raise ValueError('Invalid original BCD timer')
-            points.append(dict(name='end' if closing else POINTS[pc],cycles=now,tick=word(0xc00a),secondTicks=p.memory[0xc083],seconds=(seconds>>4)*10+(seconds&15),random=word(0xc09e),
+            points.append(dict(name='end' if closing else observed_points[pc],cycles=now,tick=word(0xc00a),secondTicks=p.memory[0xc083],seconds=(seconds>>4)*10+(seconds&15),random=word(0xc09e),result=p.memory[0xc095],
                 ready=p.memory[0xffae],map=p.memory[0xc00d],lastMapCamera=word(0xff96),mapScratch=word(0xc00c),cameraX=word(0xff92),cameraY=word(0xff94),hudCursor=p.memory[0xc04c],fadeRemaining=p.memory[0xffc9],
                 held=p.memory[0xff8a],pressed=p.memory[0xff8b],lcdc=p.memory[0xff40],display=p.memory[0xc098],transfer=p.memory[0xffb6],remaining=p.memory[0xffb5],effect=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6],reverse=int(bool(p.memory[0xff90])),
                 transferFrame=p.memory[0xffb9],transferFlags=p.memory[0xffba],
                 entities=[dict(frame=p.memory[0xc200+i*16],flags=p.memory[0xc205+i*16],handler=word(0xc206+i*16),x=word(0xc201+i*16),y=word(0xc203+i*16),params=list(p.memory[0xc209+i*16:0xc210+i*16]),state=p.memory[0xc302+i*16],delay=p.memory[0xc303+i*16],period=p.memory[0xc304+i*16]) for i in range(16)]))
             if closing and not complete:points.append(dict(points[-1],name='begin'))
+        if outro and pc==0x0403:outgoing=True
+        if outgoing and pc in OUTRO_POINTS:
+            outro_points.append(dict(name=OUTRO_POINTS[pc],cycles=now,tick=word(0xc00a),counter=p.memory[0xc009],ready=p.memory[0xffae],musicEnabled=p.memory[0xffcf],bgp=p.memory[0xff47],obp0=p.memory[0xff48],obp1=p.memory[0xff49]))
+            if pc==0x0409:complete=True
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested following gameplay IRQ')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],display=p.memory[0xc098],returnAddress=word(p.register_file.SP),tick=word(0xc00a),ready=p.memory[0xffae],phases={})
             if pc==0x0040:opened['oam']=list(p.memory[0xc100:0xc1a0])
         elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now
-            if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b])
-            if name=='bookkeeping':opened.update(resetEnabled=p.memory[0xc005],resetLatched=p.memory[0xc004])
+            if name=='display':opened.update(held=p.memory[0xff8a],pressed=p.memory[0xff8b],displayWorkload=dict(map_pending=p.memory[0xc00d],ready=p.memory[0xffae],chunks=p.memory[0xffb5],cursor=p.memory[0xc04c],tick=word(0xc00a),fade_remaining=p.memory[0xffc9],collected=p.memory[0xc20a],quota=p.memory[0xffab]))
+            if name=='bookkeeping':opened.update(resetEnabled=p.memory[0xc005],resetLatched=p.memory[0xc004],hudBar=list(p.memory[0xc046:0xc04c]))
             if name=='effects':opened['effectRequest']=-1 if p.memory[0xffc6]==255 else p.memory[0xffc6]
             if name=='music':opened['musicEnabled']=p.memory[0xffcf]
-        elif pc in (0x2484,0x2555) and opened:opened['end']=now;irqs.append(opened);opened=None
+        elif pc in (0x2484,0x2555) and opened:opened['end']=now;(outro_irqs if outgoing else irqs).append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476}:p.hook_register(0,pc,hook,pc)
+        for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476}:p.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':p.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
@@ -66,10 +83,11 @@ def capture(args):
         write_json(args.out/'gameplay.incomplete.json',dict(accepted=False,requestedUpdates=extent,completedUpdates=updates,
             complete=complete,openInterrupt=opened,controlMemorySha256=digest,controlMatches=digest==manifest['controlMemorySha256'],points=points,interrupts=irqs))
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
-    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
-    if getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
+    data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs),entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    if terminal:data['terminalWait']=True
+    if terminal or getattr(args,'resource_transfers',False) or getattr(args,'busy_scenes',False):
         rom=read_rom(args.rom);data.update(resourceTransfers=True,resourceChunks=list(rom[0xe08f:0xe0bf:4]))
-    if getattr(args,'busy_scenes',False):data['busyScenes']=True
+    if terminal or getattr(args,'busy_scenes',False):data['busyScenes']=True
     try:
         if data.get('busyScenes'):
             from air_following_scene_reference import analyze as analyze_scenes
@@ -85,6 +103,12 @@ def capture(args):
         args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.rejected.json',data)
         raise
     args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.json',data)
+    if outro:
+        outdata=dict(version=2,reference=metadata,romSha256=data['romSha256'],controlMemorySha256=digest,
+            fadePalettes=list(read_rom(args.rom)[0x2118:0x2120]),points=outro_points,interrupts=outro_irqs,
+            precedingDisplays=data['precedingDisplays']+sum(r['kind']=='vblank' for r in irqs),productionSchedulerAccepted=False)
+        intervals(outdata);display_services(outdata)
+        write_json(args.out/'outro.json',outdata)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),services=sum(r['kind']=='vblank' for r in irqs),interrupts=len(irqs),controlDifferences=0),indent=2))
 
@@ -159,6 +183,8 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--updates',type=int,default=1);record.add_argument('--resource-transfers',action='store_true')
     record.add_argument('--busy-scenes',action='store_true')
+    record.add_argument('--terminal',action='store_true',help='Include the last update and closed-gate final counter wait')
+    record.add_argument('--outro',action='store_true',help='Also include audio stop and all outgoing fade waits, ending before result setup')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True);verify.add_argument('--entry-summary',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

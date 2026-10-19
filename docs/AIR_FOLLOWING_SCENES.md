@@ -1,5 +1,9 @@
 # Interrupted scene work in restarted Air gameplay
 
+Follow-up: [terminal update and outgoing fade](AIR_FOLLOWING_TERMINAL.md) extend
+both histories through the final busy display and complete outgoing transition.
+The table below retains this earlier continuing-update checkpoint's scope.
+
 October 19, 2026: the ordinary easy Air retry now matches all 1,787 continuing
 updates before its terminal update. The entry-pause/resume variant matches
 1,766 continuing updates. Both include source-completion interrupts during
@@ -113,10 +117,10 @@ recordings remain ignored/local. Tests and regression logs use
 
 ## Next work
 
-The ordinary 1,788th and paused 1,767th updates do not return through the next
-gameplay-input gate: they terminate the stunt. Their complete terminal update,
-final busy display wait and outgoing/result handoff remain a separate owner.
-Neither the shorter accepted extents nor a longer rejected capture qualify it.
+The ordinary 1,788th and paused 1,767th updates terminate the stunt. Their
+terminal update, final busy display wait and outgoing fade are now separately
+qualified in AIR_FOLLOWING_TERMINAL.md. Result setup/incoming/accounting and
+the subsequent handoff still need attachment to this restarted LCD epoch.
 
 Following Ski and changed-player/shared-animation ownership, genuine final-life/
 reset, earlier UI/LCD entry, other unobserved interrupted work and production

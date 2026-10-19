@@ -42,6 +42,7 @@ def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resourc
     for i,(p,q) in enumerate(zip(data['points'],points)):
         if q['boundary']!=p['name']:raise ValueError('Reordered native following quiet boundary')
         check('boundary',i,dict(cycle=p['cycles']-epoch,**{k:p[k] for k in FIELDS}),q)
+        if data.get('terminalWait') is True:check('result',i,dict(result=p['result']),q)
         for slot,e in enumerate(p['entities']):
             native=entities[16*i+slot]
             if native['boundary']!=p['name'] or int(native['slot'])!=slot:raise ValueError('Reordered native following quiet actors')

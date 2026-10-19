@@ -1,5 +1,31 @@
 # Crash Dummies Native - project status
 
+## Restarted Air terminal update and outgoing fade - October 19, 2026
+
+Both easy Air retry histories now match through their terminal update, final
+busy display wait, audio stop and complete outgoing fade, ending before 0409's
+result setup. Ordinary: 1,788 updates; entry-pause/resume: 1,767. Together they
+match 35,550 gameplay boundaries (31,997 distinct), 568,800 actor slots,
+3,564 gameplay displays and 7,128 vectors, plus 148 outgoing phases / 64 displays
+/ 128 vectors. All 145,120 published object slots match presence/live geometry/
+flags across gameplay and fade; zero differences. Prior continuing scope overlaps.
+See [terminal/exit scope and reproduction](AIR_FOLLOWING_TERMINAL.md).
+
+The terminal result branch costs 28 cycles, keeps the resource gate closed and
+returns from the counter wait without a next-gameplay input gate. Audio stop,
+palette stages and 32 outgoing waits inherit the restarted LCD deadlines and
+native prepared scene. Interrupted audio reset/palette operations still reject.
+Checks: O2 diagnostic, 863 native handoff/exit assertions, 553 Python tests;
+both preceding resource controls and all four startup/exit controls pass.
+
+Next concrete owner: attach the restarted result setup to its current LCD epoch,
+then its incoming display/accounting/next-stage or retry handoff. Following Ski,
+changed-player/shared-animation, genuine final-life/reset, earlier UI/LCD and
+unobserved work remain open. Production Windows scheduling, full pixels/PCM,
+human/device/independent-Windows and final distribution gates remain unaccepted.
+The production EXE/versioned alpha are unchanged; timing point 1 is incomplete.
+The continuation automation remains PAUSED unless explicitly resumed.
+
 ## Interrupted restarted Air scene timing - October 19, 2026
 
 The ordinary Air retry now matches 1,787 continuing updates; the entry-pause

@@ -54,7 +54,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay | --following-entry-pause]\n");return 2;}
     try{
-        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false;
+        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false;
         int difficulty=1,positional=0,celebrationServices=0,followingUpdates=1;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
@@ -76,6 +76,8 @@ int main(int argc,char** argv){
             else if(option=="--following-entry"){followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-gameplay"){followingGameplay=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--following-updates"&&i+1<argc){followingUpdates=std::stoi(argv[++i]);if(followingUpdates<1||followingUpdates>100000)throw std::runtime_error("Invalid following Air update extent");}
+            else if(option=="--following-terminal"){followingTerminal=true;}
+            else if(option=="--following-outro"){followingOutro=followingTerminal=true;}
             else if(option=="--following-entry-pause"){followingEntryPause=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
@@ -98,6 +100,7 @@ int main(int argc,char** argv){
         if(framesPath.empty()!=frameSelection.empty())throw std::runtime_error("Frame output requires a directory and selected services");
         if(!resultInputPath.empty()&&!resultIncoming)throw std::runtime_error("Result input requires incoming/accounting ownership");
         if(followingUpdates!=1&&!followingGameplay)throw std::runtime_error("Following update extent requires gameplay ownership");
+        if(followingTerminal&&!followingGameplay)throw std::runtime_error("Following terminal wait requires gameplay ownership");
         if(!mapPath.empty()&&!outroFade)throw std::runtime_error("Complete map comparison requires the outgoing result boundary");
         std::set<unsigned> frameServices;
         for(size_t begin=0;begin<frameSelection.size();){
@@ -647,7 +650,7 @@ int main(int argc,char** argv){
                                                         auto next=std::make_unique<AirGame>(*assets,*shared);airFollowingAirHandoff(*next,*game,entered);
                                                         std::ofstream points(std::string(argv[2])+".following-gameplay.csv"),entities(std::string(argv[2])+".following-gameplay.entities.csv"),services(std::string(argv[2])+".following-gameplay.services.csv"),irqs(std::string(argv[2])+".following-gameplay.interrupts.csv"),spritePublications(std::string(argv[2])+".following-gameplay.sprites.csv");
                                                         if(!points||!entities||!services||!irqs||!spritePublications)throw std::runtime_error("Cannot open following gameplay outputs");
-                                                        points<<"boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags\n";
+                                                        points<<"boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result\n";
                                                         entities<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)entities<<",param"<<i;entities<<'\n';
                                                         services<<"service,cycle,tick,display,effects,music,inputHeld,inputPressed\n";irqs<<"kind,vectorCycle,owner\n";
                                                         spritePublications<<"service,slot,present,x,y,flags\n";
@@ -655,14 +658,26 @@ int main(int argc,char** argv){
                                                         for(int update=0;update<followingUpdates;++update){
                                                         restarted=airFollowingAirQuietUpdate(restarted,*next,sound,
                                                             [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
-                                                                points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<'\n';
+                                                                points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<','<<g.result<<'\n';
                                                                 for(int i=0;i<16;++i){const auto& e=g.entities[i];entities<<name<<','<<i<<','<<e.alive<<','<<(e.alive?e.frame:255)<<','<<((e.flags&~2)|(e.offscreen?2:0))<<','<<int(e.handler)<<','<<e.x<<','<<e.y<<','<<e.animDone<<','<<e.frameWaiting<<','<<e.delay<<','<<e.period;for(int value:e.params)entities<<','<<value;entities<<'\n';}},
                                                             [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){services<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';
                                                                 for(int slot=0;slot<40;++slot){const auto& e=next->visibleSprites.slots[slot];spritePublications<<index<<','<<slot<<','<<(e.present&&e.y!=0)<<','<<e.x<<','<<e.y<<','<<e.flags<<'\n';}},
-                                                            [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
+                                                            [&](const char* kind,int64_t cycle,AirIrqOwner owner){irqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput,followingTerminal&&update==followingUpdates-1);
                                                         }
                                                         std::ofstream summary(std::string(argv[2])+".following-gameplay.summary.csv");const auto& t=restarted.instruction.map.campaign.timing;
                                                         summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<'\n';
+                                                        if(followingOutro){
+                                                            std::ofstream phases(std::string(argv[2])+".following-outro.csv"),outServices(std::string(argv[2])+".following-outro.services.csv"),outIrqs(std::string(argv[2])+".following-outro.interrupts.csv"),outSprites(std::string(argv[2])+".following-outro.sprites.csv"),outSummary(std::string(argv[2])+".following-outro.summary.csv");
+                                                            if(!phases||!outServices||!outIrqs||!outSprites||!outSummary)throw std::runtime_error("Cannot open following outgoing-fade outputs");
+                                                            phases<<"phase,index,start,end,tickBefore,tickAfter,elapsed,work,bgp,obp0,obp1,musicEnabled\n";
+                                                            outServices<<"service,cycle,tick,display,effects,music,inputHeld,inputPressed\n";outIrqs<<"kind,vectorCycle,owner\n";outSprites<<"service,slot,present,x,y,flags\n";
+                                                            restarted=airFollowingAirOutro(restarted,*next,sound,*ui,
+                                                                [&](const char* name,int index,int64_t begin,int64_t end,int before,int after,int work,int bgp,int obp0,int obp1,bool enabled){phases<<name<<','<<index<<','<<begin<<','<<end<<','<<before<<','<<after<<','<<(end-begin)<<','<<work<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<'\n';},
+                                                                [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){outServices<<index<<','<<cycle<<','<<tick<<','<<display<<','<<effects<<','<<music<<','<<input.held<<','<<input.pressed<<'\n';for(int slot=0;slot<40;++slot){const auto& e=next->visibleSprites.slots[slot];outSprites<<index<<','<<slot<<','<<(e.present&&e.y!=0)<<','<<e.x<<','<<e.y<<','<<e.flags<<'\n';}},
+                                                                [&](const char* kind,int64_t cycle,AirIrqOwner owner){outIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
+                                                            const auto& end=restarted.instruction.map.campaign.timing;
+                                                            outSummary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank\n"<<end.end<<','<<end.tick<<','<<end.countdown<<','<<end.displays<<','<<end.stats<<','<<end.lcdEpoch<<','<<end.nextStat<<','<<end.nextVBlank<<'\n';
+                                                        }
                                                     }
                                                 }
                                             }

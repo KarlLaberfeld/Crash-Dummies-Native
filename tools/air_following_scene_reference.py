@@ -3,7 +3,7 @@
 The native clock selects operations from game state. Observed return addresses
 here constrain comparison scope only; they are never native scheduling inputs.
 """
-from air_following_gameplay_reference import analyze as analyze_first,ORDER
+from air_following_gameplay_reference import analyze as analyze_first,ORDER,TERMINAL_ORDER
 from extract_air import HANDLERS
 from air_timing import vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 
@@ -11,12 +11,17 @@ from air_timing import vblank_work,VBLANK_FIXED,vblank_bookkeeping_work
 def scene_owner(block,irq):
     phase=next((i for i in range(9) if block[i]['cycles']<irq['start']<block[i+1]['cycles']),None)
     pc=irq['returnAddress'];ready=irq['ready']
+    terminal=block[-1]['name']=='terminalEnd'
     if phase==8:
+        if terminal:
+            if pc==0x261d and ready==0:return 2
+            if pc==0x2617 and ready==0:return 1
+            raise ValueError('Unknown terminal counter-wait completion')
         if pc==0x261d and ready==1:return 2
         if (pc==0x03c9 and ready==0) or (pc in (0x03cb,0x2617) and ready==1):return 1
         raise ValueError('Unknown following wait-prefix completion')
     if phase==7:
-        if pc in (0x03fd,0x03fe,0x03c7) and ready==0:return 1
+        if pc in ((0x03fd,0x03fe,0x0400) if terminal else (0x03fd,0x03fe,0x03c7)) and ready==0:return 1
         raise ValueError('Unknown following result-test completion')
     if ready!=0:raise ValueError('Scene interrupt opened the resource gate')
     # Identified source helpers represented by airSprite/Map/PlacementClock.
@@ -39,7 +44,15 @@ def analyze(data):
     cursor=0;services=[];nonwait=0;counts={'stat':0,'vblank':0}
     for update in range(n):
         block=points[10*update:10*(update+1)]
-        if [p['name'] for p in block]!=ORDER or any(b['cycles']<=a['cycles'] for a,b in zip(block,block[1:])):raise ValueError('Reordered following scene boundaries')
+        terminal=data.get('terminalWait') is True and update==n-1
+        if [p['name'] for p in block]!=(TERMINAL_ORDER if terminal else ORDER) or any(b['cycles']<=a['cycles'] for a,b in zip(block,block[1:])):raise ValueError('Reordered following scene boundaries')
+        if data.get('terminalWait') is True:
+            for i,p in enumerate(block):
+                value=p.get('result')
+                # Terminal actor completion must own the newly set bit.
+                if type(value) is not int or not 0<=value<=255 or (not value&1 if terminal and i>=2 else value!=0):
+                    raise ValueError('Unowned terminal result publication')
+            if terminal and any(p['result']!=block[2]['result'] for p in block[2:]):raise ValueError('Terminal result changed after actor completion')
         if update and dict(block[0],name='end')!=points[10*update-1]:raise ValueError('Detached following scene update')
         if block[1]['cycles']-block[0]['cycles']!=96:raise ValueError('Unknown following saved-player work')
         local=[]
@@ -51,11 +64,11 @@ def analyze(data):
             owner=scene_owner(block,r);nonwait+=owner==1;counts[r['kind']]+=1
             if r['kind']=='stat' and r['end']-r['start']!=288:raise ValueError('Unknown scene STAT work')
             local.append(r)
-        if not local or local[-1]['kind']!='vblank' or local[-1]['returnAddress']!=0x261d or local[-1]['ready']!=1:
+        if not local or local[-1]['kind']!='vblank' or local[-1]['returnAddress']!=0x261d or local[-1]['ready']!=int(not terminal):
             raise ValueError('Following scene lacks its completed final counter wait')
         result_interrupts=sum(20+r['end']-r['start']+16 for r in local if block[7]['cycles']<r['start']<block[8]['cycles'])
-        if block[8]['cycles']-block[7]['cycles']!=32+result_interrupts:raise ValueError('Unknown following result-test work')
-        if block[-1]['cycles']!=local[-1]['end']+120:raise ValueError('Unknown following scene input gate')
+        if block[8]['cycles']-block[7]['cycles']!=(28 if terminal else 32)+result_interrupts:raise ValueError('Unknown following result-test work')
+        if block[-1]['cycles']!=local[-1]['end']+(72 if terminal else 120):raise ValueError('Unknown following scene input gate')
         prior_input=block[0]['held'];tick=block[0]['tick'];lcd=block[0]['lcdc'];pending=block[2]['effect'];taken=0
         for i,p in enumerate(block):
             while taken<len(local) and local[taken]['end']<p['cycles']:
