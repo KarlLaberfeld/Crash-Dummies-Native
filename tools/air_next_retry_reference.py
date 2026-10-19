@@ -12,7 +12,7 @@ from air_reference import write_json
 from reference_backend import require_capture_reference
 
 
-def extension(parent,child,parent_events,child_events):
+def preserved_prefix(parent,child,parent_events,child_events,tail):
     if parent.get('controlDifferences')!=[] or child.get('controlDifferences')!=[]:
         raise ValueError('Changed original control')
     for key in ('romSha256','emulator','version','model','sourceRevision','referenceObserver'):
@@ -22,8 +22,11 @@ def extension(parent,child,parent_events,child_events):
         values=child.get(key,[])
         if len(values)<2 or any(v!=digest for v in values):raise ValueError('Missing repeated unhooked controls')
     if not parent_events or child_events[:len(parent_events)]!=parent_events:raise ValueError('Changed parent input history')
-    if child_events[len(parent_events):]!=[['press','start'],['tick',1,True],['release','start'],['tick',300,True]]:
-        raise ValueError('Unowned second-retry input extension')
+    if child_events[len(parent_events):]!=tail:raise ValueError('Unowned input extension')
+
+
+def extension(parent,child,parent_events,child_events):
+    preserved_prefix(parent,child,parent_events,child_events,[['press','start'],['tick',1,True],['release','start'],['tick',300,True]])
 
 
 def attachments(parent_text,parent_handoff,records):

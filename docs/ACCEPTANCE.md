@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 third-attempt continuation: both easy Air histories match 1,000
+updates each, including inherited 54/33 timer phases, 25 second rollovers and
+41 completed resource requests. Totals (including the prior first updates):
+20,000 boundaries / 320,000 actor slots / 2,000 displays / 4,000 vectors /
+80,000 published object slots, zero differences. Repeated extended/prefix RAM
+hashes, accepted first-update evidence and complete native prefix outputs agree.
+All vectors are wait-owned; no interrupted-body acceptance is added. O2
+diagnostic, attached comparisons, prior first-entry comparisons, 667 Python
+tests and CLI bounds/ownership guards pass. See [scope](AIR_THIRD_GAMEPLAY.md).
+Remaining third-attempt terminal/result and other paths, production scheduling,
+full pixels/PCM and human/device/independent-Windows/distribution gates stay
+open. Production EXE/alpha unchanged; point 1/final acceptance are incomplete.
+
 October 19 second-retry entry follow-up: both easy Air histories match the next
 Start prompt/exit, masked setup, LCD restart and third-attempt first update.
 New scope: 5,090 boundaries / 2,488 displays / 4,976 vectors / 3,694 polls /

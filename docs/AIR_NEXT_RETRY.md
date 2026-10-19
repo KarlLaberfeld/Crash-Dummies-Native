@@ -99,6 +99,10 @@ gameplay/IRQ/result control pass. Core gameplay rules are unchanged; the earlier
 
 ## Remaining acceptance
 
+Third-attempt timer/resource continuation is now qualified through 1,000 updates
+per history in the [next checkpoint](AIR_THIRD_GAMEPLAY.md). The paragraph below
+records this entry milestone's original remaining boundary.
+
 The next bounded continuation is third-attempt gameplay beyond the first update,
 especially timer rollover and interrupted work with its inherited 54/33 phase.
 Following Ski, changed-player/shared-animation, genuine final-life/reset, earlier

@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Third Air attempt: timer and resource continuation - October 19, 2026
+
+Both easy Air histories now match through 1,000 third-attempt updates each:
+20,000 boundaries, 320,000 actor slots, 2,000 displays / 4,000 vectors and
+80,000 published object slots, zero differences. These totals include the
+previously accepted first updates. The inherited partial-second phases 54/33
+remain through intro/rise, then produce 13/12 second rollovers and final times
+27:12 / 28:51 (seconds:partial-second ticks). All 41 resource requests complete;
+154 upload displays and 29 map deferrals match. See [scope](AIR_THIRD_GAMEPLAY.md).
+
+The longer controls only append 1,800 held-A/Left, released-Start frames to each
+accepted child. Two unhooked replays retain its full prefix hash and agree at
+the extended endpoint. Original first-update observations and 136/140 native
+prefix CSVs remain unchanged. All vectors in this interval are wait-owned;
+interrupted-body coverage is not claimed. Existing semantic owners are reused.
+
+Checks: O2 diagnostic, both attached original comparisons, previous first-entry
+comparisons, 667 Python tests and CLI extent/ownership guards. Native semantic
+owners/production code are unchanged; prior native assertion results remain
+applicable and were not repeated. Original assets/recordings remain local;
+production EXE and alpha are unchanged.
+
+Next concrete owner: the third attempt's remaining gameplay, terminal update
+and result, qualifying new interrupted work only when observed. Other stunt/
+player/shared-animation/final-life/reset/UI paths, production scheduling, full
+images/PCM and human/device/independent-Windows/distribution gates remain open.
+Point 1 and final acceptance are incomplete. The continuation automation was
+observed ACTIVE for this heartbeat; the older PAUSED notes below are historical.
+
 ## Second Air retry entry and first update - October 19, 2026
 
 Both easy Air histories now match from the next instruction's Start prompt

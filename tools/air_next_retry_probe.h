@@ -8,7 +8,8 @@ namespace ticd {
 // returned state. Original observations never enter this execution path.
 inline void airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1){
+    if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
     AirNextInstructionCsv exit(base+".next-exit","boundary,cycle,tick,countdown,scroll,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     auto exited=airInstructionExit(text,sound,ui,
         [&](const char* name,int64_t cycle,int tick,int countdown,int scroll,int bgp,int obp0,int obp1,bool enabled,const DisplayInput& input){exit.points<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<scroll<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<','<<input.held<<','<<input.pressed<<'\n';},
@@ -34,13 +35,17 @@ inline void airProbeNextRetry(const std::string& base,AirInstructionTextState te
     entry.summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining,entryPauseComplete\n"<<e.end<<','<<e.tick<<','<<e.countdown<<','<<e.displays<<','<<e.stats<<','<<e.lcdEpoch<<','<<e.nextStat<<','<<e.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<','<<entered.entryPauseComplete<<'\n';
     auto game=std::make_unique<AirGame>(assets,shared);airFollowingAirHandoff(*game,preceding,entered);
     AirNextInstructionCsv play(base+".next-gameplay","boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result");
-    std::ofstream actors(base+".next-gameplay.entities.csv");if(!actors)throw std::runtime_error("Cannot open next retry actors");
+    std::ofstream actors(base+".next-gameplay.entities.csv"),sprites(base+".next-gameplay.sprites.csv");if(!actors||!sprites)throw std::runtime_error("Cannot open next retry actors/sprites");
+    sprites<<"service,slot,present,x,y,flags\n";
     actors<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)actors<<",param"<<i;actors<<'\n';
-    auto updated=airFollowingAirFirstUpdate(entered,*game,sound,
+    if(game->entities[0].handler!=AirHandler::Intro)throw std::runtime_error("Second retry requires native intro entry");
+    auto updated=entered;
+    for(int update=0;update<updates;++update)updated=airFollowingAirQuietUpdate(updated,*game,sound,
         [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
             play.points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<','<<g.result<<'\n';
             for(int i=0;i<16;++i){const auto& a=g.entities[i];actors<<name<<','<<i<<','<<a.alive<<','<<(a.alive?a.frame:255)<<','<<((a.flags&~2)|(a.offscreen?2:0))<<','<<int(a.handler)<<','<<a.x<<','<<a.y<<','<<a.animDone<<','<<a.frameWaiting<<','<<a.delay<<','<<a.period;for(int value:a.params)actors<<','<<value;actors<<'\n';}},
-        [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);},
+        [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);
+            for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];sprites<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},
         [&](auto... args){play.irq(args...);},sample);
     play.finish(updated.instruction.map.campaign,stage,difficulty,updated.instruction.map.scroll);
 }
