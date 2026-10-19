@@ -103,12 +103,14 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: continue fourth-attempt gameplay, remaining interrupted
+Next fidelity work: resolve the paused-history fourth-attempt timing discrepancy,
+continue gameplay, remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_FOURTH_ENTRY.md) qualifies
-two Air histories through the third failure, two-life instruction and fourth-attempt
-entry/first update in the diagnostic; it is not yet integrated
+The [latest timing comparison](docs/AIR_FOURTH_GAMEPLAY.md) qualifies
+1,000 fourth-attempt updates in the ordinary Air history. The earlier-paused
+history retains its accepted entry/first update but has a 32-cycle discrepancy
+in update 263; its longer replay is not accepted. Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.

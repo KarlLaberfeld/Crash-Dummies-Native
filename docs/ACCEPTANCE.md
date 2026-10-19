@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 fourth-gameplay follow-up: ordinary history matches 1,000 fourth
+updates (including first): 10,000 boundaries / 160,000 actor slots / 1,000 displays /
+2,000 vectors / 40,000 published object slots, zero differences within scope;
+12 timer rollovers and 20 completed resource requests. The earlier-paused
+1,000-update history FAILS: seven intermediate boundary timestamps are 32 cycles
+late in update 263, Wait-to-Play transition. Its first-update acceptance is
+unchanged; the later history must not be certified. O2 diagnostic, 743 Python
+tests, strict ordinary/prefix checks and CLI guards pass. See
+[scope](AIR_FOURTH_GAMEPLAY.md). Resolve that source cost before further timing
+acceptance. Vacant flags, later gameplay, remaining campaigns/source work,
+production scheduling, full images/PCM and final Windows/device/distribution
+gates remain open. Production EXE/alpha unchanged; final acceptance incomplete.
+
 October 19 fourth-entry follow-up: both existing easy Air histories match the
 two-life fresh-Start prompt/exit, masked setup, fourth-attempt entry and first
 update. New scope: 886 boundaries / 386 displays / 772 vectors / 3,694 polls /

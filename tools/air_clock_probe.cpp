@@ -56,7 +56,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay | --following-entry-pause]\n");return 2;}
     try{
-        int nextInstructionExtent=0,nextUpdates=1,thirdInstructionExtent=0;bool nextRetry=false,nextTerminal=false,nextResult=false,fourthEntry=false;
+        int nextInstructionExtent=0,nextUpdates=1,thirdInstructionExtent=0,fourthUpdates=1;bool nextRetry=false,nextTerminal=false,nextResult=false,fourthEntry=false;
         bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false,followingResult=false,followingResultHold=false;
         int difficulty=1,positional=0,celebrationServices=0,followingUpdates=1;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
@@ -89,6 +89,7 @@ int main(int argc,char** argv){
             else if(option=="--next-terminal")nextTerminal=true;
             else if(option=="--next-result")nextResult=nextTerminal=true;
             else if(option=="--fourth-entry"){fourthEntry=true;thirdInstructionExtent=5;nextResult=nextTerminal=true;}
+            else if(option=="--fourth-updates"&&i+1<argc){fourthUpdates=std::stoi(argv[++i]);if(fourthUpdates<1||fourthUpdates>100000)throw std::runtime_error("Invalid fourth Air update extent");}
             else if(option=="--third-instruction"&&i+1<argc){thirdInstructionExtent=std::stoi(argv[++i]);if(thirdInstructionExtent<1||thirdInstructionExtent>5)throw std::runtime_error("Invalid third-result instruction extent");nextResult=nextTerminal=true;}
             else if(option=="--following-entry-pause"){followingEntryPause=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
@@ -114,6 +115,7 @@ int main(int argc,char** argv){
         if(followingUpdates!=1&&!followingGameplay)throw std::runtime_error("Following update extent requires gameplay ownership");
         if(followingTerminal&&!followingGameplay)throw std::runtime_error("Following terminal wait requires gameplay ownership");
         if(nextUpdates!=1&&!nextRetry)throw std::runtime_error("Second-retry extent requires --next-retry");
+        if(fourthUpdates!=1&&!fourthEntry)throw std::runtime_error("Fourth gameplay extent requires --fourth-entry");
         if(nextTerminal&&!nextRetry)throw std::runtime_error("Second-retry terminal requires --next-retry");
         if(nextRetry&&nextInstructionExtent!=5)throw std::runtime_error("Second retry requires complete next instruction");
         if(!mapPath.empty()&&!outroFade)throw std::runtime_error("Complete map comparison requires the outgoing result boundary");
@@ -715,7 +717,7 @@ int main(int argc,char** argv){
                                                                 if(followingResultHold)incoming=airResultFailureHold(incoming,next->result,incoming.input.held,sound,*ui,incomingPoint,incomingService,incomingIrq,nextResultInput);
                                                                 incomingSummary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<','<<incoming.nextStat<<','<<incoming.nextVBlank<<','<<player<<','<<incoming.lives<<'\n';
                                                                 if(nextInstructionExtent){auto typed=airProbeNextInstruction(argv[2],campaign,incoming,next->result,restarted.stage,restarted.difficulty,restarted.instruction.map.scroll,sound,*ui,nextInstructionExtent,nextResultInput);
-                                                                    if(nextRetry)airProbeNextRetry(argv[2],typed,*next,*assets,*shared,restarted.stage,restarted.difficulty,sound,*ui,nextResultInput,nextUpdates,nextTerminal,nextResult,thirdInstructionExtent,fourthEntry);}
+                                                                    if(nextRetry)airProbeNextRetry(argv[2],typed,*next,*assets,*shared,restarted.stage,restarted.difficulty,sound,*ui,nextResultInput,nextUpdates,nextTerminal,nextResult,thirdInstructionExtent,fourthEntry,fourthUpdates);}
                                                             }
                                                         }
                                                     }

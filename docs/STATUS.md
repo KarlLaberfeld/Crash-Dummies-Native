@@ -1,5 +1,38 @@
 # Crash Dummies Native - project status
 
+## Fourth Air continuation: ordinary accepted, paused discrepancy - October 19, 2026
+
+Ordinary fourth-attempt gameplay now matches 1,000 updates: 10,000 boundaries /
+160,000 actor slots / 1,000 displays / 2,000 vectors / 40,000 published object
+slots, zero differences within scope. This includes its accepted first update.
+Inherited phase 14 advances 738 times with 12 second rollovers; 20 resource
+requests / 75 uploads / 20 completions match. All 220 earlier/first-update native
+CSV scopes retain their accepted complete bytes or explicit first-update prefix.
+See [scope and reproduction](AIR_FOURTH_GAMEPLAY.md).
+
+The earlier-paused history is NOT accepted through 1,000 updates. Its strict
+comparison reports seven boundary-time differences in zero-based update 262
+(263rd update), indices 2622..2628: native is 32 cycles late from entitiesDone
+through backEdge, then the existing counter wait restores alignment. Source
+player handler changes Wait 5fc9 to Play 5fd6, with countdown parameter 1 to 0.
+No actor/scalar/service/vector mismatch is reported by the resource comparator;
+the separate object comparison has not run because timing acceptance rejects.
+Do not add a fitted 32-cycle allowance or label this longer history exact.
+
+Both controls append 1,800 unchanged input frames after accepted fourth entry;
+two unhooked parent/final hashes agree per case and each instrumented capture
+matches its child digest. O2 native diagnostic, accepted ordinary comparison,
+743 Python tests and CLI extent/ownership guards pass. No semantic source
+owner or production scheduler changed; prior handoff/core assertions were not
+repeated. Production EXE/alpha unchanged; automation remains ACTIVE.
+
+Next concrete owner: identify the source instruction/branch responsible for the
+paused Wait-to-Play 32-cycle cost difference, correct the semantic work owner,
+then rerun both attached continuations. Vacant done-flag mismatch, later game/
+result/final-life, other campaigns, unobserved work, production scheduling,
+images/PCM and human/device/independent-Windows/distribution remain open.
+Timing point 1 and final acceptance remain incomplete. ROM/data/recordings stay local.
+
 ## Two-life fresh Start and fourth Air entry - October 19, 2026
 
 Both existing easy Air histories now match the next fresh-Start prompt/exit,
