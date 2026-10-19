@@ -1,5 +1,9 @@
 # Restarted Air terminal update and outgoing fade
 
+Follow-up: [restarted result setup, incoming fade and full failure hold](AIR_FOLLOWING_RESULT.md)
+now attach to both outgoing endpoints. The counts below retain this earlier
+terminal/outgoing checkpoint's scope.
+
 October 19, 2026: both existing easy Air retry histories now match through the
 terminal game update, final busy display wait, audio stop and complete outgoing
 fade. The diagnostic stops before 0409's result setup. This extends the same
@@ -113,8 +117,9 @@ use `local/air-following-terminal*`; regression logs use `local/air-terminal-*`.
 
 ## Remaining timing work
 
-Attach result setup, incoming transition, accounting and the following stage/
-retry to this current restarted LCD epoch. Then qualify following Ski and
+Result setup, incoming transition and full failure hold are now qualified in
+AIR_FOLLOWING_RESULT.md for these two failure controls. Attach the following
+campaign/instruction handoff using the remaining three lives. Then qualify following Ski and
 changed-player/shared-animation paths, genuine final-life/reset, earlier UI/LCD
 entry and unobserved work. Production scheduler integration and the remaining
 image/audio, human/device/independent-Windows and distribution gates in

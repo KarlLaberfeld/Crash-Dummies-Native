@@ -43,7 +43,7 @@ inline constexpr int airResultMusicStartWork(){
 }
 struct AirResultTransition {
     int64_t end=0,lcdEpoch=0,nextStat=0,nextVBlank=0;
-    int tick=0,countdown=600,displays=0,stats=0,skip=0;
+    int tick=0,countdown=600,displays=0,stats=0,skip=0,lives=0;
     DisplayInput input;
     bool perfect=false;
     AirCelebration celebration;
@@ -74,7 +74,7 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
             if(e.x<16||e.x>143||e.y!=143||e.velocity!=251||e.radius||e.delay!=i*16)
                 throw std::runtime_error("Incomplete native perfect-result initialization");}
     }
-    AirResultTransition state;state.tick=tick;state.input.held=state.input.previous=held;int64_t now=prefix.end;
+    AirResultTransition state;state.tick=tick;state.lives=lives;state.input.held=state.input.previous=held;int64_t now=prefix.end;
     state.perfect=perfect;state.celebration=prefix.celebration;state.countdown=perfect?720:600;
     const bool success=result&2;int bgp=ui.fadePalettes[7],obp0=bgp&0xcf,obp1=bgp&0xf3;
     auto point=[&](const char* name,int64_t cycle){boundary(name,cycle,state.tick,state.countdown,bgp,obp0,obp1,sound.enabled);};
@@ -120,7 +120,8 @@ AirResultTransition airResultIncoming(const AirResultPrefix& prefix,int result,i
     if(!success){
         // Current-player pointer, decrement of a non-final life and branch.
         // Life exhaustion is a separate result/ending transition.
-        clock.atomicWork(16,[]{},display,false);for(int cost:{4,4,4,8,4,8,16,8,4,8,12})clock.atomicWork(cost,[]{},display,false);
+        clock.atomicWork(16,[]{},display,false);for(int cost:{4,4,4,8,4,8,16,8,4})clock.atomicWork(cost,[]{},display,false);
+        clock.atomicWork(8,[&]{--state.lives;},display,false);clock.atomicWork(12,[]{},display,false);
         point("failureWait",clock.now);clock.wait(display,false);point("failureWaitReturned",clock.now);
         clock.atomicWork(8,[]{},display,false);point("musicEntry",clock.now);
         // At the captured source phase the entire reset precedes the next

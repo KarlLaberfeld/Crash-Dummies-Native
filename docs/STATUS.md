@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Restarted Air result setup, incoming fade and complete hold - October 19, 2026
+
+Both existing easy Air retries now match through result setup, LCD restart,
+incoming fade, the full 480-display failure hold and music stop/return at 0514.
+The result comparison adds 22 prefix boundaries, 4,243 line-145 equality polls,
+2,096 result boundaries, 1,028 displays and 2,056 complete vectors, zero
+differences. These controls extend the same two histories; gameplay/outgoing
+coverage overlaps the preceding checkpoint and still matches in full.
+See [result scope and reproduction](AIR_FOLLOWING_RESULT.md).
+
+Common result setup now polls relative to the current native LCD epoch; its
+absolute clock remains continuous. Incoming result work retains the selected
+campaign player's four lives, consumes one at the identified store and preserves
+three through the hold. The result display starts its own LCD deadlines and
+counter/input/audio state without borrowing the initial game's timeline.
+Only final held-input duration was extended, from 2,242 to 2,900 frames. Two
+uninstrumented replays agree per control; all instrumented captures match them.
+
+Checks: O2 diagnostic, 52,871 result, 863 handoff/exit and 4,200 source-work
+assertions; 584 Python tests. Both prior resource controls, all four startup/
+exit comparisons and the earlier successful result/gameplay/IRQ control pass.
+No original assets/recordings or new release binaries are published.
+
+Next concrete owner: the post-retry failure return's player selection/background
+clear and next instruction handoff, using the inherited three-life campaign.
+Following Ski, changed-player/shared-animation, final-life/reset, earlier UI/LCD,
+unobserved work, production Windows scheduling, full pixels/PCM and human/device/
+independent-Windows/final distribution gates remain open. The production EXE
+and alpha are unchanged; point 1/final acceptance are incomplete. The
+continuation automation remains PAUSED unless explicitly resumed.
+
 ## Restarted Air terminal update and outgoing fade - October 19, 2026
 
 Both easy Air retry histories now match through their terminal update, final

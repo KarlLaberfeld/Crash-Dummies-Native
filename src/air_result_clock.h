@@ -21,8 +21,8 @@ inline int airResultScanline(int64_t sampleTime){
     return dot<=2&&line?line-1:line;
 }
 template<class Boundary,class Poll>
-AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Boundary&& boundary,Poll&& poll,int randomState=-1){
-    if(gameClock.servicesHeld||gameClock.now<AirClock::Frame||!(result&1)||
+AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Boundary&& boundary,Poll&& poll,int randomState=-1,int64_t lcdEpoch=0){
+    if(gameClock.servicesHeld||lcdEpoch<0||gameClock.now-lcdEpoch<AirClock::Frame||!(result&1)||
        ((result&4)&&(result!=7||randomState<0||randomState>65535)))
         throw std::runtime_error("Unowned Air result/celebration prefix");
     AirResultPrefix prefix;int64_t now=gameClock.now;
@@ -32,7 +32,9 @@ AirResultPrefix airResultSetupPrefix(const AirClock& gameClock,int result,Bounda
     now+=4+100;
     for(;;){
         if(prefix.pollReads>=2200)throw std::runtime_error("Air LCD-off equality wait did not terminate");
-        int line=airResultScanline(now+8);now+=12;++prefix.pollReads;poll(now,line);
+        // Absolute completion times continue across result/instruction/retry
+        // cycles; scanline reads belong to the most recent native LCD start.
+        int line=airResultScanline(now+8-lcdEpoch);now+=12;++prefix.pollReads;poll(now,line);
         now+=8;if(line==145){now+=8;break;}now+=12;
     }
     // LCD read/mask/write complete before IE restoration and the return.

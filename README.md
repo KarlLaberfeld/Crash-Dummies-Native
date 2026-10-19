@@ -103,11 +103,11 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: attach restarted Air result setup, remaining interrupted
+Next fidelity work: complete post-result handoffs, remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_FOLLOWING_TERMINAL.md) qualifies
-two restarted Air runs through the final display wait and outgoing fade in the diagnostic; it is not yet integrated
+The [latest timing comparison](docs/AIR_FOLLOWING_RESULT.md) qualifies
+two restarted Air runs through their complete failure result screens in the diagnostic; it is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and
 campaign resume; these are not promised features of this alpha.

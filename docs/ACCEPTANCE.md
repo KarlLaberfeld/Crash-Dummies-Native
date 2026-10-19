@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 restarted-result follow-up: both easy Air retry histories now match
+common result setup, incoming fade and the complete 480-display failure hold,
+including music stop/return at 0514. Added comparisons: 22 prefix boundaries,
+4,243 LCD line polls, 2,096 result boundaries, 1,028 displays / 2,056 vectors,
+zero differences. Native LCD polling uses the restarted epoch and campaign
+lives carry from four to three. New controls only extend the held-input tail;
+gameplay/outgoing coverage overlaps and is rechecked against the same controls.
+Checks: O2 diagnostic, 52,871 result / 863 handoff / 4,200 source-work assertions,
+584 Python tests, prior resource/startup/exit and successful-result controls.
+See [scope](AIR_FOLLOWING_RESULT.md). Subsequent campaign/instruction handoff,
+other stunt/player/reset/UI paths, unobserved work, production scheduling,
+complete pixels/PCM, human/device/independent Windows and distribution gates
+remain open. Point 1 and final acceptance are incomplete; alpha EXE unchanged.
+
 October 19 terminal/exit continuation: ordinary 1,788 and entry-pause 1,767 Air
 retry updates match through the final busy wait. Combined: 35,550 gameplay
 boundaries / 568,800 actor slots / 3,564 displays / 7,128 vectors. The attached

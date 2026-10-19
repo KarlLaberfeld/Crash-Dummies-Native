@@ -18,6 +18,24 @@ int main(){
             AirClock clock;clock.now=10*AirClock::Frame+100;
             clock.nextStat=10*AirClock::Frame+AirClock::StatLine;clock.nextVBlank=10*AirClock::Frame+AirClock::VBlankLine;
             auto ordinary=airResultSetupPrefix(clock,3,[](const char*,int64_t){},[](int64_t,int){});
+            bool originDifference=false;
+            for(int64_t epoch:{int64_t(4),int64_t(128),int64_t(123456),int64_t(AirClock::Frame-4),int64_t(AirClock::Frame+260)}){
+                AirClock shifted=clock;shifted.now+=epoch;shifted.nextStat+=epoch;shifted.nextVBlank+=epoch;
+                std::vector<int> baselineLines,shiftedLines;std::vector<int64_t> baselineTimes,shiftedTimes;
+                auto baseline=airResultSetupPrefix(clock,33,[&](const char*,int64_t cycle){baselineTimes.push_back(cycle);},[&](int64_t,int line){baselineLines.push_back(line);},27136);
+                auto restarted=airResultSetupPrefix(shifted,33,[&](const char*,int64_t cycle){shiftedTimes.push_back(cycle);},[&](int64_t,int line){shiftedLines.push_back(line);},27136,epoch);
+                require(restarted.end==baseline.end+epoch&&restarted.lcdDisabled==baseline.lcdDisabled+epoch,"Restarted result setup uses the inherited LCD epoch rather than process time modulo a frame");
+                require(shiftedLines==baselineLines&&restarted.pollReads==baseline.pollReads,"Every line-145 equality poll keeps its relative LCD phase");
+                bool boundaries=shiftedTimes.size()==baselineTimes.size();for(size_t i=0;i<baselineTimes.size();++i)boundaries&=shiftedTimes[i]==baselineTimes[i]+epoch;
+                require(boundaries&&restarted.pendingRequests==baseline.pendingRequests,"Masked result work and pending requests translate without adding display services");
+                auto wrong=airResultSetupPrefix(shifted,33,[](const char*,int64_t){},[](int64_t,int){},27136);
+                originDifference|=wrong.lcdDisabled!=restarted.lcdDisabled;
+            }
+            require(originDifference,"The phase controls distinguish restarted result polling from the initial LCD origin");
+            for(int64_t epoch:{int64_t(-4),clock.now,clock.now+4}){
+                bool rejected=false;try{airResultSetupPrefix(clock,33,[](const char*,int64_t){},[](int64_t,int){},27136,epoch);}catch(const std::runtime_error&){rejected=true;}
+                require(rejected,"Result setup rejects a negative/future or incomplete LCD epoch");
+            }
             for(int seed:{0,65535,65280,255,2056}){
                 std::vector<std::string> names;std::vector<int64_t> cycles;
                 auto perfect=airResultSetupPrefix(clock,7,[&](const char* name,int64_t cycle){names.push_back(name);cycles.push_back(cycle);},[](int64_t,int){},seed);
@@ -65,6 +83,14 @@ int main(){
             require(positive!=0&&negative==((-positive)&255),"Signed wave quadrants retain byte-wrapped symmetry for a nonzero displacement");
         }
         AirResultLayoutAssets layouts;NativeAudio sound(audio);sound.measureWork=true;
+        {
+            AirResultPrefix p;p.end=800000;p.lcdDisabled=72000;p.pendingRequests=3;
+            auto failure=airResultIncoming(p,33,6677,4,33,sound,layouts,*ui,[](auto...){},[](auto...){},[](auto...){},[]{return 33;});
+            require(failure.lives==3,"A restarted failure consumes one of the inherited four lives, rather than reinitializing five");
+            auto held=airResultFailureHold(failure,33,33,sound,*ui,[](auto...){},[](auto...){},[](auto...){},[]{return 33;});
+            require(held.lives==3&&held.displays==514&&held.countdown==86,"The full failure hold preserves the consumed life across all 480 additional displays");
+            sound.stop();
+        }
         for(int variant=0;variant<4;++variant){
             const char* path="local/air-result-profile-fixture.dat";
             {std::ofstream file(path,std::ios::binary);file.write(variant%2?"TICDRT02":"TICDRT01",8);

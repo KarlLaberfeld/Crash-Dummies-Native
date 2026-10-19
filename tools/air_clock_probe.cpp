@@ -54,7 +54,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay | --following-entry-pause]\n");return 2;}
     try{
-        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false;
+        bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false,followingResult=false,followingResultHold=false;
         int difficulty=1,positional=0,celebrationServices=0,followingUpdates=1;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
@@ -78,6 +78,8 @@ int main(int argc,char** argv){
             else if(option=="--following-updates"&&i+1<argc){followingUpdates=std::stoi(argv[++i]);if(followingUpdates<1||followingUpdates>100000)throw std::runtime_error("Invalid following Air update extent");}
             else if(option=="--following-terminal"){followingTerminal=true;}
             else if(option=="--following-outro"){followingOutro=followingTerminal=true;}
+            else if(option=="--following-result"){followingResult=followingOutro=followingTerminal=true;}
+            else if(option=="--following-result-hold"){followingResultHold=followingResult=followingOutro=followingTerminal=true;}
             else if(option=="--following-entry-pause"){followingEntryPause=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
@@ -677,6 +679,29 @@ int main(int argc,char** argv){
                                                                 [&](const char* kind,int64_t cycle,AirIrqOwner owner){outIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';},nextResultInput);
                                                             const auto& end=restarted.instruction.map.campaign.timing;
                                                             outSummary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank\n"<<end.end<<','<<end.tick<<','<<end.countdown<<','<<end.displays<<','<<end.stats<<','<<end.lcdEpoch<<','<<end.nextStat<<','<<end.nextVBlank<<'\n';
+                                                            if(followingResult){
+                                                                auto& campaign=restarted.instruction.map.campaign;
+                                                                int player=campaign.player,lives=campaign.lives[player];
+                                                                if((next->result&6)||lives<=1||sound.enabled)throw std::runtime_error("Following result requires its non-final failure owner");
+                                                                AirClock resultClock;resultClock.now=end.end;resultClock.nextStat=end.nextStat;resultClock.nextVBlank=end.nextVBlank;
+                                                                std::ofstream points(std::string(argv[2])+".following-result.csv"),polls(std::string(argv[2])+".following-result.polls.csv"),prefixSummary(std::string(argv[2])+".following-result.summary.csv");
+                                                                if(!points||!polls||!prefixSummary)throw std::runtime_error("Cannot open following result-prefix outputs");
+                                                                points<<"boundary,cycle\n";polls<<"cycle,ly\n";
+                                                                auto prefix=airResultSetupPrefix(resultClock,next->result,[&](const char* name,int64_t cycle){points<<name<<','<<cycle<<'\n';},[&](int64_t cycle,int line){polls<<cycle<<','<<line<<'\n';},next->randomState,end.lcdEpoch);
+                                                                prefixSummary<<"end,lcdDisabled,pollReads,pendingRequests,display,stat,countdown,random,tick,player,lives,inputHeld,inputPressed\n"<<prefix.end<<','<<prefix.lcdDisabled<<','<<prefix.pollReads<<','<<prefix.pendingRequests<<','<<prefix.display<<','<<prefix.stat<<','<<prefix.countdown<<','<<prefix.celebration.randomState<<','<<end.tick<<','<<player<<','<<lives<<','<<end.input.held<<','<<end.input.pressed<<'\n';
+                                                                auto layouts=AirResultLayoutAssets::load("build/result-timing.dat");
+                                                                std::ofstream incomingPoints(std::string(argv[2])+".following-incoming.csv"),incomingServices(std::string(argv[2])+".following-incoming.services.csv"),incomingIrqs(std::string(argv[2])+".following-incoming.interrupts.csv"),incomingSummary(std::string(argv[2])+".following-incoming.summary.csv");
+                                                                if(!incomingPoints||!incomingServices||!incomingIrqs||!incomingSummary)throw std::runtime_error("Cannot open following incoming-result outputs");
+                                                                incomingPoints<<"boundary,cycle,tick,countdown,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed\n";
+                                                                incomingServices<<"service,cycle,tick,countdown,display,effects,music,musicEnabled,inputHeld,inputPressed\n";incomingIrqs<<"kind,vectorCycle,owner\n";
+                                                                auto incomingPoint=[&](const char* name,int64_t cycle,int tick,int countdown,int bgp,int obp0,int obp1,bool enabled){incomingPoints<<name<<','<<cycle<<','<<tick<<','<<countdown<<','<<bgp<<','<<obp0<<','<<obp1<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';};
+                                                                auto incomingService=[&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,bool enabled){incomingServices<<index<<','<<cycle<<','<<tick<<','<<countdown<<','<<display<<','<<effects<<','<<music<<','<<enabled<<','<<sampled.held<<','<<sampled.pressed<<'\n';};
+                                                                auto incomingIrq=[&](const char* kind,int64_t cycle,AirIrqOwner owner){incomingIrqs<<kind<<','<<cycle<<','<<int(owner)<<'\n';};
+                                                                auto incoming=airResultIncoming(prefix,next->result,end.tick,lives,end.input.held,sound,layouts,*ui,incomingPoint,incomingService,incomingIrq,nextResultInput);
+                                                                campaign.lives[player]=incoming.lives;
+                                                                if(followingResultHold)incoming=airResultFailureHold(incoming,next->result,incoming.input.held,sound,*ui,incomingPoint,incomingService,incomingIrq,nextResultInput);
+                                                                incomingSummary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<','<<incoming.nextStat<<','<<incoming.nextVBlank<<','<<player<<','<<incoming.lives<<'\n';
+                                                            }
                                                         }
                                                     }
                                                 }

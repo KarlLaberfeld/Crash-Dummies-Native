@@ -29,11 +29,13 @@ def capture(args):
         raise ValueError('Requires a matching independently controlled original')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
+    following=getattr(args,'following',False);armed=not following
     active=False;complete=False;points=[];polls=[];off=None
     def hook(pc):
-        nonlocal active,complete,off
+        nonlocal active,complete,off,armed
         if complete:return
-        if pc==0x0409 and player.memory[0xc098]==4:active=True
+        if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
+        if pc==0x0409 and armed and player.memory[0xc098]==4:active=True
         if not active:return
         point_names=PERFECT_POINTS if player.memory[0xc095]&4 else POINTS
         if pc in point_names:
@@ -41,6 +43,9 @@ def capture(args):
                 countdown=player.memory[0xc0b7]+256*player.memory[0xc0b8],
                 random=player.memory[0xc09e]+256*player.memory[0xc09f],
                 emitters=[list(player.memory[0xc200+i*16:0xc205+i*16]) for i in range(4)])
+            if following:
+                selected=player.memory[0xc082]
+                state.update(player=selected,lives=player.memory[0xc08a+8*selected],tick=player.memory[0xc00a]+256*player.memory[0xc00b],held=player.memory[0xff8a],pressed=player.memory[0xff8b])
             points.append(dict(name=point_names[pc],cycles=player._cycles(),lcd=player.lcd_snapshot(),state=state,
                 interruptFlags=player.memory[0xff0f],interruptEnable=player.memory[0xffff],result=player.memory[0xc095]))
             if pc==0x0462:active=False;complete=True
@@ -48,7 +53,7 @@ def capture(args):
         elif pc==0x25a2:off=dict(cycles=player._cycles(),lcd=player.lcd_snapshot(),interruptFlags=player.memory[0xff0f])
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in (*PERFECT_POINTS,0x2598,0x25a2):player.hook_register(0,pc,hook,pc)
+        for pc in (*PERFECT_POINTS,0x2598,0x25a2,0x268b):player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -57,6 +62,7 @@ def capture(args):
     finally:player.stop(save=False)
     if control!=manifest['controlMemorySha256'] or not complete:raise ValueError('Incomplete result prefix or changed original control')
     data=dict(version=2 if points[0]['result']&4 else 1,romSha256=manifest['romSha256'],controlMemorySha256=control,reference=metadata,points=points,polls=polls,lcdOff=off)
+    if following:data['followingResult']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-prefix.json',data)
     print(json.dumps(dict(points=len(points),pollReads=len(polls),controlDifferences=0),indent=2))
 
@@ -144,7 +150,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)

@@ -31,14 +31,17 @@ def capture(args):
         raise ValueError('Requires a matching independently controlled original')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
+    following=getattr(args,'following',False);armed=not following;buttons=[]
     active=False;complete=False;points=[];interrupts=[];opened=None
     selected={**POINTS,**(HOLD_POINTS if args.failure_hold else {})}
     def word(a):return player.memory[a]+256*player.memory[a+1]
     def hook(pc):
-        nonlocal active,complete,opened
+        nonlocal active,complete,opened,armed
         if complete:return
         now=player._cycles()
-        if pc==0x0462 and player.memory[0xc098] in (2,10):active=True
+        if pc==0x268b and player.memory[0xc098] in (2,10):armed=True
+        if following and pc==0x2436 and (player.memory[0xc098] in (2,10) or armed and player.memory[0xc098] in (1,4,5,6)):buttons.append(player.memory[0xff8a])
+        if pc==0x0462 and armed and player.memory[0xc098] in (2,10):active=True
         if not active:return
         if pc in selected:
             points.append(dict(name=selected[pc],cycles=now,pc=pc,tick=word(0xc00a),
@@ -47,6 +50,9 @@ def capture(args):
                 bgp=player.memory[0xff47],obp0=player.memory[0xff48],obp1=player.memory[0xff49],
                 inputHeld=player.memory[0xff8a],inputPressed=player.memory[0xff8b],
                 interruptFlags=player.memory[0xff0f],lcd=player.lcd_snapshot()))
+            if following:
+                selected_player=player.memory[0xc082]
+                points[-1].update(player=selected_player,lives=player.memory[0xc08a+8*selected_player])
             if selected[pc]==('failureResultReturned' if args.failure_hold else 'fadeReturned'):active=False;complete=True
         elif pc in (0x0040,0x0048):
             if opened is not None:raise ValueError('Nested result interrupt')
@@ -71,7 +77,7 @@ def capture(args):
             opened['end']=now;interrupts.append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as stream:player.load_state(stream)
-        for pc in (*selected,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x151e,0x249b):player.hook_register(0,pc,hook,pc)
+        for pc in (*selected,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x151e,0x249b,0x268b):player.hook_register(0,pc,hook,pc)
         for event in json.loads((args.capture/'events.json').read_text()):
             if event[0]=='tick':player.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(player,'button_'+event[0])(event[1])
@@ -82,8 +88,10 @@ def capture(args):
         raise ValueError('Incomplete result transition or changed original control')
     data=dict(version=3 if points[0]['result']&4 else 2,failureHold=args.failure_hold,romSha256=manifest['romSha256'],controlMemorySha256=control,
         reference=metadata,points=points,interrupts=interrupts)
+    if following:data['followingResult']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-transition.json',data)
-    (args.out/'buttons.txt').write_text(''.join(str(r['held'])+'\n' for r in interrupts if r['kind']=='vblank'))
+    samples=buttons if following else [r['held'] for r in interrupts if r['kind']=='vblank']
+    (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in samples))
     print(json.dumps(dict(points=len(points),interrupts=len(interrupts),controlDifferences=0),indent=2))
 
 
@@ -251,6 +259,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path)
     record.add_argument('--failure-hold',action='store_true')
+    record.add_argument('--following',action='store_true',help='Measure the result after the first Air retry, retaining all preceding raw display inputs')
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
