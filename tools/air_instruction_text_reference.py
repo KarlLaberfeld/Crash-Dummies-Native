@@ -5,6 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work,elapsed_work
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x0a0a:'begin',0x0c7a:'begin',0x032b:'end',0x214f:'textNext',0x2166:'glyphWait',0x2169:'glyphReady',0x217f:'delayExpired',
     0x2186:'skip',0x2219:'scrollBegin',0x2223:'scrollWait',0x2229:'scrollReady',0x222d:'scrollStored',0x2230:'scrollEnd',0x21c0:'textFinish'}
@@ -15,14 +16,16 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     p=Reference(str(args.rom),window='null',sound_volume=0)
+    scope=FollowingAirCaptureScope(getattr(args,'following',False))
     active=False;armed=False;complete=False;points=[];irqs=[];opened=None;polls=[];writes=[];buttons=[];campaign=None
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
         nonlocal active,armed,complete,opened,campaign
         if complete:return
+        scope.observe(pc,p.memory[0xc098],len(buttons))
         if pc==0x268b and p.memory[0xc098] in (2,10):armed=True
-        if pc==0x2436 and (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098]==5):buttons.append(p.memory[0xff8a])
-        if pc in (0x0a0a,0x0c7a) and armed and p.memory[0xc098]==5:
+        if pc==0x2436 and (scope.samples(p.memory[0xc098]) if scope.following else (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098]==5)):buttons.append(p.memory[0xff8a])
+        if pc in (0x0a0a,0x0c7a) and scope.ready and armed and p.memory[0xc098]==5:
             active=True;player=p.memory[0xc082];campaign=dict(player=player,stage=p.memory[0xc088+8*player],difficulty=p.memory[0xc089+8*player])
         if not active:return
         now=p._cycles()
@@ -51,7 +54,7 @@ def capture(args):
         elif pc==0x2128:writes.append(dict(cycles=now,address=256*p.register_file.D+p.register_file.E,value=p.register_file.A))
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x268b):p.hook_register(0,pc,hook,pc)
+        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x268b,0x03d8,0x0462):p.hook_register(0,pc,hook,pc)
         for e in json.loads((args.capture/'events.json').read_text()):
             if e[0]=='tick':p.tick(e[1],e[2])
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
@@ -60,7 +63,8 @@ def capture(args):
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete text or changed control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,campaign=campaign,
-        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),points=points,interrupts=irqs,polls=polls,writes=writes)
+        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset,points=points,interrupts=irqs,polls=polls,writes=writes)
+    if scope.following:data['followingResult']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'text.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),interrupts=len(irqs),polls=len(polls),writes=len(writes),controlDifferences=0),indent=2))
@@ -161,7 +165,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

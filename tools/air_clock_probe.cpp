@@ -21,6 +21,7 @@
 #include "air_following_setup.h"
 #include "air_following_gameplay.h"
 #include "air_following_pause.h"
+#include "air_next_instruction_probe.h"
 #include "air_pause_session.h"
 #include "air_pause_lcd.h"
 #include "air_pixels.h"
@@ -54,6 +55,7 @@ static void celebrationRow(std::ostream& out,unsigned service,int tick,const Air
 int main(int argc,char** argv){
     if(argc<3){fprintf(stderr,"Usage: air-clock-probe inputs.txt services.csv [difficulty [sprites.csv]] [--entities-csv entities.csv] [--map-csv map.csv] [--audio-csv voices.csv] [--interrupts-csv interrupts.csv] [--display-inputs buttons.txt] [--result-inputs result-buttons.txt] [--pause-entry graphics.json | --pause-replay] [--final-wait | --outro-fade | --result-prefix | --perfect-celebration services | --result-incoming | --result-failure-hold | --result-accounting | --result-handoff | --instruction-header | --instruction-picture | --instruction-map | --instruction-text | --instruction-exit | --following-setup-prefix | --following-stage-setup | --following-entry | --following-gameplay | --following-entry-pause]\n");return 2;}
     try{
+        int nextInstructionExtent=0;
         bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false,followingResult=false,followingResultHold=false;
         int difficulty=1,positional=0,celebrationServices=0,followingUpdates=1;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
@@ -80,6 +82,7 @@ int main(int argc,char** argv){
             else if(option=="--following-outro"){followingOutro=followingTerminal=true;}
             else if(option=="--following-result"){followingResult=followingOutro=followingTerminal=true;}
             else if(option=="--following-result-hold"){followingResultHold=followingResult=followingOutro=followingTerminal=true;}
+            else if(option=="--next-instruction"&&i+1<argc){nextInstructionExtent=std::stoi(argv[++i]);if(nextInstructionExtent<1||nextInstructionExtent>5)throw std::runtime_error("Invalid next instruction extent");followingResultHold=followingResult=followingOutro=followingTerminal=true;}
             else if(option=="--following-entry-pause"){followingEntryPause=followingEntry=followingStageSetup=followingSetupPrefix=instructionExit=instructionText=instructionMap=instructionPicture=instructionHeader=resultHandoff=resultIncoming=resultPrefix=outroFade=finalWait=true;}
             else if(option=="--entities-csv"&&i+1<argc)entityPath=argv[++i];
             else if(option=="--map-csv"&&i+1<argc)mapPath=argv[++i];
@@ -701,6 +704,7 @@ int main(int argc,char** argv){
                                                                 campaign.lives[player]=incoming.lives;
                                                                 if(followingResultHold)incoming=airResultFailureHold(incoming,next->result,incoming.input.held,sound,*ui,incomingPoint,incomingService,incomingIrq,nextResultInput);
                                                                 incomingSummary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<','<<incoming.nextStat<<','<<incoming.nextVBlank<<','<<player<<','<<incoming.lives<<'\n';
+                                                                if(nextInstructionExtent)airProbeNextInstruction(argv[2],campaign,incoming,next->result,restarted.stage,restarted.difficulty,restarted.instruction.map.scroll,sound,*ui,nextInstructionExtent,nextResultInput);
                                                             }
                                                         }
                                                     }

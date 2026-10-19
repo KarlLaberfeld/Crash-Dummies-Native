@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Post-retry handoff and complete next instruction - October 19, 2026
+
+Both easy Air retry histories now match from the completed failure result at
+0514 through live-player selection, background clearing, the three-life header,
+music/picture loading, all 64 map selections and complete timed instruction text
+at 032b. Added comparisons: 3,214 boundaries, 1,258 displays / 2,518 vectors,
+25,712 readiness/line polls and 4,572 stores, zero differences. Earlier gameplay,
+outgoing and result coverage is rechecked and overlaps the preceding milestones.
+See [scope and reproduction](AIR_NEXT_INSTRUCTION.md).
+
+Native continuation retains the three-life campaign, result LCD epoch, input
+history and counters. The prior instruction's software scroll (64 in these
+histories) survives until the identified next-map clear; it no longer defaults
+to zero before that store. Following capture tools keep all raw input samples
+but number services from the restarted result's own origin. Only the last held
+interval was extended from 2,900 to 4,200 frames; two uninstrumented replays per
+control agree, and all instrumented captures match the full control hashes.
+
+Checks: O2 diagnostic, 52,878 result, 863 handoff/exit and 4,200 source-work
+assertions; 620 Python tests. Both earlier resource controls, all four startup/
+exit controls and the prior successful gameplay/IRQ/result control pass.
+Original data and recordings remain local; production EXE and alpha unchanged.
+
+Next concrete owner: 032b's Start prompt/exit and the following Air setup/entry,
+using the just completed native text/cursor/scroll and the immediately preceding
+Air game's animation state. The current held-input controls do not press Start
+again. Changed-player/shared-animation, following Ski, final-life/reset, earlier
+UI/LCD, unobserved work, production scheduling and remaining image/audio/human/
+device/independent-Windows/distribution gates remain open. Timing point 1 and
+final acceptance remain incomplete. The continuation automation remains PAUSED.
+
 ## Restarted Air result setup, incoming fade and complete hold - October 19, 2026
 
 Both existing easy Air retries now match through result setup, LCD restart,

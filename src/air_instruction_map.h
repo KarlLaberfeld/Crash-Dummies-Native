@@ -11,9 +11,9 @@ struct AirInstructionMapState {
 // another game update. The eight pattern bytes are local UI assets.
 template<class Boundary,class Service,class Interrupt,class Poll>
 AirInstructionMapState airInstructionMap(AirResultHandoff campaign,NativeAudio& sound,const UiAssets& ui,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,std::function<int()> sampleInput={}){
-    if(campaign.result||!sound.enabled)throw std::runtime_error("Unowned instruction map entry");
-    AirInstructionMapState state;state.campaign=campaign;
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,std::function<int()> sampleInput={},int inheritedScroll=0){
+    if(campaign.result||!sound.enabled||inheritedScroll<0||inheritedScroll>255)throw std::runtime_error("Unowned instruction map entry");
+    AirInstructionMapState state;state.campaign=campaign;state.scroll=inheritedScroll;
     auto& timing=state.campaign.timing;
     state.lyc=static_cast<int>((timing.nextStat-timing.lcdEpoch)%AirClock::Frame)/456;
     if(state.lyc!=120&&state.lyc!=143)throw std::runtime_error("Unowned inherited instruction compare line");

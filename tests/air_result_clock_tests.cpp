@@ -325,6 +325,19 @@ int main(){
                 [&](const char* kind,int64_t,AirIrqOwner owner){require(owner!=AirIrqOwner::Unqualified,"Map vectors have completed source or wait ownership");if(std::string(kind)=="stat"&&frozen>=0&&owner==AirIrqOwner::SourceBoundary)++immediate;},
                 [&](int64_t,int line){require(line>=0&&line<=153,"Map line wait uses native LY values");});
             require(writes==64&&immediate==1&&services>=64&&map.campaign.timing.countdown==frozen,"All pattern writes and the single STAT-write request complete");
+            int observations=0;
+            auto inherited=airInstructionMap(state,sound,*ui,
+                [&](const char* name,int64_t,int,int,const AirInstructionMapState& snapshot,const DisplayInput&){
+                    if(std::string(name)=="begin"||std::string(name)=="lineWait"||std::string(name)=="objectsDisabled"){
+                        require(snapshot.scroll==64,"The previous instruction scroll survives until its identified clear");++observations;
+                    }
+                    if(std::string(name)=="scrollCleared")require(!snapshot.scroll,"The new instruction owns the software scroll clear");
+                },[](auto...){},[](auto...){},[](auto...){},{},64);
+            require(observations==3&&inherited.campaign.timing.end==map.campaign.timing.end&&inherited.campaign.timing.nextVBlank==map.campaign.timing.nextVBlank&&!inherited.scroll,"Inherited software scroll does not alter the source work or continuing LCD deadlines");
+            for(int bad:{-1,256}){
+                bool rejected=false;try{airInstructionMap(state,sound,*ui,[](auto...){},[](auto...){},[](auto...){},[](auto...){},{},bad);}catch(const std::runtime_error&){rejected=true;}
+                require(rejected,"Inherited instruction scroll must be a byte");
+            }
             state.timing.nextStat=2*AirClock::Frame+77*456;
             bool rejected=false;try{airInstructionMap(state,sound,*ui,[](const char*,int64_t,int,int,const AirInstructionMapState&,const DisplayInput&){},
                 [](unsigned,int64_t,int,int,int,int,int,const DisplayInput&){},[](const char*,int64_t,AirIrqOwner){},[](int64_t,int){});}catch(const std::runtime_error&){rejected=true;}

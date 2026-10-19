@@ -5,6 +5,7 @@ from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
 from air_reference import write_json
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work,elapsed_work
+from air_following_scope import FollowingAirCaptureScope
 
 NAMES=['begin','lineWait','objectsDisabled','scrollCleared','callbacksReady','enabled','compareReady','mapJump','mapBegin']
 NAMES+=['stepWait','stepReady','mapWrite','stepComplete']*64+['mapReturn','end']
@@ -15,6 +16,7 @@ def capture(args):
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     p=Reference(str(args.rom),window='null',sound_volume=0)
+    scope=FollowingAirCaptureScope(getattr(args,'following',False))
     active=False;complete=False;points=[];irqs=[];opened=None;polls=[];buttons=[]
     names={0x268b:'begin',0x2691:'lineWait',0x2699:'objectsDisabled',0x269e:'scrollCleared',0x26a3:'callbacksReady',
         0x26a7:'enabled',0x26ab:'compareReady',0x26af:'mapJump',0x16c1:'mapBegin',0x16d2:'stepWait',0x16d5:'stepReady',
@@ -23,8 +25,9 @@ def capture(args):
     def hook(pc):
         nonlocal active,complete,opened
         if complete:return
-        if pc==0x2436 and (p.memory[0xc098] in (2,10) or active and p.memory[0xc098]==5):buttons.append(p.memory[0xff8a])
-        if pc==0x268b and p.memory[0xc098] in (2,10):active=True
+        scope.observe(pc,p.memory[0xc098],len(buttons))
+        if pc==0x2436 and (scope.samples(p.memory[0xc098]) if scope.following else (p.memory[0xc098] in (2,10) or active and p.memory[0xc098]==5)):buttons.append(p.memory[0xff8a])
+        if pc==0x268b and scope.ready and p.memory[0xc098] in (2,10):active=True
         if not active:return
         now=p._cycles();stage=p.memory[0xc088+8*p.memory[0xc082]]
         if pc in names and (pc not in (0x0a0a,0x0c7a) or stage==(1 if pc==0x0a0a else 2)):
@@ -48,7 +51,7 @@ def capture(args):
         elif pc==0x2627:polls.append(dict(cycles=now,ly=p.register_file.A))
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in (*names,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2627):p.hook_register(0,pc,hook,pc)
+        for pc in (*names,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2627,0x03d8,0x0462):p.hook_register(0,pc,hook,pc)
         for e in json.loads((args.capture/'events.json').read_text()):
             if e[0]=='tick':p.tick(e[1],e[2])
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
@@ -57,7 +60,8 @@ def capture(args):
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete map or changed control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
-        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs),points=points,interrupts=irqs,polls=polls)
+        precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset,points=points,interrupts=irqs,polls=polls)
+    if scope.following:data['followingResult']=True
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'transition.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),interrupts=len(irqs),polls=len(polls),mapWrites=64,controlDifferences=0),indent=2))
@@ -69,7 +73,8 @@ def analyze(data):
     if first['display'] not in (2,10) or first['stat']!=(4 if perfect else 0) or first['alternate']!=1 or first['lyc'] not in (120,143):raise ValueError('Unowned map entry')
     if any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Reordered map boundaries')
     for i,p in enumerate(points):
-        if p['scroll'] or p['alternate']!=1 or (p['inputHeld']&15)==15 or p['inputPressed']&~p['inputHeld']:raise ValueError('Unowned map mutation/reset')
+        inherited_scroll=first['scroll'] if data.get('followingResult') is True and i<3 else 0
+        if not 0<=p['scroll']<=255 or p['scroll']!=inherited_scroll or p['alternate']!=1 or (p['inputHeld']&15)==15 or p['inputPressed']&~p['inputHeld']:raise ValueError('Unowned map mutation/reset')
         if p['display']!=(5 if i>=4 else first['display']) or p['stat']!=(5 if i>=5 else first['stat']) or p['lyc']!=(95 if i>=6 else first['lyc']):raise ValueError('Unowned map callback transition')
         if i>=2 and p['lcdc']&2:raise ValueError('Objects remain enabled during map transition')
         if i>=4 and p['countdown']!=points[4]['countdown']:raise ValueError('Instruction countdown changed after callback replacement')
@@ -143,7 +148,7 @@ def compare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True)
     for command in (record,verify):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();(capture if args.mode=='capture' else compare)(args)

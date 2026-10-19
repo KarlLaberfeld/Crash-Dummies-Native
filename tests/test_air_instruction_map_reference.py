@@ -65,5 +65,23 @@ class MapIntegrity(unittest.TestCase):
     def test_reset_chord_rejects(self):
         self.data['points'][4]['inputHeld']=15
         with self.assertRaises(ValueError):self.compare()
+    def inherited_scroll(self):
+        self.data['followingResult']=True
+        for p in self.data['points'][:3]:p['scroll']=64
+        for p in self.values[1][:3]:p['scroll']=64
+    def test_following_map_retains_scroll_until_clear(self):
+        self.inherited_scroll();self.assertEqual(self.compare(),[])
+    def test_inherited_scroll_requires_following_scope(self):
+        self.inherited_scroll();self.data.pop('followingResult')
+        with self.assertRaises(ValueError):self.compare()
+    def test_inherited_scroll_cannot_clear_early(self):
+        self.inherited_scroll();self.data['points'][2]['scroll']=0
+        with self.assertRaises(ValueError):self.compare()
+    def test_inherited_scroll_must_clear_at_store(self):
+        self.inherited_scroll();self.data['points'][3]['scroll']=64
+        with self.assertRaises(ValueError):self.compare()
+    def test_native_inherited_scroll_compared(self):
+        self.inherited_scroll();self.values[1][0]['scroll']=0
+        self.assertEqual(self.compare()[0]['category'],'boundary')
 
 if __name__=='__main__':unittest.main()

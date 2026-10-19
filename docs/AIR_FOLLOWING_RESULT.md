@@ -1,5 +1,9 @@
 # Restarted Air result setup, incoming fade and complete failure hold
 
+Follow-up: [post-retry handoff and next instruction](AIR_NEXT_INSTRUCTION.md)
+now extend both histories through the complete next instruction text. The
+counts below retain this earlier result-screen checkpoint's scope.
+
 October 19, 2026: both existing easy Air retry histories now match from their
 outgoing endpoints through common result setup, incoming fade, the full failure
 hold and music stop/return at 0514. This is diagnostic timing acceptance for
@@ -121,8 +125,9 @@ variant. Native outputs use `local/air-following-result-services.csv*` and
 
 ## Remaining work
 
-Attach the 0514 post-failure return to player selection, background clearing and
-the next instruction using the inherited three-life campaign. Following Ski,
+The 0514 post-failure return, player selection, background clearing and next
+instruction text are now qualified in AIR_NEXT_INSTRUCTION.md. Continue with
+the next Start prompt/exit and Air setup/entry, retaining three lives. Following Ski,
 changed-player/shared-animation paths, final-life/reset, earlier UI/LCD and
 unobserved work remain open. Production Windows scheduler integration, full
 images/PCM, human/device/independent-Windows and final distribution acceptance

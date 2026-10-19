@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 next-instruction follow-up: both easy Air retry histories now match
+0514's post-result handoff through player selection, background clear, three-life
+header, picture/music, 64 map selections and complete instruction text at 032b.
+Combined new scope: 3,214 boundaries / 1,258 displays / 2,518 vectors / 25,712
+polls / 4,572 stores, zero differences. The retained software scroll is 64 until
+the next map's explicit clear. Earlier gameplay/outgoing/result scope overlaps
+and is rechecked with the extended held-input controls. Checks: O2 diagnostic,
+52,878 result / 863 handoff / 4,200 source-work assertions, 620 Python tests,
+prior resource/startup/exit and successful-result comparisons. See
+[scope](AIR_NEXT_INSTRUCTION.md). Next prompt/exit/gameplay entry, other stunt/
+player/reset/UI paths, unobserved work, production scheduling, full pixels/PCM,
+human/device/independent Windows and final distribution gates remain open.
+The production EXE/alpha are unchanged; point 1/final acceptance are incomplete.
+
 October 19 restarted-result follow-up: both easy Air retry histories now match
 common result setup, incoming fade and the complete 480-display failure hold,
 including music stop/return at 0514. Added comparisons: 22 prefix boundaries,

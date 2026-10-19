@@ -10,6 +10,7 @@ from reference_backend import reference_class,require_matching_backend,require_c
 from air_reference import write_json
 from air_timing import IRQ_PHASES,vblank_work,VBLANK_FIXED,vblank_bookkeeping_work,elapsed_work
 from air_loop_timing import stat_cycles
+from air_following_scope import FollowingAirCaptureScope
 
 POINTS={0x0514:'begin',0x0523:'switchEntry',0x02bd:'selectionEntry',0x02c0:'livesTest',
         0x02c5:'backgroundClear',0x02ca:'backgroundCleared',0x02ce:'instructionEntry'}
@@ -20,13 +21,15 @@ def capture(args):
         raise ValueError('Requires an independently matched original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     p=Reference(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
+    scope=FollowingAirCaptureScope(getattr(args,'following',False))
     active=False;complete=False;points=[];irqs=[];opened=None;polls=[];writes=[];buttons=[]
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
         nonlocal active,complete,opened
         if complete:return
-        if pc==0x2436 and p.memory[0xc098] in (2,10):buttons.append(p.memory[0xff8a])
-        if pc==0x0514 and p.memory[0xc098] in (2,10):active=True
+        scope.observe(pc,p.memory[0xc098],len(buttons))
+        if pc==0x2436 and (scope.samples(p.memory[0xc098]) if scope.following else p.memory[0xc098] in (2,10)):buttons.append(p.memory[0xff8a])
+        if pc==0x0514 and scope.ready and p.memory[0xc098] in (2,10):active=True
         if not active:return
         now=p._cycles()
         if pc in POINTS:
@@ -61,7 +64,7 @@ def capture(args):
         elif pc==0x2128:writes.append(dict(cycles=now,address=256*p.register_file.D+p.register_file.E,value=p.register_file.A))
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x151e,0x249b):p.hook_register(0,pc,hook,pc)
+        for pc in (*POINTS,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x151e,0x249b,0x268b,0x03d8,0x0462):p.hook_register(0,pc,hook,pc)
         for e in json.loads((args.capture/'events.json').read_text()):
             if e[0]=='tick':p.tick(e[1],e[2])
             elif e[0] in ('press','release'):getattr(p,'button_'+e[0])(e[1])
@@ -71,6 +74,7 @@ def capture(args):
     if not complete or opened or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete handoff or changed original control')
     data=dict(version=2 if points[0]['result']&4 else 1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,
         points=points,interrupts=irqs,polls=polls,writes=writes)
+    if scope.following:data.update(followingResult=True,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs)-scope.display_offset)
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'handoff.json',data)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),interrupts=len(irqs),polls=len(polls),writes=len(writes),
@@ -209,7 +213,7 @@ def compare(args):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
     verify=sub.add_parser('compare');verify.add_argument('native_csv',type=Path);verify.add_argument('--startup',type=Path,required=True)
     for command in (record,verify):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
