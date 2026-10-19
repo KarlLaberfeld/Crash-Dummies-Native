@@ -11,7 +11,7 @@ from pathlib import Path
 from air_reference import write_json
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import retry_capture_scope
 
 
 def capture(args):
@@ -21,7 +21,7 @@ def capture(args):
         raise ValueError('Requires a matching original control without pause')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     p=Reference(str(args.rom),window='null',sound_volume=0);p.set_emulation_speed(0)
-    active=False;complete=False;service=-1;points=[];armed=False;scope=FollowingAirCaptureScope(following);tile_writes=0;last_tile_writes=0
+    active=False;complete=False;service=-1;points=[];armed=False;scope=retry_capture_scope(args);tile_writes=0;last_tile_writes=0
     def bus(event):
         nonlocal tile_writes
         if active and not complete and event['kind']=='write' and 0x9800<=event['address']<0x9c00:tile_writes+=1
@@ -62,6 +62,7 @@ def capture(args):
     if control!=manifest['controlMemorySha256'] or not complete:raise ValueError('Changed original row control or missing result boundary')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=control,points=points)
     if following:data['nextRetry']=True
+    if scope.retry!=1:data['afterRetry']=scope.retry
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'map.json',data)
     print(json.dumps(dict(boundaries=len(points),services=service+1,controlDifferences=0,nativeCompared=False)))
 
@@ -128,6 +129,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path)
     record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)
     args=parser.parse_args();{'capture':capture,'compare':compare}[args.mode](args)

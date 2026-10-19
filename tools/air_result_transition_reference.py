@@ -15,7 +15,7 @@ from air_timing import vblank_work,vblank_bookkeeping_work,VBLANK_FIXED,elapsed_
 from air_loop_timing import stat_cycles,wait_active_cycles
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import result_capture_scope
 
 POINTS={0x0462:'playerReady',0x0471:'successTextReady',0x0474:'portraitReady',
         0x0477:'musicReady',0x047a:'enable',0x047b:'enableFollower',0x047e:'fadeReturned',
@@ -33,7 +33,7 @@ def capture(args):
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
     next_retry=getattr(args,'next_retry',False);following=getattr(args,'following',False) or next_retry;armed=not following;buttons=[]
-    scope=FollowingAirCaptureScope(following,2 if next_retry else 1)
+    scope=result_capture_scope(args)
     active=False;complete=False;points=[];interrupts=[];opened=None
     selected={**POINTS,**(HOLD_POINTS if args.failure_hold else {})}
     def word(a):return player.memory[a]+256*player.memory[a+1]
@@ -93,6 +93,7 @@ def capture(args):
         reference=metadata,points=points,interrupts=interrupts)
     if following:data['followingResult']=True
     if next_retry:data['nextRetry']=True
+    if getattr(args,'after_retry',1)!=1:data['afterRetry']=args.after_retry
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-transition.json',data)
     samples=buttons if following else [r['held'] for r in interrupts if r['kind']=='vblank']
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in samples))
@@ -265,6 +266,7 @@ if __name__=='__main__':
     record.add_argument('--failure-hold',action='store_true')
     record.add_argument('--following',action='store_true',help='Measure the result after the first Air retry, retaining all preceding raw display inputs')
     record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)

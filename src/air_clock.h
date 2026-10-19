@@ -117,8 +117,13 @@ struct AirClock {
         do{
             now+=4;lastWaitWork+=4;
             int64_t deadline=nextStat<nextVBlank?nextStat:nextVBlank;
+            // A STAT request exactly at the initial HALT completion returns
+            // to HALT itself. It does not execute the counter-read/test tail.
+            // This is a native wait boundary, selected by its own deadline.
+            const bool statAtHaltEntry=nextStat<nextVBlank&&now==deadline;
             if(now<deadline)now=deadline;
-            if(nextStat<nextVBlank){nextStat+=Frame;stat(AirIrqOwner::CounterWait);now+=16+4+12;lastWaitWork+=32;}
+            if(nextStat<nextVBlank){nextStat+=Frame;stat(AirIrqOwner::CounterWait);
+                if(!statAtHaltEntry){now+=16+4+12;lastWaitWork+=32;}}
             else{nextVBlank+=Frame;vblank(display,ready,AirIrqOwner::CounterWait);now+=16+4+8+12+16;lastWaitWork+=56;}
         }while(displays==counter);
     }

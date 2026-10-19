@@ -103,12 +103,13 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: continue fourth-attempt gameplay through its result, remaining interrupted
+Next fidelity work: continue the one-life campaign/instruction handoff, final attempt,
+remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_SIDE_PUSH_INHERITANCE.md) qualifies
-1,000 fourth-attempt updates in both existing Air histories. Retaining the
-previous game's side-push scratch fixes the earlier paused-history discrepancy.
+The [latest timing comparison](docs/AIR_FOURTH_RESULT.md) qualifies
+both existing Air histories through the fourth failure, outgoing fade and full
+result, retaining one life. Earlier side-push inheritance remains verified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

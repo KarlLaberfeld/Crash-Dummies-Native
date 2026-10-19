@@ -18,6 +18,10 @@ def scene_owner(block,irq,row_publication=False):
             if pc==0x2617 and ready==0:return 1
             raise ValueError('Unknown terminal counter-wait completion')
         if pc==0x261d and ready==1:return 2
+        # First HALT at the exact STAT edge: ready LD/store, CALL/PUSH,
+        # counter read, LD B and HALT completion precede the vector entry.
+        # Observed return is to 261c itself, without the 261d test tail.
+        if pc==0x261c and ready==1 and irq['kind']=='stat' and irq['start']==block[8]['cycles']+8+12+24+16+16+4+4+20:return 2
         if (pc==0x03c9 and ready==0) or (pc in (0x03cb,0x2617) and ready==1):return 1
         raise ValueError('Unknown following wait-prefix completion')
     if phase==7:

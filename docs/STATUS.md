@@ -1,5 +1,42 @@
 # Crash Dummies Native - project status
 
+## Complete fourth Air failure and one-life result - October 19, 2026
+
+Both easy Air histories now match terminal gameplay (1,788 ordinary / 1,764
+earlier-paused updates), outgoing fade and complete failed result at 0514,
+retaining one life from the previous two. Gameplay totals: 35,520 boundaries /
+568,320 actor slots / 3,561 displays / 7,122 vectors / 142,440 published object
+slots. Outgoing adds 148 phases / 64 displays / 128 vectors; result adds 22
+prefix boundaries / 4,242 polls / 2,096 result boundaries / 1,028 displays /
+2,056 vectors, all differences zero within scope. Complete row proof: 7,134
+boundaries / 7,533,504 bytes, including two entry displays per history. Only the
+paused blocked terminal tile endpoint uses marked zero-write retained data.
+See [scope and reproduction](AIR_FOURTH_RESULT.md).
+
+An ordinary STAT occurs exactly at the first HALT completion in update 1318.
+The pinned original returns to 261c HALT itself, omitting the 32-cycle counter
+test tail. Native wait work now selects that precise deadline boundary; vector
+and later display timing stay unchanged. The strict source analyzer accepts
+only this STAT/ready/prefix position as a counter-wait owner. Adjacent saved-
+counter completion and sleeping wake cases remain distinct. A separate source
+execution trace matches the unchanged full-control digest; no observed timings
+or addresses select native execution.
+
+Controls append 1,000 unchanged input frames to each accepted fourth-gameplay
+parent. Two unhooked prefix/final hashes agree per case. Both accepted 1,000-
+update and entry chains remain exact (222 / 226 native prefix files). Checks:
+O2 Windows diagnostic, both complete attached comparisons, 52,920 result-clock /
+580 pause-access / 927 handoff / 4,281 work assertions, 777 Python tests, CLI
+ownership guard and three unchanged default next-retry captures. ROM/data/
+recordings/binaries stay local; production EXE/alpha unchanged; automation ACTIVE.
+
+Next concrete owner: one-life campaign/instruction handoff from this completed
+result, retaining the fourth game's animation/timer/row/scratch state. Final
+attempt/eliminated-player/game-over, unused vacant done flags, other campaigns,
+earlier UI/reset/unobserved work, production scheduling, full images/PCM and
+human/device/independent-Windows/distribution gates remain open. Timing point 1
+and final acceptance are incomplete.
+
 ## Retained side push fixes paused fourth-game timing - October 19, 2026
 
 The 32-cycle discrepancy is resolved without a fitted cost/offset. FFCA retains

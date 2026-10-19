@@ -208,6 +208,15 @@ int main(){
         finalWait.wait([&](bool ready){observedReady=ready;return 5000;},false);
         require(finalWait.displays==1&&!observedReady,"Final result wait retains the busy resource gate; it does not enable gameplay uploads");
         require(finalWait.lastWaitWork==156,"Wait active work includes one STAT wake and excludes idle and interrupt service bodies");
+        for(int request:{60,64,68}){
+            AirClock haltWait;haltWait.now=0;haltWait.nextStat=request;haltWait.nextVBlank=1000;
+            int64_t vector=-1;AirIrqOwner owner=AirIrqOwner::Unqualified;
+            haltWait.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner observed){if(std::string(kind)=="stat"){vector=cycle;owner=observed;}};
+            haltWait.wait([](bool){return 0;});
+            require(vector==request+20&&owner==(request==60?AirIrqOwner::SourceBoundary:AirIrqOwner::CounterWait),"Saved-counter completion and adjacent HALT wake boundaries retain distinct owners");
+            require(haltWait.lastWaitWork==(request==60?120:request==64?124:156),"Exact HALT-entry STAT returns to HALT without the 32-cycle counter-test tail");
+            require(haltWait.now==1092&&haltWait.displays==1&&haltWait.statServices==1,"All three wait entries end at the same later display with one saved counter");
+        }
         require(audioStopWork()==12384,"Stop/reset source work includes bounded byte clears and initial wave copy");
         AirClock atomic;atomic.now=atomic.nextVBlank-4;atomic.nextStat=AirClock::Frame+AirClock::StatLine;
         bool changed=false,observed=false;

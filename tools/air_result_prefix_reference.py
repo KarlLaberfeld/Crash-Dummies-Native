@@ -12,7 +12,7 @@ from pathlib import Path
 from air_reference import write_json
 from extract import read_rom
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
-from air_following_scope import FollowingAirCaptureScope
+from air_following_scope import result_capture_scope
 
 POINTS={0x0409:'begin',0x040d:'lcdOffReturned',0x0413:'objectsCleared',0x0425:'registersReady',
         0x042f:'mapsCleared',0x044d:'flagsReady',0x0450:'tilesBank',0x045c:'tilesReady',0x045f:'dataBank',0x0462:'playerReady'}
@@ -31,7 +31,7 @@ def capture(args):
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
     player=Reference(str(args.rom),window='null',sound_volume=0);player.set_emulation_speed(0)
     next_retry=getattr(args,'next_retry',False);following=getattr(args,'following',False) or next_retry;armed=not following
-    scope=FollowingAirCaptureScope(following,2 if next_retry else 1)
+    scope=result_capture_scope(args)
     active=False;complete=False;points=[];polls=[];off=None
     def hook(pc):
         nonlocal active,complete,off,armed
@@ -67,6 +67,7 @@ def capture(args):
     data=dict(version=2 if points[0]['result']&4 else 1,romSha256=manifest['romSha256'],controlMemorySha256=control,reference=metadata,points=points,polls=polls,lcdOff=off)
     if following:data['followingResult']=True
     if next_retry:data['nextRetry']=True
+    if getattr(args,'after_retry',1)!=1:data['afterRetry']=args.after_retry
     analyze(data);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'result-prefix.json',data)
     print(json.dumps(dict(points=len(points),pollReads=len(polls),controlDifferences=0),indent=2))
 
@@ -156,6 +157,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--following',action='store_true')
     record.add_argument('--next-retry',action='store_true')
+    record.add_argument('--after-retry',type=int,choices=(1,2),default=1)
     diff=sub.add_parser('compare');diff.add_argument('native_csv',type=Path);diff.add_argument('--startup',type=Path,required=True)
     for command in (record,diff):
         command.add_argument('--capture',type=Path,required=True);command.add_argument('--out',type=Path,required=True)

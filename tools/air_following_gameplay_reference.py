@@ -114,6 +114,7 @@ def capture(args):
         outdata=dict(version=2,reference=metadata,romSha256=data['romSha256'],controlMemorySha256=digest,
             fadePalettes=list(read_rom(args.rom)[0x2118:0x2120]),points=outro_points,interrupts=outro_irqs,
             precedingDisplays=data['precedingDisplays']+sum(r['kind']=='vblank' for r in irqs),productionSchedulerAccepted=False)
+        if scope.retry!=1:outdata['afterRetry']=scope.retry
         intervals(outdata);display_services(outdata)
         write_json(args.out/'outro.json',outdata)
     (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))

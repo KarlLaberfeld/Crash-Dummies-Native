@@ -1,5 +1,8 @@
 # Retained side push and fourth Air timing
 
+Follow-up: [complete fourth Air result](AIR_FOURTH_RESULT.md) extends both
+accepted continuations through failure, outgoing fade and the one-life result.
+
 October 19, 2026. Resolves the paused-history failure recorded in
 [fourth Air continuation](AIR_FOURTH_GAMEPLAY.md). Both existing easy Air
 histories now match 1,000 fourth-attempt updates. The cause was a lost native

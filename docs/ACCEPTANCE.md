@@ -1,5 +1,19 @@
 # Crash Dummies Native - final release acceptance
 
+October 19 fourth-result follow-up: both histories match through fourth failure,
+outgoing fade and full result, with two lives becoming one. Gameplay: 35,520
+boundaries / 568,320 actor slots / 3,561 displays / 7,122 vectors / 142,440 object
+slots; outgoing: 148 phases / 64 displays / 128 vectors; result: 22 prefix /
+4,242 polls / 2,096 boundaries / 1,028 displays / 2,056 vectors, zero differences.
+Complete row proof covers 7,134 boundaries / 7,533,504 bytes. Native HALT-entry
+STAT wait work now follows the observed return-to-HALT edge; neighboring
+completion/wake owners remain distinct. O2 diagnostic, 52,920 result-clock /
+580 pause / 927 handoff / 4,281 work assertions, 777 Python tests, default capture
+regressions and ownership guard pass. See [scope](AIR_FOURTH_RESULT.md).
+One-life campaign/UI/final attempt, vacant flags, other campaigns/unobserved
+work, production scheduling, full images/PCM and final Windows/device/distribution
+gates remain open. Production EXE/alpha unchanged; final acceptance incomplete.
+
 October 19 side-push follow-up: the paused fourth-attempt discrepancy is resolved
 by inheriting native FFCA/lastForce from the preceding Air game. The existing
 60/92-cycle steering work now selects the original branch; no offset or fitted
