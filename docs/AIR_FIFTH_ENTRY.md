@@ -137,7 +137,7 @@ handoff assertions and 794 Python tests. CLI bounds/missing-parent/incomplete-
 text guards pass. All five earlier two-life instruction capture JSONs reproduce
 unchanged. Semantic core owners were not modified, so previous result/work/
 pause assertion scopes remain applicable and were not repeated. Production
-EXE/alpha are unchanged; automation remains ACTIVE.
+EXE/alpha are unchanged. Automation settings were not changed by this work.
 
 Next: continue fifth-attempt gameplay, then reconstruct final-life consumption,
 eliminated-player selection and game-over behavior. Initial vacant done flags,

@@ -25,7 +25,8 @@ parent-result comparisons, 945 native handoff assertions, 794 Python tests,
 CLI extent/ownership guards and five unchanged earlier two-life captures. Core
 semantic owners were unchanged; previous result/work/pause assertions retain
 their scope and were not repeated. ROM/data/recordings/binaries remain local.
-Production EXE/alpha unchanged; automation remains ACTIVE.
+Production EXE/alpha unchanged. The app currently reports the continuation
+automation as PAUSED; this checkpoint did not change that setting.
 
 Next concrete owner: fifth-attempt gameplay beyond its first update, then final
 life consumption and eliminated-player/game-over handling. Initial unused
