@@ -3,6 +3,7 @@
 #include "air_following_setup.h"
 #include "air_result_accounting.h"
 #include "air_final_result.h"
+#include "air_game_over_return.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -39,7 +40,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -59,6 +60,15 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
     auto result=airFinalResult(prepared,game.result,end.tick,lives,end.input.held,failedCampaignSavings,sound,layouts,texts,ui,
         point,service,[&](auto... args){out.irq(args...);},[&](auto... args){out.poll(args...);},[&](auto... args){out.write(args...);},read);
     out.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives,savings\n"<<result.end<<','<<result.lcdEpoch<<','<<result.tick<<','<<result.countdown<<','<<result.displays<<','<<result.stats<<','<<result.nextStat<<','<<result.nextVBlank<<','<<player<<','<<result.lives<<','<<failedCampaignSavings<<'\n';
+    if(titleReturn){
+        AirNextInstructionCsv returned(base+".game-over-return","boundary,cycle,tick,countdown,row,byte,amount,target,carry,bgp,obp0,obp1,musicEnabled");
+        auto remaining=c.lives;remaining[player]=result.lives;
+        result=airGameOverReturn(result,failedCampaignSavings,remaining,ui.initialScores,sound,ui,
+            [&](const char* name,auto... values){returned.points<<name;((returned.points<<','<<values),...);returned.points<<'\n';},
+            [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){returned.service(index,cycle,tick,countdown,display,effects,music,input);},
+            [&](auto... args){returned.irq(args...);},sample);
+        returned.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,lives0,lives1,savings\n"<<result.end<<','<<result.lcdEpoch<<','<<result.tick<<','<<result.countdown<<','<<result.displays<<','<<result.stats<<','<<result.nextStat<<','<<result.nextVBlank<<",0,0,"<<failedCampaignSavings<<'\n';
+    }
     return result;
 }
 }

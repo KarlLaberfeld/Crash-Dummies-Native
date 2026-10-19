@@ -1,5 +1,33 @@
 # Crash Dummies Native - project status
 
+## Non-ranking high score and title-reset entry - October 20, 2026
+
+Both existing zero-savings Air histories now match all eight high-score
+rejections, the no-survivor decision and outgoing fade through title-reset
+entry. New combined scope: 240 boundaries / 16 score rows / 32 compared score
+bytes / 64 displays / 128 vectors, zero differences. All 654 earlier complete
+native CSVs remain exact, including the complete final-result parents. See
+[scope and reproduction](AIR_GAME_OVER_RETURN.md).
+
+Native state owns zero savings, the actual final life consumption and both
+eliminated players. The original controls are unchanged; their existing full
+digests also match these new hooked captures. The source score table remains
+unchanged. Native score comparison rejects qualifying/tied scores and surviving
+players until their separate owners exist. This does not certify name entry or
+the internal title reset: the endpoint is before its first operation.
+
+Validation: optimized native Windows diagnostic, both attached comparisons,
+29,724 native final/result-return assertions and 835 Python tests. Existing
+gameplay/audio/clock owners were unchanged; previous Windows/integration
+qualifications remain scoped. Regular Windows EXE rebuilt from committed source;
+production timing integration and final acceptance remain incomplete. No new
+release or automation setting change; ROM/data/recordings/binaries stay local.
+
+Next concrete owners: title-reset internals/title entry and a separately
+controlled qualifying-score/name-entry case. Vacant flags, other campaigns/
+players/stunts, remaining UI/reset/work, production timing, full images/PCM and
+human/device/independent-Windows/distribution gates remain open.
+
 ## Final life and game-over result - October 19, 2026
 
 Both existing easy Air histories now match the final failed result through

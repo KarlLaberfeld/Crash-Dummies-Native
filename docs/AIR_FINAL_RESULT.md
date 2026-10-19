@@ -129,7 +129,8 @@ timing scope remains diagnostic: it is not yet integrated into the production
 Windows scheduler, and no new alpha release is published. Automation settings
 are unchanged.
 
-Next: high-score selection/name entry and subsequent eliminated-player/title
+Follow-up: [non-ranking score and title-reset entry](AIR_GAME_OVER_RETURN.md)
+now match both zero-savings histories. Next: qualifying high-score/name entry and internal title
 flow. Nonzero-savings original cases, never-allocated vacant done flags, other
 campaigns/stunts/players, earlier UI/reset/unobserved work, production scheduling,
 complete images/PCM and human/controller/independent-Windows/distribution gates

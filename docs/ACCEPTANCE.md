@@ -1,5 +1,15 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 no-score return follow-up: both zero-savings histories match eight
+rank rejections, no surviving players, outgoing fade and title-reset entry.
+New scope: 240 boundaries / 16 rows / 32 score bytes / 64 displays / 128 vectors,
+zero differences; all 654 earlier complete native CSVs remain exact. O2 native
+diagnostic, 29,724 native final/result-return assertions and 835 Python tests
+pass. See [scope](AIR_GAME_OVER_RETURN.md). Actual title reset/entry, qualifying
+score/name entry, other paths, production timing and remaining image/audio/
+human/device/Windows/distribution gates remain open. No new release; final
+acceptance incomplete.
+
 October 19 final-life follow-up: both histories match final result setup,
 the single life decrement to zero, game-over banner/zero savings, song 13,
 incoming fade and fixed 480-display hold. New scope: 20 prefix boundaries /

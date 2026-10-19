@@ -1,5 +1,6 @@
 // Native final-life ownership and fixed-wait guards; no ROM/reference input.
 #include "air_final_result.h"
+#include "air_game_over_return.h"
 #include "audio_music_work.h"
 #include <cstdio>
 #include <memory>
@@ -53,6 +54,23 @@ int main(){
             require(sound.song==13&&sound.enabled,"Game-over music remains selected through the high-score call boundary");
             require(tail.size()>=7&&tail[tail.size()-3]==0x2c&&tail[tail.size()-2]==(money%100)/10+1&&tail.back()==money%10+1,"Savings retain comma and two forced cents digits");
             if(money==0&&buttons==0)baseline=state.end;
+            if(money==0&&buttons==0){
+                for(int position=0;position<3;++position){
+                    std::array<uint8_t,48> board{};for(int row=0;row<8;++row)board[6*row+3+position]=1;
+                    const auto original=board;int rows=0,compares=0;
+                    auto returned=airGameOverReturn(state,0,{0,0},board,sound,*ui,
+                        [&](const char* name,auto...){if(std::string(name)=="row")++rows;if(std::string(name)=="compare")++compares;},[](auto...){},[](auto...){},[]{return 0;});
+                    require(rows==8&&compares==8*(position+1),"Ranking rejects at the first differing BCD byte in every row");
+                    require(board==original,"A rejected result never inserts or changes names/scores");
+                    require(returned.displays==546&&returned.stats==546&&returned.countdown==54,"No-survivor return owns all 32 outgoing fade displays");
+                }
+                for(int mode=0;mode<3;++mode){
+                    std::array<uint8_t,48> board{};std::array<int,2> living{};
+                    if(mode==1)living[1]=1;if(mode==2)board[3]=0xfa;
+                    bool failed=false;try{airGameOverReturn(state,0,living,board,sound,*ui,[](auto...){},[](auto...){},[](auto...){ });}catch(const std::runtime_error&){failed=true;}
+                    require(failed,"Qualifying scores, surviving players and invalid BCD need separate owners");
+                }
+            }
             if(money==0)require(state.end==baseline,"Action edges do not change fixed-hold completion");
         }
         for(int lives:{0,2,5}){
