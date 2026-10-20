@@ -1,5 +1,9 @@
 # Title music start and center closing
 
+Follow-up: [first title page and reopening](AIR_TITLE_PAGE.md) now qualify both
+histories through both window clears, page composition, right-edge readiness
+and forty reopening waits. The endpoint still precedes menu input.
+
 October 20, 2026. Continues both accepted [title fades](AIR_TITLE_FADE.md)
 through song 1 initialization and forty center-closing waits. Ends at 27f9,
 before clearing or installing the next window page. Page clearing/composition,

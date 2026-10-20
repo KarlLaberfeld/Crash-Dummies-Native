@@ -103,14 +103,14 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: qualifying high-score/name entry and title page installation/reopening/menu after game over,
+Next fidelity work: qualifying high-score/name entry and title menu input/page/player paths after game over,
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_CLOSE.md) qualifies
-both existing Air histories through title song initialization and forty
-center-closing waits. Window/page installation, reopening/menu behavior,
-complete graphics/pixels/PCM and qualifying name entry remain unqualified.
+The [latest timing comparison](docs/AIR_TITLE_PAGE.md) qualifies
+both existing Air histories through first-page composition, complete maps and
+forty reopening waits. Menu input/other pages, complete graphics/pixels/PCM and
+qualifying name entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

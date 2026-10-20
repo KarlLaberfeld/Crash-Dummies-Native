@@ -1,13 +1,25 @@
 # Independent original-reference backends
 
-Latest observer addition: `direct-vram-pause-v1` copies only the identified
+Latest observer addition: `direct-vram-title-v1` copies the two fixed title
+maps through the official read-only storage API. It performs no CPU bus access,
+graphics synchronization, emulated-time advance or state modification. Its
+export/build identity and DLL hash are verified; recordings require explicit
+direct-read provenance. Entry storage can be CPU-read-blocked, so normal bus
+reads cannot replace this observation. Both new title-page captures preserve
+their existing full-control digests. See [scope](AIR_TITLE_PAGE.md).
+The current local DLL SHA-256 is
+`8cb11d32843e59f1cb6fb35ca5a2b43fbe5a362ea1bb48b76cc98cbb81632f48`.
+Core/source/model/execution-observer identities and the existing pause API are
+unchanged; the additive observer is a comparison-only adapter extension.
+
+Earlier observer addition: `direct-vram-pause-v1` copies only the identified
 twenty-byte status row and 128-byte font through the official read-only direct
 storage API. It makes no CPU bus access, advances no cycles and writes nothing.
 The actual export, build manifest and DLL hash are verified. This distinguishes
 accepted storage from attempted write notifications, including boundaries where
 CPU reads would be blocked. Three new captures retain their uninstrumented
 controls and match native restoration/storage; see AIR_PAUSE_CANDIDATE.md.
-The current local DLL SHA-256 is
+That observer's earlier local DLL SHA-256 was
 `d062221a134f9760811db593ebde0112088065f1937e4e53f30f6c14a397929b`.
 Core/source/model/execution-observer identities remain unchanged. None of these
 storage snapshots enters the native clock or graphics copy inputs.

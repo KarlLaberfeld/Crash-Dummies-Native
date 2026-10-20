@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 first-title-page follow-up: both zero-savings histories match two
+window clears, page installation, bounded WX=166 readiness and forty reopening
+waits. New scope: 284 boundaries / 84 displays / 330 vectors / 492 raster
+boundaries / 2,746 stores / 5,430 polls / 4,096 map bytes, zero differences; all
+720 earlier complete native CSVs remain exact. Direct entry/exit storage reads
+also prove no unrelated map changes. The additive comparison-only observer
+preserves existing full-control hashes. O2 diagnostic, both chains, 13,535
+native title-page assertions, shared LCD/title regressions and 917 Python tests
+pass. See [scope](AIR_TITLE_PAGE.md). Menu input/other pages/player selection,
+qualifying name entry, other paths, production timing, full graphics/pixels/PCM
+and final human/device/Windows/distribution gates remain open. No release;
+final acceptance incomplete.
+
 October 20 title-closing follow-up: both zero-savings histories match song 1
 initialization with STAT-only interruption, moving-center raster branches and
 forty closing waits. New scope: 264 boundaries / 80 displays / 318 vectors /

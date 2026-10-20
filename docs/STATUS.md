@@ -1,5 +1,35 @@
 # Crash Dummies Native - project status
 
+## First title page and reopening - October 20, 2026
+
+Both existing zero-savings Air histories now match two window clears, first-
+page composition, bounded WX=166 readiness and forty reopening waits. New
+combined scope: 284 boundaries / 84 displays / 330 vectors / 492 raster
+boundaries / 2,746 stores / 5,430 polls / 4,096 final map bytes, zero differences.
+All 720 earlier complete native CSVs remain exact. See [scope](AIR_TITLE_PAGE.md).
+
+Native page data comes from the existing decoded UI asset. Default special-
+window-edge rejection remains; the new readiness profile is restricted to
+empty eight-pixel OAM, zero SCX and WX 166. A comparison-only direct-storage
+observer validates full entry/exit maps and unchanged regions, avoiding the
+blocked CPU-read sentinel at entry. Core/model/execution-observer/pause-API
+identities stay unchanged; both captures preserve their accepted full-control
+digests after the additive read-only adapter extension. No source snapshots,
+poll counts or IRQ schedules initialize native execution.
+
+Validation: O2 native Windows diagnostic, both full attached comparisons,
+13,535 native title-page assertions, CLI guard and 917 Python tests. Shared
+LCD/title regressions: 580 pause / 4,281 work / 52,920 result-clock / 29,724
+final-result / 1,258 closing / 1,922 fade checks. New tests join the regular
+test build. Regular Windows EXE rebuilt from committed source; diagnostic
+timing stays outside its production scheduler. No release or automation change;
+ROM/data/recordings/binaries remain local.
+
+Next concrete owner: first menu wait/input processing and subsequent page/
+player-selection paths. Qualifying-score/name entry, vacant flags, other
+campaigns/players/stunts/reset paths, production timing, full graphics/pixels/
+PCM and human/device/independent-Windows/distribution gates remain open.
+
 ## Title music start and center closing - October 20, 2026
 
 Both existing zero-savings Air histories now match song 1 initialization with

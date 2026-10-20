@@ -20,12 +20,18 @@ struct AirPauseLcd {
     // Separately qualified result text: empty OAM, no window/scroll, visible
     // lines after the first restart line. No first-line/access owner implied.
     bool resultFirstVisibleFrame=false;
+    // Separately bounded title readiness at WX=166 on pinned DMG: empty
+    // eight-pixel OAM and no horizontal scroll. The window's HBlank edge
+    // does not extend visible transfer here; pixels/glitches stay unowned.
+    bool titleRightEdge=false;
     int transferEnd(int line) const {return transferEndForGeometry(line,false);}
 private:
     int transferEndForGeometry(int line,bool cancellationUpperBound) const {
         if(line<0||line>=144)return -1;
         bool window=windowEnabled&&line>=windowY;
-        if(window&&(windowX<7||windowX>165))return -1; // Special WX edges.
+        if(window&&windowX==166&&titleRightEdge&&scrollX==0&&objectHeight==8&&
+           std::all_of(objects.begin(),objects.end(),[](const Object& o){return o.x==0&&o.y==0;}))window=false;
+        if(window&&(windowX<7||windowX>165))return -1; // Other special WX edges.
         int end=256+(scrollX&7)+(window?6:0);
         if(objectHeight!=8&&objectHeight!=16)return -1;
         if(!objectsEnabled||line>objectDisableLine)return end;
