@@ -103,14 +103,14 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: qualifying high-score/name entry and title services/fade after game over,
+Next fidelity work: qualifying high-score/name entry and title center/page/menu after game over,
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_LAYOUT.md) qualifies
-both existing Air histories through post-game-over title composition, all map
-bytes and the masked LCD restart. Pending services, first-frame pixels, title
-fade, complete graphics payload and qualifying name entry remain unqualified.
+The [latest timing comparison](docs/AIR_TITLE_FADE.md) qualifies
+both existing Air histories through pending title services, zero-motion raster
+branches and the complete incoming fade. Later center/page/menu behavior,
+complete graphics/pixels/PCM and qualifying name entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

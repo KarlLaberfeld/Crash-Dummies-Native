@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 title-fade follow-up: both zero-savings histories match pending
+display/STAT acceptance, both zero-motion raster branches, complete incoming
+fade and final wait. New scope: 152 boundaries / 68 displays / 200 vectors /
+264 raster boundaries / 642 stores, zero differences; all 692 earlier complete
+native CSVs remain exact. O2 diagnostic, both attached chains, 1,922 native
+title-fade assertions and 887 Python tests pass. Shared-clock result/final/
+pause/work regressions also pass. See [scope](AIR_TITLE_FADE.md). Later song/
+center/page/menu, qualifying name entry, other paths, production timing, full
+graphics/pixels/PCM and final human/device/Windows/distribution gates remain
+open. No release; final acceptance incomplete.
+
 October 20 title-layout follow-up: both zero-savings histories match the
 post-boot branch, four title rectangles, full map storage, register setup and
 masked LCD restart through EI entry. New scope: 110 boundaries / 482 stores /

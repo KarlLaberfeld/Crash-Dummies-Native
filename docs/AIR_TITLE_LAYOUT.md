@@ -1,5 +1,10 @@
 # Post-campaign title composition and masked LCD restart
 
+Follow-up: [title services and incoming fade](AIR_TITLE_FADE.md) now qualify
+both histories through pending-service acceptance, zero-motion raster branches,
+the complete fade and a final wait. Later center/page/menu behavior and
+pixels/PCM remain unqualified.
+
 October 20, 2026. Continues both accepted [masked title resets](AIR_TITLE_RESET.md)
 through the already-shown boot-screen decision, static title composition,
 callback/window/compare setup and LCD restart. Ends at 0258 **before EI**.

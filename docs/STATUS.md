@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Post-campaign title services and incoming fade - October 20, 2026
+
+Both existing zero-savings Air histories now match the initial pending display/
+STAT pair, alternating zero-motion title raster branches, complete incoming
+fade and final wait before song selection. New combined scope: 152 boundaries /
+68 displays / 200 vectors / 264 raster boundaries / 642 stores, zero differences.
+All 692 earlier complete native CSVs remain exact. See [scope](AIR_TITLE_FADE.md).
+
+Native execution inherits the actual title layout, LCD epoch, pending requests,
+input and audio. The optional raster-work callback leaves fixed Air/result
+clock paths unchanged. Its two bounded title branches own their register
+writes and future compare deadlines. Display ticks advance while countdown
+stays 54 and song 13 continues. Fresh A/Start edges cannot shorten the fade.
+The endpoint is before title song 1 selection; center motion/page/menu and
+graphics/pixels/PCM are not certified by these timing/register comparisons.
+
+Validation: O2 native Windows diagnostic, both complete attached comparisons,
+1,922 native title-fade assertions and 887 Python tests. Shared-clock regression:
+52,920 result-clock / 29,724 final-result / 580 pause / 4,281 source-work checks.
+New native tests join the regular test build. Unchanged complete campaigns
+retain their prior integration scope. Regular Windows EXE rebuilt from committed
+source; diagnostic timing remains outside its production scheduler. No new
+release or automation change; ROM/data/recordings/binaries stay local.
+
+Next concrete owner: song selection, center closing/page installation/reopening
+and menu behavior. Qualifying-score/name entry, vacant flags, other campaigns/
+players/stunts/reset paths, production timing, complete graphics/pixels/PCM and
+human/device/independent-Windows/distribution gates remain open.
+
 ## Post-campaign title layout and masked LCD restart - October 20, 2026
 
 Both existing zero-savings Air histories now match the post-boot decision,

@@ -31,6 +31,10 @@ struct AirClock {
     // boundaries from aggregate budgets with unqualified acceptance latency.
     std::function<void(int64_t,AirIrqOwner)> objectDisable;
     std::function<void(const char*,int64_t,AirIrqOwner)> interrupt;
+    // Optional identified raster callback. It owns native display state and
+    // future compare deadlines, and returns source work excluding RETI. The
+    // existing fixed Air/result callbacks remain unchanged when absent.
+    std::function<int(int64_t)> rasterWork;
     template<class Display>void vblank(Display&& display,bool ready,AirIrqOwner owner=AirIrqOwner::Unqualified){
         if(interrupt)interrupt("vblank",now+20,owner);
         int work=display(ready);
@@ -38,6 +42,12 @@ struct AirClock {
         now+=20+work+16;++displays;
     }
     void stat(AirIrqOwner owner=AirIrqOwner::Unqualified){
+        if(rasterWork){
+            if(interrupt)interrupt("stat",now+20,owner);
+            int work=rasterWork(now+20);
+            if(work<0)throw std::runtime_error("Unreconstructed raster callback work");
+            now+=20+work+16;++statServices;return;
+        }
         if(statBody!=288&&statBody!=248)throw std::runtime_error("Unowned display STAT callback");
         if(interrupt)interrupt("stat",now+20,owner);
         // 0048..254f: source body prefix 228, then LCDC write sample at +8.
