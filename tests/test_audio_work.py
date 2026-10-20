@@ -72,9 +72,11 @@ class MusicWorkTests(unittest.TestCase):
     def test_stereo_tail_source_only_branches(self):
         self.assertEqual([music_tail_cycles(*v) for v in ((0,1,0),(1,2,0),(1,1,0),(1,1,255))],[40,72,256,248])
 
-    def test_square_and_noise_attack_have_different_fallthrough(self):
+    def test_zero_decay_attack_compares_loaded_decay_before_return(self):
         state=dict(stage=0,envelopeCounter=0,volume=14,decay=0,sustain=0)
-        self.assertEqual(envelope_cycles(0,state),440)
+        self.assertEqual(envelope_cycles(0,state),276)
+        self.assertEqual(envelope_cycles(1,state),272)
+        self.assertEqual(envelope_cycles(4,state),276)
         self.assertEqual(envelope_cycles(3,state),256)
 
     def test_note_pointer_carry_does_not_depend_on_duration_value(self):

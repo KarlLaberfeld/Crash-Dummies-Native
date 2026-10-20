@@ -58,7 +58,8 @@ inline int audioEnvelopeWork(int index,const MusicVoice& v,int tableValue=-1,int
         cost+=volume==15?24:28;if(volume!=15)return cost;
         cost+=noise?68:!v.decay?68:72;
         if(noise||v.decay)return cost;
-        stage=1;counter=0;
+        // CP 1 sees the zero decay in A, so the following branch is taken.
+        return cost+(index==1?24:28);
     }
     cost+=index==1?(stage==1?20:24):(stage==1?24:28);
     if(stage!=1)return cost;

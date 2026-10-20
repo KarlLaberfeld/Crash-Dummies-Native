@@ -46,7 +46,7 @@ int runAudioTests(const AudioAssets& assets){
         synthetic.releaseCounter=1;
         check(audioEnvelopeWork(0,synthetic,255,4)==364,"Release expiration uses the following instrument value");
         synthetic=MusicVoice{};synthetic.envelopeCounter=0;synthetic.volume=14;synthetic.sustain=0;
-        check(audioEnvelopeWork(0,synthetic)==440&&audioEnvelopeWork(3,synthetic)==256,"Square attack can fall through into decay while noise retains INC flags");
+        check(audioEnvelopeWork(0,synthetic)==276&&audioEnvelopeWork(1,synthetic)==272&&audioEnvelopeWork(4,synthetic)==276&&audioEnvelopeWork(3,synthetic)==256,"Zero-decay pulse fall-through compares loaded decay and returns before decrementing");
         synthetic=MusicVoice{};
         check(audioNoteWork(0,synthetic,24,3,255)-audioNoteWork(0,synthetic,24,3,100)==8,"Note stream pointer carries independently of pitch");
         check(audioEnvelopeWork(2,synthetic)==-1&&audioModulationWork(2,synthetic)==-1,"Wave voice bypass cannot masquerade as a measured phase");
@@ -58,10 +58,12 @@ int runAudioTests(const AudioAssets& assets){
         check(slide.note==254&&slide.frequency==1254,"Effect portamento preserves original byte wrap instead of clamping");
         check(modulation.musicWorkCycles>=0&&modulation.voiceWorkCycles[1]>=0&&modulation.voiceWorkCycles[4]>=0,"Corrected modulation still exposes semantic source work");
         NativeAudio attackFallthrough(modulationFixture);attackFallthrough.playMusic(0);
-        for(int i:{0,3}){auto& voice=attackFallthrough.voices[i];voice.remaining=2;voice.stage=0;voice.envelopeCounter=0;voice.volume=14;}
+        for(int i:{0,1,3,4,5}){auto& voice=attackFallthrough.voices[i];voice.active=true;voice.remaining=3;voice.stage=0;voice.envelopeCounter=0;voice.volume=14;}
         attackFallthrough.tick();
-        check(attackFallthrough.voices[0].volume==14&&attackFallthrough.voices[0].stage==1,"Square zero-decay attack falls through in the same call (source/synthetic)");
+        for(int i:{0,1,4})check(attackFallthrough.voices[i].volume==15&&attackFallthrough.voices[i].stage==1&&attackFallthrough.voices[i].envelopeCounter==0,"Pulse zero-decay attack retains peak until the next service (source/synthetic)");
         check(attackFallthrough.voices[3].volume==15&&attackFallthrough.voices[3].stage==1,"Noise zero-decay attack returns before decrementing (source/synthetic)");
+        attackFallthrough.tick();
+        for(int i:{0,1,3,4,5})check(attackFallthrough.voices[i].volume==14&&attackFallthrough.voices[i].stage==1,"Zero-decay voices start decay on the following service");
         check(audioEffectSetupWork(26,true,true)==-1,"Invalid effect index never reports a completed cost");
         NativeAudio measured(assets),unmeasured(assets);measured.measureWork=true;
         measured.playMusic(1);unmeasured.playMusic(1);std::vector<int16_t> measuredPcm,unmeasuredPcm;

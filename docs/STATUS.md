@@ -1,5 +1,17 @@
 # Crash Dummies Native - project status
 
+## Music-test operations and pulse-envelope correction - October 20, 2026
+
+All ten attached music-test cases match, including all 14 tunes / 26 effects,
+wrap/held/combined inputs, stop/restart, completed-tune restart and Start RET.
+The new scope also fixes a real production pulse-envelope error: zero-decay
+attack retains volume 15 until the following service. The original tune-10
+volume and 164-cycle discrepancy are resolved, without an allowance.
+All preceding ancestor comparisons remain qualified. 43,181 native music-test
+checks, 157 audio checks and 1,439 Python tests pass. See [scope](MUSIC_TEST.md).
+Post-test full menu return and the remaining [families](ORIGINAL_COMPARISON_SCOPE.md)
+are still open; broader request/final acceptance incomplete. No release change.
+
 ## Complete password returns and music-test presentation - October 20, 2026
 
 All seventeen feedback cases in both retained histories now match their

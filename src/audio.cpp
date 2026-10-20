@@ -104,9 +104,10 @@ void NativeAudio::envelope(int index){
         v.envelopeCounter=v.attack;v.volume=byte(v.volume+1);
         if(v.volume!=15)return;
         v.stage=1;v.envelopeCounter=v.decay;
-        // Square 419c / 4480 / 4b34 tests the zero decay and falls through.
-        // Noise 4903 / 4de5 preserves INC stage's flags and returns instead.
-        if(index==3||index==5||v.decay)return;
+        // Pulse 4196 / 447a / 4b2e compares A (the loaded decay), not
+        // the incremented stage. Zero decay fails CP 1 after the fall-through;
+        // nonzero decay and both noise handlers return earlier.
+        return;
     }
     v.envelopeCounter=v.decay;if(v.volume==v.sustain){v.stage=2;return;}
     v.volume=byte(v.volume-1);if(v.volume&128)v.stage=2;

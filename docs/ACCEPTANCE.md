@@ -1,5 +1,12 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 music-test follow-up: all ten attached operation cases match all
+14 tunes / 26 effects and their input/stop/restart/exit boundaries. A measured
+pulse-envelope peak/work bug is corrected in production audio. 43,181 native
+music-test assertions, 157 audio assertions and 1,439 Python tests pass.
+See [scope](MUSIC_TEST.md). Full post-test return, other families, frames/PCM
+and production scheduling remain open. Final acceptance incomplete.
+
 October 20 complete-return follow-up: all 34 title/password returns and initial
 music-test presentations match; 9,058 native checks and 1,400 Python tests
 pass. Explicit stopped-driver and title formatter scratch exclusions remain.

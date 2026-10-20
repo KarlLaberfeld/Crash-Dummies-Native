@@ -48,7 +48,8 @@ def envelope_cycles(index, state):
         # Noise branches preserve INC stage's flags; they do not test decay.
         cost+=68 if noise else 68 if not state['decay'] else 72
         if noise or state['decay']:return cost
-        stage=1;counter=0
+        # A contains zero decay here; CP 1 branches away before decrementing.
+        return cost+(24 if index==1 else 28)
     cost+=(20 if stage==1 else 24) if index==1 else (24 if stage==1 else 28)
     if stage!=1:return cost
     cost+=(48 if (counter-1)&128 else 52) if index==1 else (44 if (counter-1)&128 else 48)

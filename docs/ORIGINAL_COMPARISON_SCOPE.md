@@ -9,8 +9,8 @@ qualify other players, difficulties, stunts or menu routes.
 | Post-Start header/music/picture | Two retained single-player Air/easy histories; exact text, access timing, direct picture storage and active voice projection | Other start choices and two players |
 | Instruction transition/text/prompt/exit | First post-Start incoming fade plus complete text/fresh-Start prompt and deliberate skip/held-Start exit; bounded post-result Air/Ski controls | Gameplay continuation and other campaign/stunt/player/difficulty paths |
 | Title pages | First-page reopening/timeout; separate Start/Select/A/B decision branches | Subsequent page composition, player selection and transitions |
-| Direction unlock/password | Eight original sequence/wrong/held/combined cases; first presentation plus 34 editing and 34 validation/feedback cases including all ten passwords; 34 complete title/password returns and music-test presentations | Further menu paths after return; full music-test operations |
-| Options/player/music test | Native functionality | Original toggles, confirmation, back and music-test paths |
+| Direction unlock/password | Eight original sequence/wrong/held/combined cases; first presentation plus 34 editing and 34 validation/feedback cases including all ten passwords; 34 complete title/password returns and music-test presentations | Further menu paths after return; post-music-test full return |
+| Options/player/music test | Ten matched music-test cases: all 14 tunes / 26 effects, wrap/held/combined input, stop/restart and Start RET | Original player/options selection, confirmation/back and full post-test menu return |
 | Air gameplay | Specific documented ordinary/interruption/pause/retry/result cases | Uncovered difficulty/player/outcome/reset paths |
 | Other four stunts | Native campaigns; bounded Ski instruction evidence | Matched original gameplay/outcome/pause/reset per stunt/difficulty/player |
 | Campaign/end/name entry | Native coverage and selected original result/zero-savings return cases | Success/nonzero savings, qualifying name entry, two-player elimination/continuation, endings |

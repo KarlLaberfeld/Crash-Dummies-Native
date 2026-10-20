@@ -134,6 +134,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Password return test compilation failed.' }
     & ./build/air-password-return-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Password return tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_music_test_tests.cpp src/audio.cpp src/ui.cpp -o build/air-music-test-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Music-test compilation failed.' }
+    & ./build/air-music-test-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Music-test checks failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

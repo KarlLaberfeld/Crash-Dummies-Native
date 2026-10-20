@@ -15,6 +15,7 @@
 #include "air_password_edit_probe.h"
 #include "air_password_feedback_probe.h"
 #include "air_password_return_probe.h"
+#include "air_music_test_probe.h"
 #include "air_title_instruction.h"
 #include "air_title_campaign.h"
 #include "air_title_resume.h"
@@ -59,7 +60,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleUnlock=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool titlePassword=false,bool passwordEdit=false,bool passwordFeedback=false,bool passwordReturn=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleUnlock=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool titlePassword=false,bool passwordEdit=false,bool passwordFeedback=false,bool passwordReturn=false,bool musicTest=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -153,7 +154,7 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                             menu.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,remaining,waits,index,song\n"<<t.end<<','<<t.lcdEpoch<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.nextStat<<','<<t.nextVBlank<<','<<waited.remaining<<','<<waited.waits<<','<<waited.index<<','<<sound.song<<'\n';
                             std::ofstream maps(menuBase+".maps.csv");maps<<"address,value\n";const auto& storage=waited.page.close.fade.layout.reset;
                             for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?storage.background[i]:storage.window[i-1024])<<'\n';
-                            if(titlePassword){auto entered=airProbeTitlePassword(base,waited,sound,ui,sample);if(passwordEdit){auto edited=airProbePasswordEdit(base,entered,sound,sample);if(passwordFeedback){auto feedback=airProbePasswordFeedback(base,edited,sound,ui,sample);if(passwordReturn)airProbePasswordReturn(base,feedback,sound,ui,sample);}}}
+                            if(titlePassword){auto entered=airProbeTitlePassword(base,waited,sound,ui,sample);if(passwordEdit){auto edited=airProbePasswordEdit(base,entered,sound,sample);if(passwordFeedback){auto feedback=airProbePasswordFeedback(base,edited,sound,ui,sample);if(passwordReturn){auto returned=airProbePasswordReturn(base,feedback,sound,ui,sample);if(musicTest)airProbeMusicTest(base,returned,sound,sample);}}}}
                             if(titleStart){
                                 AirNextInstructionCsv out(base+".title-start","boundary,cycle,palettes,waits,tick,countdown,stat,lcdc,scrollY,lyc,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
                                 std::ofstream raster(base+".title-start.raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
