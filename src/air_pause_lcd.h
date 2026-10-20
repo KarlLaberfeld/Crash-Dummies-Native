@@ -20,6 +20,10 @@ struct AirPauseLcd {
     // Separately qualified result text: empty OAM, no window/scroll, visible
     // lines after the first restart line. No first-line/access owner implied.
     bool resultFirstVisibleFrame=false;
+    // Post-title instruction clear: empty OAM, disabled objects/window and
+    // no scroll; also qualifies line 143 and first-frame VBlank. Still no
+    // first LCD-on line or nonempty/changing geometry owner.
+    bool instructionRestartFrame=false;
     // Separately bounded title readiness at WX=166 on pinned DMG: empty
     // eight-pixel OAM and no horizontal scroll. The window's HBlank edge
     // does not extend visible transfer here; pixels/glitches stay unowned.
@@ -72,7 +76,7 @@ private:
 public:
     int mode(int64_t time) const {
         if(!enabled)return 0;
-        if(time<AirClock::Frame&&!(resultFirstVisibleFrame&&time>=456&&time<143*456&&
+        if(time<AirClock::Frame&&!(((resultFirstVisibleFrame&&time<143*456)||instructionRestartFrame)&&time>=456&&
             !objectsEnabled&&!windowEnabled&&scrollX==0))return -1;
         // Experimental clock deadlines identify counter-wait IRQ acceptance,
         // not the earlier graphics-line boundary. The independent DMG source

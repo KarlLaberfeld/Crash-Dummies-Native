@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 instruction-resume follow-up: both retained single-player Air/easy
+histories match EI follower completion, pending VBlank/STAT priority, native
+life selection, every LCD-safe background-clear access and result reset
+through 02ce. New scope: 14 boundaries / eight displays / 16 vectors / 7,134
+polls / 2,068 stores / 4,096 map bytes, zero differences. All 794 preceding
+complete native CSVs remain exact. The bounded instruction first-frame owner
+adds line 143/VBlank; the first LCD-on line and other geometry stay rejected.
+O2 diagnostic, 22,549 native resume assertions, 29,724 rebuilt final-result
+regression assertions, CLI guard and 1,082 Python tests pass. See
+[scope](AIR_TITLE_RESUME.md). Instruction content/other paths, production timing,
+full pixels/PCM and final human/device/Windows/distribution gates remain open.
+No release; final acceptance incomplete.
+
 October 20 campaign-restart follow-up: both retained single-player Air/easy
 histories match campaign values/lives, full masked window clear and LCD restart
 through 02bc before EI. New scope: 18 boundaries / 2,048 polls / 2,064 stores /

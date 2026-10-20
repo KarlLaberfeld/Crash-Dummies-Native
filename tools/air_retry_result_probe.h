@@ -13,6 +13,7 @@
 #include "air_title_start.h"
 #include "air_title_instruction.h"
 #include "air_title_campaign.h"
+#include "air_title_resume.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -49,7 +50,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -179,6 +180,17 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                                         out.summary<<"end,lcdEpoch,nextStat,nextVBlank,pendingRequests,servicesMasked,active,player\n"<<t.end<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<r.pendingRequests<<','<<r.servicesMasked<<','<<fresh.campaign.active<<','<<fresh.campaign.current<<'\n';
                                         std::ofstream maps(base+".title-campaign.maps.csv");maps<<"address,value\n";
                                         for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
+                                        if(titleResume){
+                                            AirNextInstructionCsv resume(base+".title-resume","boundary,cycle,tick,countdown,inputHeld,inputPressed,lcdc,scrollY,display,stat,pendingRequests,lives,result");
+                                            auto resumed=airTitleResume(fresh,game.result,sound,
+                                                [&](const char* name,int64_t cycle,const AirTitleResume& s){const auto& r=s.fresh.instruction.start.menu.page.close.fade.layout.reset;const auto& t=r.timing;
+                                                    resume.points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<t.input.held<<','<<t.input.pressed<<','<<r.lcdc<<','<<r.scrollY<<','<<r.display<<','<<r.stat<<','<<r.pendingRequests<<','<<s.fresh.campaign.players[0].lives<<','<<s.result<<'\n';},
+                                                [&](auto... args){resume.service(args...);},[&](auto... args){resume.irq(args...);},[&](auto... args){resume.poll(args...);},[&](auto... args){resume.write(args...);},sample);
+                                            const auto& r=resumed.fresh.instruction.start.menu.page.close.fade.layout.reset;const auto& t=r.timing;
+                                            resume.summary<<"end,lcdEpoch,nextStat,nextVBlank,displays,stats,pendingRequests,servicesMasked,result\n"<<t.end<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<t.displays<<','<<t.stats<<','<<r.pendingRequests<<','<<r.servicesMasked<<','<<resumed.result<<'\n';
+                                            std::ofstream maps(base+".title-resume.maps.csv");maps<<"address,value\n";
+                                            for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
+                                        }
                                     }
                                 }
                             }

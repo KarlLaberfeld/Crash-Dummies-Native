@@ -5,6 +5,9 @@ from 0292 through retained campaign settings, fresh lives, the complete window
 clear and LCD restart to 02bc, before EI. Pending service acceptance and the
 actual instruction presentation remain separate owners.
 
+The subsequent pending services and first background clear are now qualified
+separately in [instruction resume](AIR_TITLE_RESUME.md).
+
 Both ordinary / earlier-paused single-player Air/easy histories match nine
 boundaries, 1,024 readiness reads, 1,032 stores and all 2,048 final map bytes
 each, with no vectors. Combined: 18 boundaries / 2,048 reads / 2,064 stores /

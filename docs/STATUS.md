@@ -1,5 +1,41 @@
 # Crash Dummies Native - project status
 
+## Pending instruction services and first background clear - October 20, 2026
+
+Both accepted Start/campaign histories now match 02bc..02ce: the complete
+EI/CALL follower, retained VBlank before STAT, native life selection, all
+LCD-on background-clear polls/stores and the final result reset. Combined:
+14 boundaries / eight displays / 16 vectors / 7,134 readiness reads / 2,068
+stores / 4,096 map bytes, zero differences. All 395 / 399 preceding complete
+native CSVs remain exact. See [scope](AIR_TITLE_RESUME.md).
+
+Callback 5 retains countdown and fresh campaign lives while four displays
+sample input and advance tick/audio. All scroll stores and periodic access
+acceptance boundaries agree. Both full maps end blank and the full object
+list remains unchanged. No observed state, clocks, service schedule or fitted
+allowance initializes native execution. Existing original full-control hashes
+remain exact; events are unchanged and the accepted input-only prefix gains
+exactly four raw display samples per history.
+
+An explicit instruction restart readiness scope adds line 143 and first-frame
+VBlank for empty, unscrolled, object/window-disabled geometry. The first LCD-on
+line and other first-frame geometry stay rejected; the previous result-only
+scope remains unchanged. All original readiness values/times match, including
+the newly admitted region. This does not establish hardware/pixel/PCM parity.
+
+Validation: O2 Windows diagnostic, both complete attached comparisons, 22,549
+native resume assertions, 29,724 rebuilt final-result regression assertions,
+CLI guard and 1,082 Python tests. The new native target joins the regular test
+build. Regular Windows EXE rebuilt from committed source; timing remains
+diagnostic, outside the production scheduler. No release or automation change;
+ROM/data/recordings/binaries remain local.
+
+Next: instruction header/content under callback 5 with retained countdown.
+The existing post-result header owner cannot be reused unchanged. Other menu/
+unlock/page/player paths, qualifying name entry, vacant flags, other campaigns/
+stunts, production timing, full graphics/pixels/PCM and final human/device/
+independent-Windows/distribution gates remain open. Final acceptance incomplete.
+
 ## Retained campaign choices and instruction LCD restart - October 20, 2026
 
 Both existing post-Start histories now match 0292..02bc: retained day/
