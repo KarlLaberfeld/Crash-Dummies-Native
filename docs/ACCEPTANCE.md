@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 first-menu-timeout follow-up: both zero-savings histories match
+all 480 idle waits and automatic page advance. New scope: 8,648 boundaries /
+960 displays / 2,880 vectors / 3,840 raster boundaries / 8,642 stores / 4,096
+unchanged map bytes, zero differences; all 736 earlier complete native CSVs
+remain exact. Original entry storage matches the accepted page endpoint;
+full-control digests remain unchanged. O2 diagnostic, both complete chains,
+44,212 native menu assertions, CLI guard and 943 Python tests pass. See
+[scope](AIR_TITLE_MENU.md). Fresh input/unlock/other pages/player selection,
+qualifying name entry, other paths, production timing, full graphics/pixels/PCM
+and final human/device/Windows/distribution gates remain open. No release;
+final acceptance incomplete.
+
 October 20 first-title-page follow-up: both zero-savings histories match two
 window clears, page installation, bounded WX=166 readiness and forty reopening
 waits. New scope: 284 boundaries / 84 displays / 330 vectors / 492 raster

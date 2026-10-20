@@ -1,5 +1,37 @@
 # Crash Dummies Native - project status
 
+## First title-menu idle timeout - October 20, 2026
+
+Both existing zero-savings Air histories now match the first page's complete
+480-display idle duration and automatic page-index advance. Combined new
+scope: 8,648 boundaries / 960 displays / 2,880 vectors / 3,840 raster boundaries /
+8,642 stores / 4,096 unchanged map bytes, zero differences. All 736 preceding
+complete native CSVs remain exact. See [scope](AIR_TITLE_MENU.md).
+
+The native menu continues the actual reopened page, LCD epoch/deadlines, input,
+countdown and song 1. It distinguishes held input from fresh edges and rejects
+unqualified fresh-input branches; held A+Right in the two original histories
+never skips a wait. The game countdown remains 54 while the separate menu
+counter reaches zero and advances the page index once. Direct entry maps match
+the accepted page endpoint and remain unchanged. Existing full-control hashes
+are retained; no event extension, observed schedules, source state or fitted
+work allowances initialize native execution.
+
+Validation: O2 native Windows diagnostic, both complete attached comparisons,
+44,212 native menu assertions, CLI guard and 943 Python tests. Native tests also
+cover held Start/Select, tick wrap, full graphics preservation and rejection
+of invalid/reset/fresh inputs. Tests join the regular test build. Earlier
+shared-clock/gameplay tests retain their previous scope without repetition.
+Regular Windows EXE rebuilt from committed source; diagnostic timing remains
+outside its production scheduler. No release or automation change; original
+ROM/data/recordings and binaries stay local.
+
+Next concrete owners: fresh menu input (including unlock progression), next
+page composition/reopening and player selection. Qualifying-score/name entry,
+vacant flags, other campaigns/players/stunts/reset paths, production timing,
+full graphics/pixels/PCM and final human/device/independent-Windows/distribution
+gates remain open. Final acceptance is incomplete.
+
 ## First title page and reopening - October 20, 2026
 
 Both existing zero-savings Air histories now match two window clears, first-

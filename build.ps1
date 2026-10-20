@@ -78,6 +78,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title page test compilation failed.' }
     & ./build/air-title-page-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title page tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_menu_tests.cpp src/audio.cpp -o build/air-title-menu-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title menu test compilation failed.' }
+    & ./build/air-title-menu-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title menu tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

@@ -96,7 +96,8 @@ retain their previous integration scope and are not repeated. Regular Windows
 EXE rebuilt from committed source; timing remains diagnostic, outside its
 production scheduler. No release or automation change; binaries stay local.
 
-Next: first menu wait/input processing and subsequent page/player-selection
+Follow-up: the [first menu idle timeout](AIR_TITLE_MENU.md) now qualifies all
+480 waits and automatic page advance. Next: fresh menu input and subsequent page/player-selection
 paths. Qualifying-score/name entry, vacant flags, other campaign/player/stunt/
 reset paths, production timing, full graphics/pixels/PCM and final human/device/
 independent-Windows/distribution gates remain open. Timing point 1 and
