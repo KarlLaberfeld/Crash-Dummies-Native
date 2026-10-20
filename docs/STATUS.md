@@ -11,6 +11,20 @@ The following clear/menu/campaign continuation, other path families, frames/PCM
 and production scheduling remain open. Broader request/final acceptance incomplete.
 No release/automation change.
 
+Current continuation checkpoint: the Windows EXE was rebuilt and its clean
+source revision/executable hash verified after saving this scope. The complete
+game/campaign/playthrough/audio regression suite passed; the newly added player
+diagnostic and integrity tests also pass. No final release is claimed.
+
+Next concrete work is the selection's object-clear continuation and full A/B
+title return, followed by selected-player campaign start. Local source-only
+exploration is being collected with `local/capture_players_continuation.py`;
+it already confirms the first one/two-player clear's 160 stores / 1,316 mainline
+cycles in both histories. These captures are not native acceptance. The local
+resume checkpoint is `local/comparison-next-work.json`; check its running
+sessions before starting duplicate work. Preserve the accepted scopes and
+extend native/source observation together, rather than repeating static checks.
+
 ## Full music-test menu return - October 20, 2026
 
 All ten test cases now match the complete title return, including live/stopped
