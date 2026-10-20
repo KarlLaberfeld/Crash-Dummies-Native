@@ -114,7 +114,8 @@ active voices and directly observed picture tiles/maps in two Air/easy histories
 Their [first-instruction incoming fade](docs/AIR_TITLE_ENTRANCE.md) and
 [complete text, skip, prompt and exit](docs/AIR_TITLE_TEXT_EXIT.md) are also qualified
 for those histories, with explicit stopped-driver voice-payload exclusions.
-The broader
+The [first password presentation](docs/AIR_TITLE_PASSWORD.md) is also qualified
+through initial cursor/digit reset. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.

@@ -1,5 +1,11 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 password-presentation follow-up: both attached histories match
+2b4f..2ba7 with full access/raster/map and active voice projection. 2,899
+native checks and 1,285 Python tests pass. See [scope](AIR_TITLE_PASSWORD.md).
+Editing, validation, feedback/return and other comparison families remain
+open; final acceptance incomplete. No release or automation change.
+
 October 20 first-instruction text/exit follow-up: four cases across both
 retained Air/easy histories cover full text/fresh-Start prompt and skip/held-
 Start exit through 0355. Eight attached comparisons match text, glyph access,

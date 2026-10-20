@@ -1,5 +1,30 @@
 # Crash Dummies Native - project status
 
+## First password presentation qualified - October 20, 2026
+
+Both retained single-player Air/easy histories now match the typed native
+continuation from completed direction unlock 2b4f through first password
+input-loop entry 2ba7. Combined: 502 boundaries / 164 displays / 648 vectors /
+968 raster boundaries / 4,574 polls / 3,446 stores / 4,096 direct map bytes /
+984 active voice rows, zero differences. All 374 / 378 preceding native CSVs
+remain exact. Full original/native chains and repeated unobserved prefix/full
+controls agree. See [scope](AIR_TITLE_PASSWORD.md).
+
+The actual native menu owns state, clocks, inputs, maps and audio. Forty
+closing waits, two clears, all three glyph rows, counter wait, song-7 reset,
+forty opening waits and zeroed cursor/digits are reconstructed independently.
+No original state/time/service schedule or fitted budget drives execution.
+Intermediate reset voice payloads and frames/PCM/hardware parity are excluded.
+
+Validation: optimized diagnostic, two full comparisons, 2,899 native checks
+and 1,285 Python tests (42 new integrity cases). Target joins the regular test
+build; Windows EXE rebuilt from committed source. No release or automation
+change; original material stays local. Complete request remains in progress.
+
+Next: exact password editing/navigation, validation and feedback/return paths,
+then music-test and other required game/menu families. Earlier exploratory
+snapshots do not close these gates. See [coverage](ORIGINAL_COMPARISON_SCOPE.md).
+
 ## Next comparison work: password measurements prepared - October 20, 2026
 
 Local exploratory controls now cover wrong-password/Start return, valid first
