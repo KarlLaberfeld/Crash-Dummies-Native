@@ -107,11 +107,12 @@ Next fidelity work: qualifying high-score/name entry and title menu unlock/page/
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_HEADER.md) qualifies the player,
-lives, day and difficulty header plus its first wait after Start in both
-existing single-player Air/easy histories. Subsequent instruction music/picture/
-content and page/player work, unlock progression, full graphics/pixels/PCM and
-qualifying name entry remain unqualified.
+The [latest timing comparison](docs/AIR_TITLE_PICTURE.md) qualifies instruction
+music, active voices and directly observed picture tiles/maps after Start in
+both existing single-player Air/easy histories. The broader
+[game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
+Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
+entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

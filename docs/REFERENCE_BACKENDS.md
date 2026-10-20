@@ -1,5 +1,14 @@
 # Independent original-reference backends
 
+Instruction observer addition: `direct-vram-instruction-v1` copies the fixed
+1,024-byte instruction tile region through the public direct VRAM accessor.
+It performs no CPU access, graphics synchronization, emulated-time advancement
+or state modification. The core remains unmodified/pinned. Both existing
+extended Start controls retain their complete hashes with this additive bridge;
+direct storage and native repacked tiles agree. See
+[instruction music/picture](AIR_TITLE_PICTURE.md). The comparison DLL, core,
+ROM and recordings remain local and outside the Windows port/distribution.
+
 Latest observer addition: `direct-vram-title-v1` copies the two fixed title
 maps through the official read-only storage API. It performs no CPU bus access,
 graphics synchronization, emulated-time advance or state modification. Its

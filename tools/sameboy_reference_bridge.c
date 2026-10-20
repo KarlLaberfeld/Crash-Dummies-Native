@@ -74,6 +74,12 @@ __declspec(dllexport) int ref_title_maps(Reference *r,uint8_t *out){
     if(!vram||size<0x2000||bank!=0)return 0;
     memcpy(out,vram+0x1800,2048);return 1;
 }
+/* Fixed instruction image region, read-only direct storage. */
+__declspec(dllexport) int ref_instruction_tiles(Reference *r,uint8_t *out){
+    size_t size;uint16_t bank;const uint8_t *vram=GB_get_direct_access(r->gb,GB_DIRECT_ACCESS_VRAM,&size,&bank);
+    if(!vram||size<0x740||bank!=0)return 0;
+    memcpy(out,vram+0x340,1024);return 1;
+}
 __declspec(dllexport) void ref_watch(Reference *r,unsigned address){if(address<65536)r->watches[address]=1;}
 __declspec(dllexport) void ref_fail(Reference *r){r->failed=1;}
 __declspec(dllexport) int ref_tick(Reference *r,unsigned frames){

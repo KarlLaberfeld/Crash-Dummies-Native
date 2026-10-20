@@ -31,7 +31,7 @@ def build():
     environment=dict(os.environ,ZIG_GLOBAL_CACHE_DIR=str(ROOT/'.tools/zig-cache'),ZIG_LOCAL_CACHE_DIR=str(ROOT/'.tools/zig-local-cache'))
     subprocess.run([str(compiler),'cc',*flags,*files,str(ROOT/'tools/sameboy_reference_bridge.c'),'-lwinmm','-lws2_32'],env=environment,check=True)
     metadata=dict(emulator='SameBoy',version='1.0.3',sourceRevision=revision,model='DMG-B',referenceObserver='execution-callback-v1',graphicsStorageObserver='direct-vram-pause-v1',referenceOnly=True,
-                  titleStorageObserver='direct-vram-title-v1',dllSha256=hashlib.sha256(output.read_bytes()).hexdigest(),bootRomSha256=hashlib.sha256(boot.read_bytes()).hexdigest())
+                  titleStorageObserver='direct-vram-title-v1',instructionStorageObserver='direct-vram-instruction-v1',dllSha256=hashlib.sha256(output.read_bytes()).hexdigest(),bootRomSha256=hashlib.sha256(boot.read_bytes()).hexdigest())
     (source/'reference-build.json').write_text(json.dumps(metadata,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(metadata,indent=2))
 

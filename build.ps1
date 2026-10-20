@@ -98,6 +98,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title header test compilation failed.' }
     & ./build/air-title-header-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title header tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_picture_tests.cpp src/audio.cpp -o build/air-title-picture-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title picture test compilation failed.' }
+    & ./build/air-title-picture-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title picture tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

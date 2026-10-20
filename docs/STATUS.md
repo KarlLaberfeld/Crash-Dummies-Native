@@ -1,5 +1,37 @@
 # Crash Dummies Native - project status
 
+## Post-title music/picture and active voices - October 20, 2026
+
+Both retained single-player Air/easy Start histories match 031c..268b: song 2,
+all picture transfers, direct final graphics storage and active music voice
+projections. Combined: 18 boundaries / eight displays / 16 vectors / 10,554
+reads / 2,228 graphics stores / 16 scroll stores / 4,096 map bytes / 2,048 tile
+bytes / 48 voice rows, zero differences. All 409 / 413 preceding native CSVs
+remain exact. See [scope](AIR_TITLE_PICTURE.md).
+
+The native picture writer has an explicit instruction presentation; default
+result paths remain unchanged. Callback 5 retains countdown/lives while actual
+displays advance music/input/tick. Native pixel assets are independently
+repacked. Full original direct tiles/maps and preserved object storage agree.
+Active voice exclusions follow existing audio qualification; PCM and rendered
+frames are not implied. The pinned core is unmodified; an additive read-only
+fixed-tile observer neither synchronizes graphics nor advances/modifies state.
+Existing full-control hashes remain unchanged. Events/extensions are unchanged;
+each accepted raw input prefix gains four samples. Observations never initialize
+native execution.
+
+Validation: O2 diagnostic, both full attached comparisons, 14,902 native picture
+checks, 52,920 rebuilt shared checks, CLI guard and 1,144 Python tests. Windows
+EXE rebuilt from committed source; timing remains diagnostic. No release or
+automation change; ROM/data/recordings/reference binaries stay local.
+
+The requested complete original game/menu comparisons remain **in progress**;
+see the explicit [coverage scope](ORIGINAL_COMPARISON_SCOPE.md). Next: direction
+unlock and post-Start transition/text/exit, then remaining menu/player/password/
+high-score/campaign/stunt/difficulty/reset paths. Full frames/PCM, production
+timing and final human/device/independent-Windows/distribution gates stay open.
+Final acceptance incomplete.
+
 ## Post-title instruction header and first wait - October 20, 2026
 
 Both accepted Start/resume histories now match 02ce..031c: player name/lives,

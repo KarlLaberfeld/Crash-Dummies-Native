@@ -72,8 +72,9 @@ def capture(args):
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
     if data.get('version')!=1 or [p['name'] for p in points]!=NAMES or not isinstance(data.get('precedingDisplays'),int) or data['precedingDisplays']<0:raise ValueError('Incomplete picture boundaries')
-    first=points[0];perfect=first['display']==2;previous=first['inputHeld'];services=[];last=first['cycles']
-    if first['stage'] not in (1,2) or first['display'] not in (2,10):raise ValueError('Unowned picture campaign')
+    first=points[0];perfect=first['display']==2;instruction=first['display']==5;previous=first['inputHeld'];services=[];last=first['cycles']
+    if instruction!=bool(data.get('afterTitle',False)):raise ValueError('Instruction picture requires explicit post-title provenance')
+    if first['stage'] not in (1,2) or first['display'] not in (2,10,5):raise ValueError('Unowned picture campaign')
     for i,p in enumerate(points):
         if p['stage']!=first['stage'] or p['display']!=first['display'] or p['result'] or bool(p['musicEnabled'])!=bool(i):raise ValueError('Unowned picture campaign/audio mutation')
         if (p['inputHeld']&15)==15 or p['inputPressed']&~p['inputHeld']:raise ValueError('Unowned picture input/reset')
@@ -83,9 +84,9 @@ def analyze(data):
         if not last<=r['start']<r['end'] or r['end']+16>points[-1]['cycles']:raise ValueError('Incomplete picture IRQ extent')
         last=r['end']+16
         if r['kind']=='stat':
-            if r['selector']!=(4 if perfect else 0) or r['end']-r['start']!=stat_cycles(r['selector']):raise ValueError('Unowned picture STAT')
+            if r['selector']!=(5 if instruction else 4 if perfect else 0) or r['end']-r['start']!=(288 if instruction else stat_cycles(r['selector'])):raise ValueError('Unowned picture STAT')
         elif r['kind']=='vblank':
-            wanted={**VBLANK_FIXED,'display':(228 if r['countdown']==1 else 272)+(68 if perfect else 0),
+            wanted={**VBLANK_FIXED,'display':144 if instruction else (228 if r['countdown']==1 else 272)+(68 if perfect else 0),
                 'bookkeeping':vblank_bookkeeping_work(r['resetEnabled'],r['held'],r['resetLatched']),'effects':64}
             w=vblank_work(r)
             if any(w[k]!=v for k,v in wanted.items()) or w['music']<60 or r['effectRequest']!=-1 or not r['musicEnabled'] or r['pressed']!=r['held']&~previous or (r['held']&15)==15:raise ValueError('Unowned picture display/input/audio')
@@ -113,7 +114,7 @@ def compare_picture(data,points,services,irqs,polls,writes,summary,epoch):
         if q['boundary']!=p['name']:raise ValueError('Reordered native picture')
         check('boundary',i,dict(cycle=p['cycles']-epoch,**{k:p[k] for k in ('tick','countdown','musicEnabled','inputHeld','inputPressed')}),q)
     for i,(p,q) in enumerate(zip(expected_services,services)):
-        w=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],countdown=max(1,p['countdown']-1),
+        w=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],countdown=p['countdown'] if data.get('afterTitle') else max(1,p['countdown']-1),
             display=w['display'],effects=w['effects'],music=w['music'],inputHeld=p['held'],inputPressed=p['pressed']),q)
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
         if q['kind']!=p['kind'] or int(q['owner'])!=1:raise ValueError('Unowned picture IRQ')

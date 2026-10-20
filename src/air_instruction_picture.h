@@ -8,11 +8,14 @@ namespace ticd {
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirResultHandoff airInstructionPicture(AirResultHandoff state,int stage,NativeAudio& sound,const UiAssets& ui,
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,
-    std::function<int()> sampleInput={}){
-    if(state.result||stage<1||stage>2||sound.enabled)throw std::runtime_error("Unowned instruction picture entry");
+    std::function<int()> sampleInput={},AirHeaderPresentation presentation=AirHeaderPresentation::Result){
+    const bool instruction=presentation==AirHeaderPresentation::Instruction;
+    if(state.result||stage<1||stage>2||sound.enabled||(instruction&&state.timing.perfect)||
+       (presentation!=AirHeaderPresentation::Result&&!instruction))throw std::runtime_error("Unowned instruction picture entry");
     auto& timing=state.timing;AirClock clock;clock.now=timing.end;clock.nextStat=timing.nextStat;clock.nextVBlank=timing.nextVBlank;
-    clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=timing.perfect?288:248;
+    clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=(timing.perfect||instruction)?288:248;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    if(instruction)clock.rasterWork=[&](int64_t start){write("scroll",start+216,0xff42,0);return 288;};
     AirPauseLcd* graphics=nullptr;
     auto updateGraphics=[&]{if(!graphics||!timing.perfect)return;
         graphics->objectsEnabled=true;graphics->objectHeight=8;graphics->objectDisableLine=120;
@@ -22,7 +25,8 @@ AirResultHandoff airInstructionPicture(AirResultHandoff state,int stage,NativeAu
         if(timing.input.held<0||timing.input.held>255||(timing.input.held&15)==15)throw std::runtime_error("Unowned instruction picture input/reset");
         int tick=timing.tick;timing.tick=(tick+1)&65535;
         if(timing.perfect){timing.celebrationVisible=timing.celebration.prepared;updateGraphics();}
-        int work=airResultCountdownWork(timing.countdown)+(timing.perfect?68:0);sound.tick();
+        if(instruction)write("scroll",clock.now+20+1284,0xff42,0);
+        int work=instruction?144:airResultCountdownWork(timing.countdown)+(timing.perfect?68:0);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned instruction picture audio");
         service(clock.displays,clock.now+20,tick,timing.countdown,work,sound.effectWorkCycles,sound.musicWorkCycles,timing.input);
         return 1592+work+sound.effectWorkCycles+sound.musicWorkCycles;

@@ -4,6 +4,9 @@ October 20, 2026. Continues the accepted [instruction resume](AIR_TITLE_RESUME.m
 from 02ce through player name/lives, day and difficulty text and the first
 counter wait to 031c, before instruction music starts.
 
+The subsequent music, direct tile storage and picture map are now separately
+qualified in [post-title music/picture](AIR_TITLE_PICTURE.md).
+
 Both retained single-player Air/easy histories match 12 boundaries, one display,
 two vectors, 272 readiness reads, 39 glyph stores, two scroll stores and all
 2,048 final map bytes each. Combined: 24 boundaries / two displays / four

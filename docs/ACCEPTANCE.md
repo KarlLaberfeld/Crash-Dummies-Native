@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 music/picture follow-up: both retained single-player Air/easy
+histories match 031c..268b, including direct final tile storage and active voice
+projection. New scope: 18 boundaries / eight displays / 16 vectors / 10,554
+reads / 2,228 graphics stores / 16 scroll stores / 4,096 map bytes / 2,048 tile
+bytes / 48 voice rows, zero differences; all 822 previous native CSVs remain
+exact. O2 diagnostic, 14,902 native picture checks, 52,920 rebuilt shared checks,
+CLI guard and 1,144 Python tests pass. See [scope](AIR_TITLE_PICTURE.md).
+The broader [comparison request](ORIGINAL_COMPARISON_SCOPE.md) is in progress.
+Later instruction/menu/player/stunt/outcome/reset paths, frames/PCM, production
+timing and final human/device/Windows/distribution gates remain open. No release;
+final acceptance incomplete.
+
 October 20 post-title-header follow-up: both retained single-player Air/easy
 histories match player/lives/day/difficulty text, callback 5 and the first
 counter wait through 031c. New scope: 24 boundaries / two displays / four

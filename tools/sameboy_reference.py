@@ -45,6 +45,8 @@ if BUILD.get('titleStorageObserver')=='direct-vram-title-v1':
     if DLL.ref_title_observer()!=b'direct-vram-title-v1':raise RuntimeError('Stale title storage observer')
     DLL.ref_title_maps.argtypes=[PTR,ctypes.POINTER(ctypes.c_uint8)];DLL.ref_title_maps.restype=ctypes.c_int
 DLL.ref_watch.argtypes=[PTR,ctypes.c_uint]
+if BUILD.get('instructionStorageObserver')=='direct-vram-instruction-v1':
+    DLL.ref_instruction_tiles.argtypes=[PTR,ctypes.POINTER(ctypes.c_uint8)];DLL.ref_instruction_tiles.restype=ctypes.c_int
 DLL.ref_tick.argtypes=[PTR,ctypes.c_uint]
 DLL.ref_peek.argtypes=[PTR,ctypes.c_uint];DLL.ref_peek.restype=ctypes.c_uint8
 DLL.ref_reg.argtypes=[PTR,ctypes.c_uint];DLL.ref_reg.restype=ctypes.c_uint
@@ -94,6 +96,7 @@ class Screen:
 class SameBoy:
     reference_metadata={'emulator':'SameBoy','version':'1.0.3','bootRom':'SameBoy 1.0.3 open-source DMG boot ROM','model':'DMG-B','sourceRevision':REVISION,'referenceObserver':'execution-callback-v1','graphicsStorageObserver':'direct-vram-pause-v1','bootRomSha256':BUILD['bootRomSha256'],'referenceDllSha256':BUILD['dllSha256']}
     if BUILD.get('titleStorageObserver'):reference_metadata['titleStorageObserver']=BUILD['titleStorageObserver']
+    if BUILD.get('instructionStorageObserver'):reference_metadata['instructionStorageObserver']=BUILD['instructionStorageObserver']
     def __init__(self,rom,**ignored):
         self.handle=DLL.ref_open(str(Path(rom).resolve()).encode(),str(BOOT).encode())
         if not self.handle:raise RuntimeError('Cannot initialize original reference')
@@ -141,6 +144,11 @@ class SameBoy:
         if BUILD.get('titleStorageObserver')!='direct-vram-title-v1':raise RuntimeError('Rebuild the read-only title storage observer')
         values=(ctypes.c_uint8*2048)()
         if not DLL.ref_title_maps(self.handle,values):raise RuntimeError('Cannot observe title map storage')
+        return list(values)
+    def instruction_tiles_storage(self):
+        if BUILD.get('instructionStorageObserver')!='direct-vram-instruction-v1':raise RuntimeError('Rebuild the read-only instruction storage observer')
+        values=(ctypes.c_uint8*1024)()
+        if not DLL.ref_instruction_tiles(self.handle,values):raise RuntimeError('Cannot observe instruction tile storage')
         return list(values)
     def set_emulation_speed(self,speed):
         if speed!=0:raise ValueError('Reference is measured without host throttling')

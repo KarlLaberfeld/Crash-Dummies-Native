@@ -15,6 +15,7 @@
 #include "air_title_campaign.h"
 #include "air_title_resume.h"
 #include "air_title_header.h"
+#include "air_title_picture_probe.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -51,7 +52,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -202,6 +203,7 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                                                 header.summary<<"end,tick,countdown,displays,lcdEpoch,nextStat,nextVBlank,stats,pendingRequests,servicesMasked,result\n"<<t.end<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<t.stats<<','<<r.pendingRequests<<','<<r.servicesMasked<<','<<headed.result<<'\n';
                                                 std::ofstream maps(base+".title-header.maps.csv");maps<<"address,value\n";
                                                 for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
+                                                if(titlePicture)airProbeTitlePicture(base,headed,sound,ui,sample);
                                             }
                                         }
                                     }
