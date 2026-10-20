@@ -1,5 +1,11 @@
 # Player-selection presentation and controls
 
+Continuation update: the complete outgoing object clear, A/B title return,
+selected one/two-player campaign, instruction picture/music/text/exit and first
+Air game-entry displays are now separately compared. See
+[selected instruction scope](SELECTED_INSTRUCTION.md). The earlier extent and
+test counts below describe the original selection-only milestone.
+
 October 20, 2026. Continues the accepted fresh first-page Select action in
 both retained single-player Air/easy histories. Eight input-only cases per
 history cover one/two players, A/B back decisions, held Select, combined

@@ -2,7 +2,7 @@
 #include "air_title_page.h"
 
 namespace ticd {
-struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0,unlockProgress=0;};
+struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0,unlockProgress=0,playerChoice=0;bool selectedPlayers=false;};
 // 2707..26ea: page-zero's full idle duration and automatic page advance.
 // The title reset established an empty unlock sequence. Optional action
 // ownership ends at the Start/Select/page branch, before its next UI operation.
@@ -10,14 +10,15 @@ struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0
 // creates no edge; complete password presentation/validation is separate.
 template<class Boundary,class Service,class Interrupt,class Raster,class Write>
 AirTitleMenu airTitleMenuIdle(AirTitlePage page,NativeAudio& sound,Boundary&& boundary,
-    Service&& service,Interrupt&& interrupt,Raster&& raster,Write&& write,std::function<int()> sample={},bool actions=false,bool unlock=false){
+    Service&& service,Interrupt&& interrupt,Raster&& raster,Write&& write,std::function<int()> sample={},bool actions=false,bool unlock=false,const AirTitleMenu* inherited=nullptr){
     const auto& l=page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
-    if((unlock&&!actions)||page.cleared!=2||page.rows!=10||page.opened!=40||page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
+    if((unlock&&!actions)||page.cleared!=2||(!inherited&&page.rows!=10)||page.opened!=40||page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
        r.stat!=1||r.lcdc!=0xc3||r.scrollX||r.scrollY||r.servicesMasked||r.pendingRequests||t.countdown!=54||
-       t.displays!=662||t.stats!=854||!sound.enabled||sound.song!=1||
+       (!inherited&&(t.displays!=662||t.stats!=854))||
+       (inherited&&(inherited->index<0||inherited->index>4||inherited->route||inherited->unlockProgress||t.displays<662||t.stats<854||t.nextStat<=t.end||t.nextVBlank<=t.end))||!sound.enabled||sound.song!=1||
        std::any_of(r.objects.begin(),r.objects.end(),[](int value){return value!=0;}))
         throw std::runtime_error("Unowned first title-menu idle entry");
-    AirTitleMenu state;state.page=std::move(page);auto& title=state.page.close.fade.layout;auto& timing=title.reset.timing;
+    AirTitleMenu state;if(inherited)state=*inherited;state.page=std::move(page);state.waits=0;state.remaining=std::array<int,5>{480,480,960,480,960}.at(state.index);auto& title=state.page.close.fade.layout;auto& timing=title.reset.timing;
     AirClock clock;clock.now=timing.end;clock.nextStat=timing.nextStat;clock.nextVBlank=timing.nextVBlank;
     clock.displays=timing.displays;clock.statServices=timing.stats;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
@@ -67,7 +68,9 @@ AirTitleMenu airTitleMenuIdle(AirTitlePage page,NativeAudio& sound,Boundary&& bo
         clock.atomicWork(8,[&]{--state.remaining;},display,false);point("timerStored");
         work({4,4,state.remaining?12:8});
     }
-    point("advance");work({16,4});write(clock.now,0xc03e,1);
-    clock.atomicWork(16,[&]{state.index=1;},display,false);point("pageStored");work({8,12});state.route=1;return finish();
+    point("advance");work({16,4});write(clock.now,0xc03e,state.index+1);
+    clock.atomicWork(16,[&]{++state.index;},display,false);point("pageStored");work({8,state.index==5?8:12});
+    if(state.index==5){write(clock.now,0xc03e,0);clock.atomicWork(16,[&]{state.index=0;},display,false);point("wrapStored");work({12});}
+    state.route=1;return finish();
 }
 }

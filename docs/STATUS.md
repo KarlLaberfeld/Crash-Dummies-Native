@@ -1,5 +1,35 @@
 # Crash Dummies Native - project status
 
+## Selected instructions, game entry and title carousel - October 20, 2026
+
+Forty-eight additional attached comparisons now match: sixteen complete
+player-selection continuations (including full A/B return), twelve selected
+campaign starts with instruction music/picture, eight full/skip instruction
+paths, eight initial Air game entries and four complete five-page title
+carousels. Zero differences in these qualified extents. One/two-player choice
+and actual fresh lives are retained. See [selected scope](SELECTED_INSTRUCTION.md)
+and [carousel scope](TITLE_CYCLE.md).
+
+A shared native LCD status boundary was corrected to match the pinned reference:
+line 144 retains mode 0 through dot 5 and enters mode 1 at dot 6. VRAM readiness
+work is unchanged; this does not assert independent hardware verification.
+The carousel now owns complete credits/text, initial high-score BCD formatting,
+480/960-update durations and wrap. Its decoded text data stays local.
+
+Validation: 4,751 native player/continuation/instruction/entry checks, 6,177
+native carousel checks and 1,634 Python tests. All other optimized native
+timing/menu/audio checks pass. Full EXE game/campaign/playthrough/audio/sprite
+regressions pass. A new extractor test-cleanup file omission was corrected;
+the affected Python suite then passed. No release/automation change.
+
+Next: retained initial-gameplay body and later player/campaign paths, fresh
+actions on later title pages, other stunts/difficulties/outcomes, rendered
+frames/PCM and production scheduling. The [comparison matrix](ORIGINAL_COMPARISON_SCOPE.md)
+and final acceptance remain incomplete. Preserve original/native attachment;
+do not treat source-only observations or synthetic tests as comparison closure.
+The local checkpoint is `local/comparison-next-work.json`. Earlier entries
+below are historical milestones and their then-current scopes/counts.
+
 ## Player-selection comparison - October 20, 2026
 
 All sixteen attached selection cases now match, including complete Select-page

@@ -162,9 +162,10 @@ def analyze(data,parent):
     return services
 
 
-def compare(args):
-    from air_title_page_reference import compare as prior_compare
-    with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
+def compare(args,_parent_qualified=False):
+    if not _parent_qualified:
+        from air_title_page_reference import compare as prior_compare
+        with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
     from air_fourth_entry_reference import preserved_native_prefix
     retained=preserved_native_prefix(args.native_base,args.page_base)
     manifest=read(args.case_control/'capture-summary.json');original=read(args.capture/'capture-summary.json');data=read(args.actions_out/'actions.json');parent=read(args.page_out/'page.json')

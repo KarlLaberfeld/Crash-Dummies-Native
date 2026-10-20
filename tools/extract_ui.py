@@ -192,6 +192,8 @@ def extract_ui(rom,output):
     (output/'result-timing.dat').write_bytes(b'TICDRT02'+b''.join(struct.pack('<8H',*p) for p in profiles))
     layouts=[result_layout_commands(rom,p) for p in (0x04aa,0x13b3,0x13d3,0x13cb,0x13e8,0x065c)]
     (output/'result-layouts.dat').write_bytes(b'TICDRL03'+b''.join(struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in layouts))
+    title_layouts=[result_layout_commands(rom,p) for p in (0x29bb,0x2a97,0x2a1b,0x2ade,0x2750,0x2750)]
+    (output/'title-text.dat').write_bytes(b'TICDRL03'+b''.join(struct.pack('<H',len(commands))+b''.join(bytes(c) for c in commands) for commands in title_layouts))
     header_layouts=[result_layout_commands(rom,p,True) for p in
         (0x02cf,0x02f3,0x0303,0x263d,0x2643,0x2649,0x2651,0x2658,0x266d,0x2674,0x2679,0x2680)]
     player_names=rom[0x22dc:0x22df]+rom[0x22e0:0x22e3]

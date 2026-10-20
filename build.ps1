@@ -82,6 +82,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title menu test compilation failed.' }
     & ./build/air-title-menu-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title menu tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_cycle_tests.cpp src/audio.cpp src/ui.cpp src/game.cpp src/air.cpp -o build/air-title-cycle-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title carousel test compilation failed.' }
+    & ./build/air-title-cycle-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title carousel tests failed.' }
     & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_start_tests.cpp src/audio.cpp -o build/air-title-start-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title Start test compilation failed.' }
     & ./build/air-title-start-tests.exe

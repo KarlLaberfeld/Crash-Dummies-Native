@@ -1,5 +1,10 @@
 # Post-title instruction music and picture
 
+Selected-player extension: twelve additional Start cases and eight full/skip
+instruction paths now cover one/two players through the first Air game entry.
+See [selected instructions](SELECTED_INSTRUCTION.md). The original first-Start
+extent and historical validation counts below remain separately documented.
+
 October 20, 2026. Continues [post-title header](AIR_TITLE_HEADER.md) from 031c
 through song 2 start, tile copy and picture rectangle to 268b, before the
 map transition and timed text. Both retained single-player Air/easy histories

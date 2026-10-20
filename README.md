@@ -103,11 +103,10 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: qualifying high-score/name entry and title menu unlock/page/player paths after game over,
-remaining interrupted
-work, other stunt/player/reset paths and production scheduler integration; expand matched
-original image/audio comparisons and human/independent Windows tests.
-The [latest menu comparison](docs/AIR_TITLE_UNLOCK.md) qualifies direction
+Next fidelity work: qualifying high-score/name entry, later player/campaign
+and stunt/reset paths, production scheduler integration, rendered image/audio
+comparisons and human/independent Windows tests.
+The [direction-unlock comparison](docs/AIR_TITLE_UNLOCK.md) qualifies direction
 unlock with correct, held, wrong and combined input cases. The preceding
 [music/picture comparison](docs/AIR_TITLE_PICTURE.md) qualifies instruction music,
 active voices and directly observed picture tiles/maps in two Air/easy histories.
@@ -122,10 +121,14 @@ The [music-test operations](docs/MUSIC_TEST.md) now match all 14 tunes and 26
 effects, including navigation/stop/restart and ten complete returns to the title
 menu; this also
 corrects a pulse-envelope peak in production audio. [Player selection](docs/AIR_TITLE_PLAYERS.md)
-now matches full page presentation, one/two-player choices, held/combined
-controls and cursor blinking through the outgoing Start/A/B decision. The broader
+now matches full presentation, one/two-player choices, held/combined controls,
+blinking and complete outgoing object clear/A-B return. [Selected instruction
+comparisons](docs/SELECTED_INSTRUCTION.md) extend one/two-player Start through
+instruction music/picture, full or skipped text, prompt/fade and the first Air
+game-entry displays. The [five-page title carousel](docs/TITLE_CYCLE.md) also
+matches credits, initial high-score formatting, page durations and wrap. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
-Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
+Later gameplay/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.

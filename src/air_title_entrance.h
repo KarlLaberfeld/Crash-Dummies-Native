@@ -10,7 +10,7 @@ AirTitlePicture airTitleEntrance(AirTitlePicture state,NativeAudio& sound,const 
     if(state.title.result||r.alternate||r.servicesMasked||r.pendingRequests||r.display!=5||r.stat!=5||r.lcdc!=0xd1||r.scrollX||r.scrollY||l.lyc!=95||
        state.title.fresh.instruction.start.menu.page.close.center||!sound.enabled||sound.song!=2||sound.paused||sound.pendingEffect!=-1||
        !state.title.fresh.campaign.active||state.title.fresh.campaign.current||state.title.fresh.campaign.players[0].lives!=5||t.lives!=5||
-       t.displays!=707||t.stats!=936||t.countdown!=54||t.perfect||fade.bgp||fade.obp0||fade.obp1||std::min(t.nextStat,t.nextVBlank)<=t.end||
+       (!state.title.fresh.instruction.start.menu.selectedPlayers&&(t.displays!=707||t.stats!=936))||t.countdown!=54||t.perfect||fade.bgp||fade.obp0||fade.obp1||std::min(t.nextStat,t.nextVBlank)<=t.end||
        std::any_of(r.objects.begin(),r.objects.end(),[](int v){return v!=0;})||std::any_of(r.window.begin(),r.window.end(),[](int v){return v!=0;}))
         throw std::runtime_error("Unowned first-instruction incoming fade");
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;

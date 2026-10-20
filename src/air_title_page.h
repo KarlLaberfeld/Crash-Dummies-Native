@@ -7,9 +7,9 @@ struct AirTitlePage {AirTitleClose close;int cleared=0,rows=0,opened=0;};
 // WX=166 readiness is explicitly bounded to empty OAM/no horizontal scroll.
 template<class Boundary,class Service,class Interrupt,class Raster,class Poll,class Write>
 AirTitlePage airTitlePage(AirTitleClose close,NativeAudio& sound,const UiAssets& ui,Boundary&& boundary,
-    Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={},bool retainedClock=false){
+    Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={},bool retainedClock=false,int pageIndex=0,const AirResultTextAssets* texts=nullptr){
     const auto& initial=close.fade.layout;const auto& before=initial.reset.timing;
-    if(close.center!=176||close.steps!=40||initial.windowY!=72||initial.windowX!=166||initial.reset.servicesMasked||initial.reset.pendingRequests||
+    if(pageIndex<0||pageIndex>4||(pageIndex&&(!texts||!retainedClock))||close.center!=176||close.steps!=40||initial.windowY!=72||initial.windowX!=166||initial.reset.servicesMasked||initial.reset.pendingRequests||
        initial.reset.stat!=1||initial.reset.lcdc!=0xc3||initial.reset.scrollX||initial.reset.scrollY||initial.lyc!=23||
        (!retainedClock&&(before.displays!=620||before.stats!=731))||
        (retainedClock&&(before.displays<620||before.stats<731||before.end<before.lcdEpoch+AirClock::Frame||before.nextStat<=before.end||before.nextVBlank<=before.end))||before.countdown!=54||!sound.enabled||sound.song!=1||
@@ -26,7 +26,8 @@ AirTitlePage airTitlePage(AirTitleClose close,NativeAudio& sound,const UiAssets&
         return 1592+116+sound.effectWorkCycles+sound.musicWorkCycles;
     };
     clock.rasterWork=[&](int64_t start){return airTitleRasterWork(clock,title,state.close.center,start,raster,write);};
-    AirResultWriter writer(clock,t.lcdEpoch,display,poll,write);writer.lcd.windowEnabled=true;writer.lcd.windowX=166;writer.lcd.windowY=72;
+    auto store=[&](int64_t cycle,int address,int value){if(address>=0x9c00&&address<0xa000)r.window.at(address-0x9c00)=static_cast<uint8_t>(value);write(cycle,address,value);};
+    AirResultWriter writer(clock,t.lcdEpoch,display,poll,store);writer.lcd.windowEnabled=true;writer.lcd.windowX=166;writer.lcd.windowY=72;
     writer.lcd.objectHeight=8;writer.lcd.objectsEnabled=true;writer.lcd.titleRightEdge=true;
     auto work=[&](std::initializer_list<int> costs){writer.work(costs);};
     auto point=[&](const char* name){boundary(name,clock.now,state);};
@@ -45,7 +46,29 @@ AirTitlePage airTitlePage(AirTitleClose close,NativeAudio& sound,const UiAssets&
         work({16});++state.cleared;point(pass?"clearReturned":"closeReturned");
     }
     // Page-zero duration and static layout dispatch, including its RST JP.
-    work({16,4,4,12,16,4,4,20,8,8,8,8,16,8,8,4});point("pageCall");work({24,4});point("pageEntry");work({16,16,12,16,4,16,4});
+    work({16,4,4,12,16,4,4,20,8,8,8,8,16,8,8,4});point("pageCall");work({24,4});point("pageEntry");
+    if(pageIndex){
+        writer.layer=0x9c00;writer.text(texts->layouts.at(pageIndex-1));
+        if(pageIndex==2){
+            // 2aac..2adc formats the eight retained native high-score records.
+            // Each record is three glyphs and three packed BCD bytes. The
+            // campaign path measured here leaves the initial table unchanged.
+            work({12,8});
+            for(int row=0;row<8;++row){
+                point("scoreRow");work({8,4,24});writer.glyph(row+2);work({4});++writer.cursor;
+                for(int i=0;i<3;++i){work({8,24});writer.glyph(ui.initialScores[6*row+i]);}
+                work({4,4,8,24});writer.cursor+=2;writer.leading=false;
+                auto bcd=[&](int i){int value=ui.initialScores[6*row+3+i];if((value&15)>9||(value>>4)>9)throw std::runtime_error("Invalid title score BCD");return 10*(value>>4)+(value&15);};
+                writer.pair(bcd(0));work({24,8,8,8,4,24});writer.digit(bcd(1)/10);work({8,writer.leading?12:8});
+                if(!writer.leading){work({8,8,8,24});--writer.cursor;writer.glyph(0x33);writer.leading=true;}
+                work({8,8,4,16});writer.digit(bcd(1)%10);work({8,24});writer.glyph(0x2c);work({24});writer.pair(bcd(2),true);
+                int carry=(writer.cursor&255)+18>255;work({8,16,4,4,carry?8:20});if(carry)work({4,16});writer.cursor+=18;
+                work({4,row==7?8:12});
+            }
+        }
+        point("pageReturn");work({16});
+    }else{
+    work({16,16,12,16,4,16,4});
     writer.commandDispatch();work({12,8,4,4,8,16,16});writer.layer=0x9c00;
     writer.commandDispatch();work({12,8,4,16,8,4,24});writer.anchor=0;writer.row=14;writer.cursor=0x9dc0;writer.positionWork();work({16});
     writer.commandDispatch();work({12,8,4,8,4,8,12,8,12,8,12,16,16,4,16,4,12,24});point("rectangleEntry");
@@ -60,7 +83,9 @@ AirTitlePage airTitlePage(AirTitleClose close,NativeAudio& sound,const UiAssets&
         work({4,row==9?8:12});
     }
     work({12,12,16,12,16,16});point("copyReturned");work({16,12,16});
-    writer.commandDispatch();work({4,16,4,16,4,16,16,16,16});point("pageReturn");work({16});point("pageReturned");work({24});
+    writer.commandDispatch();work({4,16,4,16,4,16,16,16,16});point("pageReturn");work({16});
+    }
+    point("pageReturned");work({24});
     for(int step=0;step<40;++step){
         point("openWait");clock.wait(display,false);point("openReady");work({12});
         write(clock.now,0xff4a,title.windowY+1);clock.atomicWork(12,[&]{++title.windowY;},display,false);work({16,8});

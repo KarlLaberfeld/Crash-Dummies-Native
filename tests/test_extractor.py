@@ -26,7 +26,7 @@ def scratch_directory():
     path.mkdir()
     try:yield path
     finally:
-        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat','result-layouts.dat','instruction-header.dat'):
+        for name in ('input.gb','crash.dat','manifest.json','air.dat','air-manifest.json','ski.dat','ski-manifest.json','bomb.dat','bomb-manifest.json','cruise.dat','cruise-manifest.json','ui.dat','ui-manifest.json','pause.dat','result-timing.dat','result-layouts.dat','instruction-header.dat','title-text.dat'):
             (path/name).unlink(missing_ok=True)
         path.rmdir()
 
@@ -279,6 +279,15 @@ class LocalCartridge(unittest.TestCase):
             self.assertEqual(position,len(packed))
         self.assertEqual(extract_ui.result_layout_commands(bytes([0x8b,0x80]),0,True),[(5,0,0),(4,0,0)])
         with self.assertRaises(ValueError):extract_ui.result_layout_commands(bytes([0x8b,0x80]),0)
+
+    def test_title_text_package_contains_only_static_layout_commands(self):
+        with scratch_directory() as directory:
+            extract_ui.extract_ui(self.rom,directory);packed=(Path(directory)/'title-text.dat').read_bytes();self.assertEqual(packed[:8],b'TICDRL03');position=8
+            for script in (0x29bb,0x2a97,0x2a1b,0x2ade,0x2750,0x2750):
+                count=struct.unpack_from('<H',packed,position)[0];position+=2
+                commands=[tuple(packed[position+3*i:position+3*i+3]) for i in range(count)];position+=3*count
+                self.assertEqual(commands,extract_ui.result_layout_commands(self.rom,script));self.assertEqual(commands[-1],(4,0,0));self.assertTrue(all(c[0] in (0,1,2,3,4) for c in commands))
+            self.assertEqual(position,len(packed))
 
     def test_sprite_palette_and_transparency(self):
         frames=extract.roof_frames(self.rom)

@@ -85,7 +85,11 @@ public:
         // dots later. This bounded post-wait owner is 5+3 dots ahead. It must
         // not be generalized to arbitrary instruction/IRQ acceptance.
         int position=static_cast<int>((time+5+3)%AirClock::Frame),line=position/456,dot=position%456;
-        if(line>=144)return 1;
+        // The first VBlank line keeps HBlank while the DMG's 2+2+1-dot
+        // entry delay completes. The pinned observer's inclusive sleep edge
+        // still exposes mode zero at dot five; subsequent blank lines retain
+        // mode one. Accessibility is unchanged: both modes allow VRAM.
+        if(line>=144)return line==144&&dot<=5?0:1;
         int end=transferEnd(line);
         if(end<0){
             int bound=transferEndForGeometry(line,true);

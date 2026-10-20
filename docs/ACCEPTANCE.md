@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 continuation update: 48 new attached comparisons match complete
+selection exits/A/B return, one/two-player Start, instruction music/picture,
+full/skip text and prompt/fade, initial Air game entry and the complete five-page
+carousel. 4,751 player/continuation checks, 6,177 carousel checks, 1,634 Python
+tests and the full native game/campaign/playthrough/audio regression pass.
+See [selected scope](SELECTED_INSTRUCTION.md), [carousel](TITLE_CYCLE.md) and
+the current [matrix](ORIGINAL_COMPARISON_SCOPE.md). Subsequent game bodies,
+other required families, frames/PCM, production scheduler and final device/
+Windows/distribution gates remain open. Final acceptance is incomplete.
+No release/automation change. The entries below retain historical scopes.
+
 October 20 player-selection follow-up: All sixteen attached selection cases now match, including complete Select-page
 presentation, one/two-player choice, held/combined controls, blinking cursor
 and Start/A/B outgoing clear entry. 3,261 native selection assertions and

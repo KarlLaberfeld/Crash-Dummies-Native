@@ -6,11 +6,11 @@ qualify other players, difficulties, stunts or menu routes.
 
 | Path family | Existing original evidence | Remaining comparisons |
 |---|---|---|
-| Post-Start header/music/picture | Two retained single-player Air/easy histories; exact text, access timing, direct picture storage and active voice projection | Other start choices and two players |
-| Instruction transition/text/prompt/exit | First post-Start incoming fade plus complete text/fresh-Start prompt and deliberate skip/held-Start exit; bounded post-result Air/Ski controls | Gameplay continuation and other campaign/stunt/player/difficulty paths |
-| Title pages | First-page reopening/timeout; separate Start/Select/A/B decision branches | Subsequent page composition, player selection and transitions |
+| Post-Start header/music/picture | Two retained Air/easy histories; twelve selected Start cases include one/two players, held/combined controls, exact access timing, direct picture storage and active voices | Other day/difficulty choices and the second player's later turn |
+| Instruction transition/text/prompt/exit | First post-Start incoming fade plus full/fresh-Start and skip/held-Start paths; eight selected-player variants also reach the initial Air setup and first two game displays; bounded post-result Air/Ski controls | Subsequent gameplay and other campaign/stunt/player/difficulty paths |
+| Title pages | First-page reopening/timeout and separate Start/Select/A/B decisions; four complete five-page carousels with credits, initial high-score BCD rows, 480/960-update durations and wrap | Fresh actions on later pages and composition with modified high scores |
 | Direction unlock/password | Eight original sequence/wrong/held/combined cases; first presentation plus 34 editing and 34 validation/feedback cases including all ten passwords; 34 complete title/password returns and music-test presentations | Further menu paths after return |
-| Options/player/music test | Ten matched music-test cases: all 14 tunes / 26 effects, wrap/held/combined input, stop/restart and ten complete title returns; sixteen full Select-page/player/cursor cases through outgoing clear entry | Following object clear/menu/campaign continuation and further menu interaction |
+| Options/player/music test | Ten music-test cases: all 14 tunes / 26 effects and complete returns; sixteen full Select-page/player/cursor cases with complete clear and A/B return; twelve selected campaign starts | Later menu interaction and subsequent two-player campaign continuation |
 | Air gameplay | Specific documented ordinary/interruption/pause/retry/result cases | Uncovered difficulty/player/outcome/reset paths |
 | Other four stunts | Native campaigns; bounded Ski instruction evidence | Matched original gameplay/outcome/pause/reset per stunt/difficulty/player |
 | Campaign/end/name entry | Native coverage and selected original result/zero-savings return cases | Success/nonzero savings, qualifying name entry, two-player elimination/continuation, endings |
@@ -23,7 +23,7 @@ exclusions. Original clocks/snapshots/services must never drive native code.
 ROM/assets/recordings/reference binaries stay local. Synthetic/native-only
 tests and unchanged static reruns do not close original-comparison gaps.
 
-See [status](STATUS.md), [music/picture](AIR_TITLE_PICTURE.md), [first text/exit](AIR_TITLE_TEXT_EXIT.md) and
+See [status](STATUS.md), [music/picture](AIR_TITLE_PICTURE.md), [selected instructions/game entry](SELECTED_INSTRUCTION.md), [title carousel](TITLE_CYCLE.md), [first text/exit](AIR_TITLE_TEXT_EXIT.md) and
 [final acceptance](ACCEPTANCE.md). Production scheduler integration remains a
 separate outstanding gate. This request is not complete while the required
 path families above remain uncovered.
