@@ -1,5 +1,5 @@
 #pragma once
-#include "air_title_layout.h"
+#include "air_title_raster.h"
 
 namespace ticd {
 struct AirTitleFade {AirTitleLayout layout;int bgp=0,obp0=0,obp1=0;};
@@ -27,30 +27,7 @@ AirTitleFade airTitleFade(AirTitleLayout layout,NativeAudio& sound,const UiAsset
         service(clock.displays,clock.now+20,tick,t.countdown,116,sound.effectWorkCycles,sound.musicWorkCycles,t.input);
         return 1592+116+sound.effectWorkCycles+sound.musicWorkCycles;
     };
-    clock.rasterWork=[&](int64_t start){
-        const bool top=r.stat==1;
-        if((!top&&r.stat!=2)||title.lyc!=(top?23:103)||r.scrollX||r.scrollY!=(top?0:88))
-            throw std::runtime_error("Unowned title raster center/compare branch");
-        raster("begin",start,r.stat,r.lcdc,r.scrollY,title.lyc);
-        // Common 0048 vector/dispatch reaches the selected handler at +200.
-        int64_t operation=start+200;
-        if(top){
-            operation+=20;write(operation,0xff40,r.lcdc|0x38);r.lcdc|=0x38;
-            operation+=36;write(operation,0xff42,88);r.scrollY=88;
-            operation+=88;write(operation,0xff42,88);
-            operation+=20;write(operation,0xff45,103);title.lyc=103;
-            operation+=24;write(operation,0xc099,2);r.stat=2;
-        }else{
-            operation+=52;write(operation,0xff40,r.lcdc&0xc7);r.lcdc&=0xc7;
-            operation+=16;write(operation,0xff42,0);r.scrollY=0;
-            operation+=20;write(operation,0xff45,23);title.lyc=23;
-            operation+=20;write(operation,0xc099,1);r.stat=1;
-        }
-        const int body=248+(top?212:136);
-        int64_t deadline=t.lcdEpoch+(start-t.lcdEpoch)/AirClock::Frame*AirClock::Frame+title.lyc*456;
-        while(deadline<=operation)deadline+=AirClock::Frame;clock.nextStat=deadline;
-        raster("end",start+body,r.stat,r.lcdc,r.scrollY,title.lyc);return body;
-    };
+    clock.rasterWork=[&](int64_t start){return airTitleRasterWork(clock,title,0,start,raster,write);};
     auto work=[&](std::initializer_list<int> costs){for(int cost:costs)clock.atomicWork(cost,[]{},display,false);};
     point("begin");clock.now+=4+24;r.servicesMasked=false;r.pendingRequests=0;
     clock.vblank(display,false,AirIrqOwner::PendingStartup);clock.stat(AirIrqOwner::PendingStartup);point("fadeEntry");

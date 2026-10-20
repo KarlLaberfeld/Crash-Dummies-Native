@@ -1,5 +1,10 @@
 # Post-campaign title services and incoming fade
 
+Follow-up: [title music and center closing](AIR_TITLE_CLOSE.md) now qualify
+both histories through interrupted song 1 initialization and forty closing
+waits. Window clearing/page installation, reopening/menu and pixels/PCM remain
+unqualified.
+
 October 20, 2026. Continues both accepted [title layouts](AIR_TITLE_LAYOUT.md)
 from EI entry through the initial pending display/STAT pair, complete incoming
 fade and the following counter wait. Ends at 025f, before selecting title song

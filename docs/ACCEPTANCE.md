@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 title-closing follow-up: both zero-savings histories match song 1
+initialization with STAT-only interruption, moving-center raster branches and
+forty closing waits. New scope: 264 boundaries / 80 displays / 318 vectors /
+476 raster boundaries / 1,036 stores, zero differences; all 706 earlier complete
+native CSVs stay exact. O2 diagnostic, both attached chains, 1,258 native closing /
+1,922 previous fade assertions and 902 Python tests pass. See [scope](AIR_TITLE_CLOSE.md).
+Partial audio-reset RAM/register parity, subsequent window/page installation,
+reopening/menu, qualifying name entry, other paths, production timing, full
+graphics/pixels/PCM and final human/device/Windows/distribution gates remain
+open. No release; final acceptance incomplete.
+
 October 20 title-fade follow-up: both zero-savings histories match pending
 display/STAT acceptance, both zero-motion raster branches, complete incoming
 fade and final wait. New scope: 152 boundaries / 68 displays / 200 vectors /

@@ -7,6 +7,7 @@
 #include "air_title_reset.h"
 #include "air_title_layout.h"
 #include "air_title_fade.h"
+#include "air_title_close.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -43,7 +44,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -102,6 +103,17 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                     [&](auto... args){fade.write(args...);},sample);
                 const auto& f=faded.layout.reset.timing;
                 fade.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,servicesMasked,pendingRequests\n"<<f.end<<','<<f.lcdEpoch<<','<<f.tick<<','<<f.countdown<<','<<f.displays<<','<<f.stats<<','<<f.nextStat<<','<<f.nextVBlank<<','<<faded.layout.reset.servicesMasked<<','<<faded.layout.reset.pendingRequests<<'\n';
+                if(titleClose){
+                    AirNextInstructionCsv close(base+".title-close","boundary,cycle,center,steps,windowY,tick,countdown,stat,lcdc,scrollY,lyc,song,inputHeld,inputPressed");
+                    std::ofstream raster(base+".title-close.raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
+                    auto closed=airTitleClose(faded,sound,
+                        [&](const char* name,int64_t cycle,const AirTitleClose& s,int song){const auto& r=s.fade.layout.reset;const auto& t=r.timing;
+                            close.points<<name<<','<<cycle<<','<<s.center<<','<<s.steps<<','<<s.fade.layout.windowY<<','<<t.tick<<','<<t.countdown<<','<<r.stat<<','<<r.lcdc<<','<<r.scrollY<<','<<s.fade.layout.lyc<<','<<song<<','<<t.input.held<<','<<t.input.pressed<<'\n';},
+                        [&](auto... args){close.service(args...);},[&](auto... args){close.irq(args...);},
+                        [&](const char* name,auto... values){raster<<name;((raster<<','<<values),...);raster<<'\n';},[&](auto... args){close.write(args...);},sample);
+                    const auto& c=closed.fade.layout.reset.timing;
+                    close.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,center,steps,windowY,song\n"<<c.end<<','<<c.lcdEpoch<<','<<c.tick<<','<<c.countdown<<','<<c.displays<<','<<c.stats<<','<<c.nextStat<<','<<c.nextVBlank<<','<<closed.center<<','<<closed.steps<<','<<closed.fade.layout.windowY<<','<<sound.song<<'\n';
+                }
             }
         }
     }

@@ -1,5 +1,35 @@
 # Crash Dummies Native - project status
 
+## Title music start and center closing - October 20, 2026
+
+Both existing zero-savings Air histories now match song 1 initialization with
+its STAT interruption, moving-center raster branches and forty closing waits.
+New combined scope: 264 boundaries / 80 displays / 318 vectors / 476 raster
+boundaries / 1,036 stores, zero differences. All 706 earlier complete native
+CSVs remain exact. See [scope and reproduction](AIR_TITLE_CLOSE.md).
+
+Native reset work exposes identified atomic boundaries. Only STAT observes
+the reset in these histories; a VBlank/audio observation of partially reset
+voices rejects. Native logical song selection commits on reset completion;
+intermediate audio RAM/register parity is not claimed. All subsequent music/
+effect service work matches. Shared title raster work adds the middle split
+for moving centers while retaining the prior zero-center fade exactly.
+Window Y reaches 72 and center position 176 after forty independent updates.
+The endpoint precedes window clearing/page installation, not a completed menu.
+
+Validation: O2 native Windows diagnostic, both complete attached comparisons,
+1,258 native title-close / 1,922 title-fade assertions, CLI guard and 902 Python
+tests. New native tests join the regular test build. Unchanged fixed clock,
+audio and complete campaigns retain their earlier regression/integration
+scope. Regular Windows EXE rebuilt from committed source; diagnostic timing
+remains outside its production scheduler. No new release or automation change;
+ROM/data/recordings/binaries stay local.
+
+Next concrete owner: closed-window clear/page installation, reopening and menu
+behavior. Qualifying-score/name entry, vacant flags, other campaigns/players/
+stunts/reset paths, production timing, full graphics/pixels/PCM and final human/
+device/independent-Windows/distribution gates remain open.
+
 ## Post-campaign title services and incoming fade - October 20, 2026
 
 Both existing zero-savings Air histories now match the initial pending display/

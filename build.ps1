@@ -70,6 +70,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title fade test compilation failed.' }
     & ./build/air-title-fade-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title fade tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_close_tests.cpp src/audio.cpp -o build/air-title-close-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title closing test compilation failed.' }
+    & ./build/air-title-close-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title closing tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build
