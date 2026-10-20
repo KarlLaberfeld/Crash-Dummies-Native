@@ -1,5 +1,33 @@
 # Crash Dummies Native - project status
 
+## Initial gameplay and stable original UI pixels - October 20, 2026
+
+Eight additional selected-player cases now match the first 32 Air updates:
+256 updates, 2,560 boundaries, 40,960 actor slots, 256 displays, 512 vectors
+and 10,240 sprite slots, zero differences. Retained animation/timer state,
+scalar/input/music work and sprite presence/positions/flags are checked.
+Sprite tile bytes, map contents and later resource/interrupt paths remain open.
+Complete 485 / 489-file native prefixes remain identical in every case.
+
+Twenty-eight stable original frames also match the production UI renderer
+exactly: revealed instruction pictures, full scrolled text/Start prompt and
+all five title pages after A/B in both histories. All 645,120 logical grayscale
+pixels match, without tolerance, crop or fitting. Original framebuffer output
+is independent of the native renderer and all images remain local. See
+[pixel scope](ORIGINAL_UI_FRAMES.md) and [selected gameplay](SELECTED_INSTRUCTION.md).
+
+The optimized diagnostic and 1,688 Python tests pass. The production game,
+campaign, playthrough, audio and sprite suite passed at the preceding saved
+milestone; this follow-up changes observation/output adapters only. It does
+not integrate timing into the Windows scheduler or qualify PCM/device output.
+No release/automation change. Broader comparison/final acceptance incomplete.
+
+Next concrete work: extend the retained initial Air game beyond update 32
+through its first resource requests/completions and interrupted body work;
+then later player/campaign and other stunt/difficulty/outcome paths. Additional
+transition/gameplay frames, PCM and production scheduling remain open. Check
+`local/comparison-next-work.json` before starting another local capture.
+
 ## Selected instructions, game entry and title carousel - October 20, 2026
 
 Forty-eight additional attached comparisons now match: sixteen complete

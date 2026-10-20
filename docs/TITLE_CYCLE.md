@@ -1,5 +1,9 @@
 # Complete title-page carousel comparison
 
+Pixel follow-up: all five stable title pictures after A/B in both histories
+also match the production native renderer exactly. See
+[original UI frames](ORIGINAL_UI_FRAMES.md) for sampling/attachment limits.
+
 October 20, 2026. Four original/native cases continue the accepted first-page
 A or B action, in both retained histories, through all five title pages and
 the complete wrap to page zero. All four comparisons match with zero differences.
@@ -39,6 +43,6 @@ map data, eight numeric rows, duration/wrap, continuing audio and future deadlin
 Extractor tests check the new file's command-only format and terminators.
 
 Fresh Start/Select/unlock actions on later pages, altered score records,
-rendered frames/PCM and production scheduling remain unqualified. This scope
+other rendered frames/PCM and production scheduling remain unqualified. This scope
 does not complete the broader [comparison request](ORIGINAL_COMPARISON_SCOPE.md)
 or [final acceptance](ACCEPTANCE.md). No release/automation change.

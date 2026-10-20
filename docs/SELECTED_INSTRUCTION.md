@@ -1,5 +1,19 @@
 # Selected-player instruction and initial-game comparisons
 
+Follow-up: eight cases now also match the first 32 Air gameplay updates after
+this entry: 256 updates, 2,560 boundaries, 40,960 actor slots, 256 display/music
+services, 512 vectors and 10,240 published sprite slots. Actor animation/timer
+inheritance, scalar/work timing and published sprite presence/positions/flags
+match; sprite tile bytes and map contents are outside this extent. All eight
+preserve 485 / 489 complete preceding native CSVs. Use
+`tools/selected_gameplay_reference.py capture/compare-batch` with the accepted
+`entry.json` parent and native flag `--players-gameplay`. Batch arguments add
+`game_entry_base`, `gameplay_out`. No new control tail or source state is loaded
+into native execution. Later resource/body interruptions remain unqualified.
+
+The fully revealed picture and complete scrolled text/prompt also have exact
+stable framebuffer comparisons. See [pixel scope](ORIGINAL_UI_FRAMES.md).
+
 October 20, 2026. The accepted Select-page decision now continues through the
 complete native object clear, selected campaign startup, instruction music and
 picture, incoming fade, text, prompt/skip and the first Air gameplay entry.
@@ -34,7 +48,8 @@ Those same eight controls also qualify 0355..03d8: LCD-off equality polling,
 both complete 256-byte clears, masked Air/easy stage work, scene seed,
 resource/HUD work, game-music startup, pending and periodic vectors and the
 first two game displays. All eight comparisons match. This does not qualify
-the subsequent gameplay body or copied scene/HUD/actor payloads. Stage fields
+later gameplay beyond the separately qualified first 32 updates or copied
+scene/HUD payloads. Stage fields
 that have not yet been overwritten retain the existing explicit scratch-field
 exclusions; no new allowance or observed schedule initializes native execution.
 
@@ -87,6 +102,6 @@ wrong lives/choices, changed storage, pending-service priority and partial audio
 reset coverage. The shared pause, resume and page regressions also pass.
 
 Other campaigns, further gameplay and player switching, later menu actions,
-modified high scores, rendered frames/PCM, production scheduling and final
+modified high scores, other rendered frames/PCM, production scheduling and final
 Windows/device acceptance remain open. See the [matrix](ORIGINAL_COMPARISON_SCOPE.md).
 The broader request is not complete; no final release or automation change.

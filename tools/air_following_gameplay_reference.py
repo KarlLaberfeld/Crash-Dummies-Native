@@ -14,10 +14,21 @@ TERMINAL_POINTS={0x0400:'terminalWait',0x0403:'terminalEnd'}
 TERMINAL_ORDER=ORDER[:8]+list(TERMINAL_POINTS.values())
 FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','mapScratch','cameraX','cameraY','hudCursor','fadeRemaining','held','pressed','lcdc','display','transfer','remaining','effect','reverse')
 
+def selected_entry_boundary(parent,manifest):
+    require_capture_reference(manifest,parent)
+    if parent.get('version')!=1 or parent.get('inputCase') not in ('full-prompt','skip-held') or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or [g['name'] for g in parent.get('groups',[])]!=['prefix','stage','entry']:raise ValueError('Detached selected-game entry observation')
+    from air_following_entry_reference import analyze as analyze_entry
+    analyze_entry(parent['groups'][-1]);begin=parent['groups'][-1]['points'][-1]['cycles']
+    if type(begin) is not int or begin<=0:raise ValueError('Invalid selected-game entry boundary')
+    return begin
+
 def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
+    selected_entry=getattr(args,'selected_entry',None);attached=None;begin_cycle=None
+    if selected_entry:
+        attached=json.loads(Path(selected_entry).read_text(encoding='utf-8'));begin_cycle=selected_entry_boundary(attached,manifest)
     extent=getattr(args,'updates',1)
     scope=retry_capture_scope(args)
     outro=getattr(args,'outro',False)
@@ -33,10 +44,10 @@ def capture(args):
         if complete:return
         if pc==0x268b and (not scope.following or scope.ready) and p.memory[0xc098] in (2,10):armed=True
         scope.observe(pc,p.memory[0xc098],len(buttons))
-        if pc==0x1476 and armed and not active:pause_seen=True
-        if pc==0x2436 and (scope.samples(p.memory[0xc098]) if scope.following else (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6))):buttons.append(p.memory[0xff8a])
+        if pc==0x1476 and armed and not active and not attached:pause_seen=True
+        if pc==0x2436 and (active if attached else scope.samples(p.memory[0xc098]) if scope.following else (p.memory[0xc098] in (2,10) or armed and p.memory[0xc098] in (1,4,5,6))):buttons.append(p.memory[0xff8a])
         closing=False
-        if pc==0x03d8 and armed:
+        if pc==0x03d8 and armed and (active or begin_cycle is None or p._cycles()==begin_cycle):
             if p.memory[0xc098]!=4:raise ValueError('Following gameplay control is not an Air retry')
             if not active:active=True
             else:
@@ -88,6 +99,8 @@ def capture(args):
             complete=complete,openInterrupt=opened,controlMemorySha256=digest,controlMatches=digest==manifest['controlMemorySha256'],points=points,interrupts=irqs))
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
+    if attached:
+        prefix=(Path(selected_entry).parent/'buttons.txt').read_text();data.update(selectedEntryCycle=begin_cycle,parentInputCase=attached['parentInputCase'],inputCase=attached['inputCase'],players=attached['players'],precedingDisplays=len(prefix.splitlines()))
     if scope.following:data['nextRetry']=True
     if scope.retry!=1:data['afterRetry']=scope.retry
     if getattr(args,'partial_rows',False):data['partialRows']=True
@@ -117,7 +130,7 @@ def capture(args):
         if scope.retry!=1:outdata['afterRetry']=scope.retry
         intervals(outdata);display_services(outdata)
         write_json(args.out/'outro.json',outdata)
-    (args.out/'buttons.txt').write_text(''.join(str(b)+'\n' for b in buttons))
+    (args.out/'buttons.txt').write_text((prefix if attached else '')+''.join(str(b)+'\n' for b in buttons))
     print(json.dumps(dict(boundaries=len(points),services=sum(r['kind']=='vblank' for r in irqs),interrupts=len(irqs),controlDifferences=0),indent=2))
 
 def analyze(data):

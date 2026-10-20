@@ -126,9 +126,13 @@ blinking and complete outgoing object clear/A-B return. [Selected instruction
 comparisons](docs/SELECTED_INSTRUCTION.md) extend one/two-player Start through
 instruction music/picture, full or skipped text, prompt/fade and the first Air
 game-entry displays. The [five-page title carousel](docs/TITLE_CYCLE.md) also
-matches credits, initial high-score formatting, page durations and wrap. The broader
+matches credits, initial high-score formatting, page durations and wrap.
+The first 32 selected Air gameplay updates also match actor/work/input and sprite
+position publication. [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
+match the revealed instructions, complete text/prompt and title pages pixel for
+pixel in 28 frames. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
-Later gameplay/menu/player/stunt paths, full frames/PCM and qualifying name
+Later gameplay/menu/player/stunt paths, transition/gameplay frames, PCM and qualifying name
 entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.

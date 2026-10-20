@@ -1,5 +1,15 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 gameplay/pixel follow-up: eight further original comparisons match
+the first 32 initial Air gameplay updates after selected one/two-player Start.
+Twenty-eight complete stable instruction/prompt/title frames match the production
+renderer exactly (645,120 pixels). The optimized diagnostic and 1,688 Python
+tests pass. See [pixel scope](ORIGINAL_UI_FRAMES.md) and
+[selected gameplay](SELECTED_INSTRUCTION.md). Other gameplay/transition frames,
+later game/resource paths, other required families, PCM, production scheduling
+and final Windows/device gates remain open. Final acceptance incomplete;
+no release/automation change.
+
 October 20 continuation update: 48 new attached comparisons match complete
 selection exits/A/B return, one/two-player Start, instruction music/picture,
 full/skip text and prompt/fade, initial Air game entry and the complete five-page

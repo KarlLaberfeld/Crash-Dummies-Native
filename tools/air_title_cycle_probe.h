@@ -2,6 +2,7 @@
 #include "air_title_cycle.h"
 #include "air_next_instruction_probe.h"
 #include "air_instruction_voice_probe.h"
+#include "native_ui_frame_probe.h"
 namespace ticd {
 inline void airProbeTitleCycle(const std::string& base,AirTitleMenu menu,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
     auto texts=AirResultTextAssets::load("build/title-text.dat");
@@ -17,6 +18,8 @@ inline void airProbeTitleCycle(const std::string& base,AirTitleMenu menu,NativeA
             output.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,index,remaining,route,song\n"<<t.end<<','<<t.lcdEpoch<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.nextStat<<','<<t.nextVBlank<<','<<menu.index<<','<<menu.remaining<<','<<menu.route<<','<<sound.song<<'\n';
             std::ofstream maps(stem+".maps.csv");maps<<"address,value\n";for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';};
         finish(page,stem+".page");
+        UiFlow frame(ui);frame.phase=UiPhase::Title;frame.page=menu.index;frame.ticks=menu.page.close.fade.layout.reset.timing.tick;
+        nativeUiFrame(stem+".page.frame.shades",frame.render());
         if(pass==4)break;
         AirNextInstructionCsv idle(stem+".idle","boundary,cycle,remaining,waits,index,tick,countdown,stat,lcdc,scrollY,lyc,inputHeld,inputPressed,route,pattern");
         std::ofstream idleVoices(stem+".idle.voices.csv");airInstructionVoiceHeader(idleVoices);
