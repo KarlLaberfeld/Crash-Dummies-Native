@@ -82,13 +82,13 @@ def analyze(data,parent):
     if maps!=data['maps']:raise ValueError('Incomplete final instruction picture map')
     return services
 
-def compare_voices(services,rows):
+def compare_voices(services,rows,preceding=703):
     if len(rows)!=6*len(services):raise ValueError('Incomplete native instruction music voices')
     differences=[]
     for service,p in enumerate(services):
         for voice,post in enumerate(p['voiceStates']):
             q=rows[6*service+voice];active=bool(post['active']&128)
-            if int(q['service'])!=703+service or int(q['voice'])!=voice:raise ValueError('Reordered native instruction music voices')
+            if int(q['service'])!=preceding+service or int(q['voice'])!=voice:raise ValueError('Reordered native instruction music voices')
             wanted=dict(active=int(active),musicCost=vblank_work(p)['music'])
             if active:
                 for name in VOICE_FIELDS:

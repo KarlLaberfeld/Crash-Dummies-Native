@@ -8,7 +8,7 @@ struct AirTitleReset {
     std::array<uint8_t,256> objects{};
     int64_t lcdDisabled=0;
     int pollReads=0,pendingRequests=0,display=0,stat=0,bank=1,lcdc=0x5b;
-    int scrollX=0,scrollY=0,objectCount=0;
+    int scrollX=0,scrollY=0,objectCount=0,alternate=0;
     bool servicesMasked=true;
 };
 // 019c..0206 only: the post-game-over masked reset, blank maps/objects and

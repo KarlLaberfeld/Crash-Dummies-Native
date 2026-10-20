@@ -106,6 +106,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title unlock test compilation failed.' }
     & ./build/air-title-unlock-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title unlock tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_entrance_tests.cpp src/audio.cpp src/ui.cpp -o build/air-title-entrance-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title entrance test compilation failed.' }
+    & ./build/air-title-entrance-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title entrance tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

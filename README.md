@@ -110,7 +110,9 @@ original image/audio comparisons and human/independent Windows tests.
 The [latest menu comparison](docs/AIR_TITLE_UNLOCK.md) qualifies direction
 unlock with correct, held, wrong and combined input cases. The preceding
 [music/picture comparison](docs/AIR_TITLE_PICTURE.md) qualifies instruction music,
-active voices and directly observed picture tiles/maps in two Air/easy histories. The broader
+active voices and directly observed picture tiles/maps in two Air/easy histories.
+Their [first-instruction incoming fade](docs/AIR_TITLE_ENTRANCE.md) is also qualified.
+The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.

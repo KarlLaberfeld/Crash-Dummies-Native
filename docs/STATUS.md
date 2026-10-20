@@ -1,5 +1,35 @@
 # Crash Dummies Native - project status
 
+## First instruction incoming fade and alternate state - October 20, 2026
+
+Both retained single-player Air/easy histories match 268b..0a0a: the actual
+first-instruction branch, native alternate-flag enable, full incoming fade and
+active song-2 voice projection. Combined: 152 boundaries / 64 displays / 128
+vectors / 178 stores / 4,096 unchanged map bytes / 2,048 unchanged tile bytes /
+384 voice rows, zero differences. All 418 / 422 preceding native CSVs remain
+exact. See [scope](AIR_TITLE_ENTRANCE.md).
+
+The native title reset owns alternate=0; this first instruction takes the
+incoming fade, not the later 64-step pattern transition. All eight palette
+groups retain four independent waits each. Actual input/tick/music advance;
+countdown/lives, full picture/maps and object storage remain unchanged. Final
+palettes are e4/c4/e0. Existing full-control hashes and events remain unchanged;
+each accepted raw input prefix gains 32 display samples. No observed state,
+clocks/schedules or fitted allowance initializes execution. Frames/PCM and
+hardware parity are not claimed.
+
+Validation: O2 diagnostic, both full attached comparisons, 322 native checks,
+CLI guard and 1,192 Python tests. Native target added to regular test build.
+Windows EXE rebuilt from committed source; timing remains diagnostic. No
+release/automation change; ROM/data/recordings/binaries stay local.
+
+The user's requested complete comparisons remain **in progress**. Next: extend
+input-only original controls for full first-instruction text and deliberate
+skip/held/fresh-Start prompt/exit. Other menu/password/player/options/music-test/
+name-entry/campaign/stunt/difficulty/outcome/reset routes and full frames/PCM,
+production timing and final human/device/independent-Windows/distribution gates
+remain open. See [coverage](ORIGINAL_COMPARISON_SCOPE.md).
+
 ## Direction sequence, held/mismatched/combined inputs - October 20, 2026
 
 Four new input-only cases per history now match first-page direction unlock:

@@ -1,5 +1,14 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 first-instruction reveal follow-up: both retained Air/easy histories
+match alternate=0 branch, flag enable and incoming fade through text entry.
+New scope: 152 boundaries / 64 displays / 128 vectors / 178 stores / 4,096 map
+bytes / 2,048 tile bytes / 384 voice rows, zero differences. All 840 preceding
+native CSVs remain exact. O2 diagnostic, 322 native checks, CLI guard and 1,192
+Python tests pass. See [scope](AIR_TITLE_ENTRANCE.md). Timed text/skip/prompt/exit,
+other required routes and the broader comparison request remain open; timing
+remains diagnostic. No release; final acceptance incomplete.
+
 October 20 direction-unlock follow-up: eight matched cases cover correct,
 held, wrong/reset and combined/reset inputs through 2b4f before password
 transition. New scope: 1,957 boundaries / 221 displays / 663 vectors / 884 raster
