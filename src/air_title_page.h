@@ -7,11 +7,12 @@ struct AirTitlePage {AirTitleClose close;int cleared=0,rows=0,opened=0;};
 // WX=166 readiness is explicitly bounded to empty OAM/no horizontal scroll.
 template<class Boundary,class Service,class Interrupt,class Raster,class Poll,class Write>
 AirTitlePage airTitlePage(AirTitleClose close,NativeAudio& sound,const UiAssets& ui,Boundary&& boundary,
-    Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={}){
+    Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={},bool retainedClock=false){
     const auto& initial=close.fade.layout;const auto& before=initial.reset.timing;
     if(close.center!=176||close.steps!=40||initial.windowY!=72||initial.windowX!=166||initial.reset.servicesMasked||initial.reset.pendingRequests||
        initial.reset.stat!=1||initial.reset.lcdc!=0xc3||initial.reset.scrollX||initial.reset.scrollY||initial.lyc!=23||
-       before.displays!=620||before.stats!=731||before.countdown!=54||!sound.enabled||sound.song!=1||
+       (!retainedClock&&(before.displays!=620||before.stats!=731))||
+       (retainedClock&&(before.displays<620||before.stats<731||before.end<before.lcdEpoch+AirClock::Frame||before.nextStat<=before.end||before.nextVBlank<=before.end))||before.countdown!=54||!sound.enabled||sound.song!=1||
        std::any_of(initial.reset.objects.begin(),initial.reset.objects.end(),[](int value){return value!=0;}))
         throw std::runtime_error("Unowned first title page entry");
     AirTitlePage state;state.close=std::move(close);auto& title=state.close.fade.layout;auto& r=title.reset;auto& t=r.timing;

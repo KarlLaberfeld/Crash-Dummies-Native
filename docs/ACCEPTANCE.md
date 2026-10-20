@@ -1,5 +1,11 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 complete-return follow-up: all 34 title/password returns and initial
+music-test presentations match; 9,058 native checks and 1,400 Python tests
+pass. Explicit stopped-driver and title formatter scratch exclusions remain.
+See [scope](PASSWORD_RETURN.md). Full music-test operations and other families
+remain open; final acceptance incomplete. No release/automation change.
+
 October 20 password-edit/feedback follow-up: 34 editing plus 34 validation/
 feedback cases cover all ten passwords, bounds/wrap/held/combined inputs and
 Start/A/B. All comparisons match; 1,944 edit checks, 16,572 feedback checks

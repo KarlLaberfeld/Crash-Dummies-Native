@@ -13,11 +13,11 @@ POINTS={0x2bcf:'begin',0x2bd0:'finalWait',0x2bd3:'waitReturned',0x2bd6:'audioSto
 MOTION={0x27ec:0xff4a,0x27f2:0xc09c,0x27da:0xff4a,0x27e0:0xc09c}
 ACTION_STORES={0x2d31+6*i:0xc006 if i<5 else 0xc007 for i in range(9)}
 
-def attachment(parent,child,events,changed,setup):
-    if changed!=events+TAIL or child['inputCase']!=parent['inputCase'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256']:raise ValueError('Detached feedback controls')
+def attachment(parent,child,events,changed,setup,extension=TAIL):
+    if changed!=events+extension or child['inputCase']!=parent['inputCase'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256']:raise ValueError('Detached feedback controls')
     if child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Feedback controls lack repeated unobserved prefix/full hashes')
 
-def prepare(args):
+def prepare(args,extension=TAIL):
     parent=read(args.capture/'capture-summary.json');events=read(args.capture/'events.json');setup=sha((args.capture/'setup.state').read_bytes())
     if parent['controlDifferences'] or sha(args.rom.read_bytes())!=parent['romSha256']:raise ValueError('Changed feedback ROM/control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(parent,metadata);prefixes=[];hashes=[]
@@ -25,10 +25,10 @@ def prepare(args):
         p=Reference(str(args.rom),window='null',sound_volume=0)
         try:
             with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-            replay(p,events);prefixes.append(memory_sha(p));replay(p,TAIL);hashes.append(memory_sha(p))
+            replay(p,events);prefixes.append(memory_sha(p));replay(p,extension);hashes.append(memory_sha(p))
         finally:p.stop(save=False)
     child=dict(**metadata,inputCase=parent['inputCase'],romSha256=parent['romSha256'],parentControlMemorySha256=parent['controlMemorySha256'],parentEventsSha256=event_sha(events),setupSha256=setup,controlMemorySha256=hashes[0],controlDifferences=[],prefixControlHashes=prefixes,unhookedControlHashes=hashes,referenceOnly=True)
-    attachment(parent,child,events,events+TAIL,setup);args.out.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',args.out/'setup.state');write_json(args.out/'capture-summary.json',child);write_json(args.out/'events.json',events+TAIL)
+    attachment(parent,child,events,events+extension,setup,extension);args.out.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',args.out/'setup.state');write_json(args.out/'capture-summary.json',child);write_json(args.out/'events.json',events+extension)
 
 def capture(args):
     manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'edit.json');require_capture_reference(accepted,parent)

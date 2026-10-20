@@ -116,7 +116,9 @@ Their [first-instruction incoming fade](docs/AIR_TITLE_ENTRANCE.md) and
 for those histories, with explicit stopped-driver voice-payload exclusions.
 The [first password presentation](docs/AIR_TITLE_PASSWORD.md) is also qualified
 through initial cursor/digit reset. [Editing and complete feedback](docs/PASSWORD_EDIT_FEEDBACK.md)
-now match all ten passwords and input-boundary cases. The broader
+now match all ten passwords and input-boundary cases. Their
+[complete returns and music-test presentation](docs/PASSWORD_RETURN.md) also match.
+The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.

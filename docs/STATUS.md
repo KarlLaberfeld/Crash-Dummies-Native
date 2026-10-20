@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Complete password returns and music-test presentation - October 20, 2026
+
+All seventeen feedback cases in both retained histories now match their
+complete title/password return or initial music-test presentation. All 34
+comparisons match 8,950 boundaries / 2,814 displays / 11,094 vectors / 16,560
+rasters / 88,972 polls / 63,612 stores / 69,632 map bytes / 8,704 shadow-object
+bytes / 16,884 voice rows, zero differences. Each preserves all 403 / 407
+preceding native CSVs. See [scope](PASSWORD_RETURN.md).
+
+Native submit/action state selects the destination. Title return restarts song
+1, installs the entire ten-row page-zero map and restores its 480-update loop.
+Password return starts song 7 and resets cursor/digits. Test entry writes all
+42 glyphs and initializes selectors silently. Start choices stay retained.
+No observed clocks/state/schedules or fitted allowance initializes execution.
+
+Disabled-driver payloads and the inactive FF9b alias used by title rectangle
+source/bank scratch are explicitly excluded. Raw values remain recorded;
+active cursors, maps, time, rasters and selection state are still compared.
+This does not establish rendered-frame, PCM or hardware parity.
+
+Validation: optimized diagnostic, 34 attached comparisons, 9,058 native checks
+and 1,400 Python tests (31 new integrity cases). Target joins regular build;
+Windows EXE rebuilt from committed source. No release/automation change;
+original material stays local. Complete request remains in progress.
+
+Next: full music-test controls/play/stop/effects/exit, other title/player paths,
+then remaining instruction/gameplay/campaign/name-entry families. Production
+scheduler, frames/PCM and final acceptance remain open; see coverage matrix.
+
 ## Password editing, all validations and feedback qualified - October 20, 2026
 
 Seventeen cases in both retained histories now match native password editing
