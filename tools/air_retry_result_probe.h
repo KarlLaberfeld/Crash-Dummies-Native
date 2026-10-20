@@ -11,6 +11,7 @@
 #include "air_title_page.h"
 #include "air_title_menu.h"
 #include "air_title_start.h"
+#include "air_title_instruction.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -47,7 +48,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -153,6 +154,15 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                                 out.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,musicEnabled\n"<<t.end<<','<<t.lcdEpoch<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.nextStat<<','<<t.nextVBlank<<','<<sound.enabled<<'\n';
                                 std::ofstream maps(base+".title-start.maps.csv");maps<<"address,value\n";const auto& r=started.menu.page.close.fade.layout.reset;
                                 for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
+                                if(titleInstruction){
+                                    AirNextInstructionCsv out(base+".title-instruction","boundary,cycle,tick,countdown,inputHeld,inputPressed,display,stat,lcdc,scrollY,lyc","cycle,address,value","ly");
+                                    auto prepared=airTitleInstruction(started,sound,
+                                        [&](const char* name,int64_t cycle,const AirTitleInstruction& s){const auto& l=s.start.menu.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
+                                            out.points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<t.input.held<<','<<t.input.pressed<<','<<r.display<<','<<r.stat<<','<<r.lcdc<<','<<r.scrollY<<','<<l.lyc<<'\n';},
+                                        [&](auto... args){out.poll(args...);},[&](auto... args){out.write(args...);});
+                                    const auto& r=prepared.start.menu.page.close.fade.layout.reset;
+                                    out.summary<<"end,lcdDisabled,polls,pendingRequests,servicesMasked\n"<<r.timing.end<<','<<prepared.lcdDisabled<<','<<prepared.polls<<','<<r.pendingRequests<<','<<r.servicesMasked<<'\n';
+                                }
                             }
                         }
                     }

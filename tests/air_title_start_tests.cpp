@@ -1,5 +1,5 @@
 // Start fade/stop continuation: synthetic audio and native state only.
-#include "air_title_start.h"
+#include "air_title_instruction.h"
 #include <cstdio>
 #include <memory>
 using namespace ticd;
@@ -34,6 +34,20 @@ int main(){
             if(mode==4)bad.page.close.fade.layout.reset.timing.input.pressed=0;if(mode==5)sound.song=13;
             bool rejected=false;try{airTitleStart(bad,sound,*ui,[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[mode]{return mode==6?15:mode==7?256:0;});}catch(const std::runtime_error&){rejected=true;}
             require(rejected,"Wrong route/state/song/graphics, reset chord and invalid raw input reject");}
-        printf("PASS: %d native title-Start assertions.\n",checks);return 0;
+        {AirTitleStart start;start.menu=menu;start.palettes=8;start.waits=32;auto& l=start.menu.page.close.fade.layout;auto& r=l.reset;auto& t=r.timing;
+            r.lcdc=0xfb;r.stat=2;r.scrollY=88;l.lyc=103;t.displays=698;t.stats=927;t.input={0,0,0};
+            t.end=t.lcdEpoch+100*70224+23*456+600;t.nextStat=t.lcdEpoch+100*70224+103*456;t.nextVBlank=t.lcdEpoch+100*70224+144*456;
+            NativeAudio sound(audio);int points=0,polls=0,stores=0,last=-1;int64_t previous=0;
+            auto prepared=airTitleInstruction(start,sound,[&](const char*,int64_t,const AirTitleInstruction&){++points;},
+                [&](int64_t cycle,int ly){require(!polls||cycle-previous==32,"Each failed masked equality poll retains its independent read");require(last!=145,"The first successful equality poll terminates");previous=cycle;last=ly;++polls;},
+                [&](int64_t,int address,int value){require(address<0x9800||address>=0xa000,"Register setup cannot change map storage");require(value>=0&&value<=255,"Identified stores remain bytes");++stores;});
+            const auto& out=prepared.start.menu.page.close.fade.layout;const auto& s=out.reset;
+            require(points==3&&polls==prepared.polls&&last==145&&stores==9,"Complete bounded LCD-off and register prefix");
+            require(s.servicesMasked&&s.pendingRequests==3&&s.lcdc==0x51&&s.stat==5&&s.display==5&&out.lyc==95&&!s.scrollY,"Masked instruction selectors and LCD registers are configured");
+            require(s.timing.tick==t.tick&&s.timing.displays==698&&s.timing.stats==927&&sound.ticks==0,"No masked display, input or audio service runs");
+            require(s.background==r.background&&s.window==r.window&&s.objects==r.objects,"Masked register setup preserves inherited graphics storage");
+            auto bad=start;bad.menu.page.close.fade.layout.reset.servicesMasked=true;bool rejected=false;
+            try{airTitleInstruction(bad,sound,[](auto...){},[](auto...){},[](auto...){ });}catch(const std::runtime_error&){rejected=true;}require(rejected,"An already masked entry is outside this owner");}
+        printf("PASS: %d native title-Start/setup assertions.\n",checks);return 0;
     }catch(const std::exception& e){fprintf(stderr,"FAIL after %d checks: %s\n",checks,e.what());return 1;}
 }

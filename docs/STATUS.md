@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Masked instruction LCD/register prefix - October 20, 2026
+
+Both accepted Start histories now match 0272..0292: DI, inherited LY=145
+equality wait, LCD-off completion and instruction callback/scroll/LYC/STAT/LCDC
+setup. Combined: six boundaries / 3,282 polls / 18 stores / zero vectors, zero
+differences. All 382 / 386 earlier complete native CSVs remain exact. See
+[scope](AIR_TITLE_INSTRUCTION.md).
+
+The native owner uses the actual retained LCD epoch and stopped audio. It
+preserves input, tick, countdown and map/object storage while services are
+masked. Pending native requests derive from the inherited deadlines; the
+source comparison certifies poll values/times, stores, register boundaries
+and absence of services, not an independent IF-register trace. Both reference
+captures retain their existing full-control hashes; no new event extension
+or raw input sample is needed. Observed state/clocks/poll counts do not feed
+native execution.
+
+Validation: O2 diagnostic, both complete attached comparisons, 5,983 native
+Start/setup assertions, CLI guard and 1,025 Python tests. The existing Start
+test target includes the new setup checks. Regular Windows EXE rebuilt from
+committed source; timing remains diagnostic. No release or automation change;
+ROM/data/recordings/binaries remain local.
+
+Next: campaign configuration and lives, window clearing and LCD restart after
+0292, then instruction content/presentation. Unlock/player/page paths, other
+campaigns/stunts, vacant flags, qualifying name entry, production timing,
+full graphics/pixels/PCM and final human/device/Windows/distribution gates
+remain open. Final acceptance is incomplete.
+
 ## Start title fade and music stop - October 20, 2026
 
 Both accepted fresh-Start histories now match the complete outgoing fade,

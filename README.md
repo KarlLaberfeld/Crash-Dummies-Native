@@ -107,12 +107,12 @@ Next fidelity work: qualifying high-score/name entry and title menu unlock/page/
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_START.md) qualifies Start's complete
-outgoing title fade, final wait and audio stop in both existing Air histories,
-including the raster interruption during reset. Individual first-page actions
-and the idle timeout also match. Unlock progression, subsequent page/player/
-instruction preparation, full graphics/pixels/PCM and qualifying name entry
-remain unqualified.
+The [latest timing comparison](docs/AIR_TITLE_INSTRUCTION.md) qualifies masked
+LCD-off polling and instruction register setup after Start in both existing
+Air histories. The preceding fade, music stop, individual actions and idle
+timeout also match. Campaign setup, subsequent instruction/page/player work,
+unlock progression, full graphics/pixels/PCM and qualifying name entry remain
+unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

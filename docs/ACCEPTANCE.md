@@ -1,5 +1,15 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 masked instruction-prefix follow-up: both Start histories match
+LCD-off equality polling and instruction register setup through 0292. Six
+boundaries / 3,282 polls / 18 stores / zero vectors, zero differences; all 768
+earlier complete native CSVs remain exact. O2 diagnostic, 5,983 native Start/
+setup assertions, CLI guard and 1,025 Python tests pass. See
+[scope](AIR_TITLE_INSTRUCTION.md). Campaign configuration/lives, map clearing,
+LCD restart, instruction content, other paths, production timing, full pixels/
+PCM and final human/device/Windows/distribution gates remain open. No release;
+final acceptance incomplete.
+
 October 20 title-Start follow-up: both accepted fresh-Start histories match
 complete outgoing fade, final wait and fixed audio stop, including STAT-only
 reset interruption. New scope: 168 boundaries / 66 displays / 200 vectors /

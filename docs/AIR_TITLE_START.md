@@ -90,3 +90,7 @@ after Start, unlock progression and subsequent page/player selection. Qualifying
 name entry, other paths, vacant flags, full graphics/pixels/PCM and final human/
 device/independent-Windows/distribution gates remain open.
 [Final acceptance](ACCEPTANCE.md) is incomplete.
+
+Follow-up: [masked instruction LCD/register setup](AIR_TITLE_INSTRUCTION.md)
+now qualifies 0272..0292. Campaign configuration, map clearing and restart
+remain outside that bounded prefix.
