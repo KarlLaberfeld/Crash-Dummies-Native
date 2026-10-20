@@ -1,5 +1,26 @@
 # Crash Dummies Native - project status
 
+## Next comparison work: password measurements prepared - October 20, 2026
+
+Local exploratory controls now cover wrong-password/Start return, valid first
+stunt/Start, valid Air/A return to password input and music-test entry in both
+retained histories. All eight cases preserve repeated unobserved and observed
+full hashes plus accepted unlock-prefix hashes. Selected password/feedback
+window maps and retained day/difficulty match native menu exploration, but
+these are **not accepted complete or timing comparisons**. No coverage gate
+is closed by these exploratory snapshots.
+
+Detailed first-password presentation recordings are ready in both histories:
+251 boundaries / 82 displays / 324 vectors / 672 glyph-clear stores / 2,287
+polls / 1,051 raster-motion stores each. Observed full-control hashes still
+match. Next concrete implementation: typed native continuation from accepted
+unlock 2b4f through close, two clears, static password text, counter wait,
+song-7 reset/start, reopening and initial cursor/digit clear at 2ba7. Compare
+actual vectors/raster/music/input/access/storage before accepting it, then
+extend validation/returns/music-test operations. Local continuation notes and
+recordings are saved; rerunning unchanged earlier static checks is unnecessary.
+The complete user request and final acceptance remain open.
+
 ## Complete first-instruction text, skip, prompt and exit - October 20, 2026
 
 Both retained single-player Air/easy histories now have input-only full-text/
