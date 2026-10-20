@@ -1,5 +1,41 @@
 # Crash Dummies Native - project status
 
+## Start title fade and music stop - October 20, 2026
+
+Both accepted fresh-Start histories now match the complete outgoing fade,
+final wait and fixed audio stop through 0272, before DI/instruction preparation.
+Combined new scope: 168 boundaries / 66 displays / 200 vectors / 268 raster
+boundaries / 656 stores / 4,096 unchanged map bytes, zero differences. All
+374 / 378 preceding complete native CSVs remain exact. See [scope](AIR_TITLE_START.md).
+
+Thirty-two fade waits and a final wait cannot be shortened by action edges.
+The game countdown stays 54; song 1 continues through all 33 displays, then
+native audio stops. Identified fixed reset work exposes atomic boundaries to
+the actual raster clock. Both originals contain one additional STAT during
+reset; a VBlank/audio observation of partially reset voices rejects. Native
+logical stop occurs at the disable completion boundary. Intermediate voice
+RAM, audio hardware/PCM and pixel parity are not claimed.
+
+The original input-only Start controls are preserved in full, then extended
+by 80 held-input frames. Two unhooked runs and each observed replay retain
+both accepted prefix and new full-control hashes. Native input files preserve
+all earlier samples and append exactly 33 samples; no state, observed clock,
+IRQ schedule or fitted work allowance initializes native execution. Entry/
+exit direct storage and native final maps remain unchanged.
+
+Validation: O2 Windows diagnostic, both complete attached comparisons, 2,524
+native Start assertions, CLI guard and 1,012 Python tests. New tests join the
+regular test build. Earlier campaign/shared-clock/menu tests retain their
+previous scope without repetition. Regular Windows EXE rebuilt from committed
+source; timing remains diagnostic. No release or automation change; original
+ROM/data/recordings and binaries stay local.
+
+Next: masked instruction preparation after Start, direction/unlock progression
+and subsequent page/player selection. Qualifying-score/name entry, vacant
+flags, other campaign/player/stunt/reset paths, production timing, full graphics/
+pixels/PCM and final human/device/independent-Windows/distribution gates remain
+open. Final acceptance is incomplete.
+
 ## Fresh first-page title actions - October 20, 2026
 
 Fresh Start, Select, A and B now match both existing post-campaign histories

@@ -15,7 +15,7 @@ struct AirRetryProbeResult {
 // returned state. Original observations never enter this execution path.
 inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false,int fifthInstructionExtent=0,bool fifthEntry=false,int fifthUpdates=1,bool fifthTerminal=false,bool fifthResult=false,bool fifthReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false,int fifthInstructionExtent=0,bool fifthEntry=false,int fifthUpdates=1,bool fifthTerminal=false,bool fifthResult=false,bool fifthReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false){
     if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
     if(result&&!terminal)throw std::runtime_error("Subsequent result requires terminal ownership");
     if(thirdInstructionExtent<0||thirdInstructionExtent>5||(thirdInstructionExtent&&!result))throw std::runtime_error("Subsequent instruction requires complete result ownership");
@@ -25,6 +25,7 @@ inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstruct
     if(fourthUpdates<1||fourthUpdates>100000||(fourthUpdates!=1&&!fourthEntry))throw std::runtime_error("Fourth gameplay extent requires entry ownership");
     if(fifthUpdates<1||fifthUpdates>100000||((fifthUpdates!=1||fifthTerminal)&&!fifthEntry))throw std::runtime_error("Fifth gameplay extent requires entry ownership");
     if(fifthResult&&!fifthTerminal)throw std::runtime_error("Final result requires terminal ownership");
+    if(titleStart&&!titleActions)throw std::runtime_error("Title Start requires action branch ownership");
     if(titleActions&&!titleMenu)throw std::runtime_error("Title actions require menu ownership");
     if(titleMenu&&!titlePage)throw std::runtime_error("Title menu requires installed page ownership");
     if(titlePage&&!titleClose)throw std::runtime_error("Title page requires complete closing transition");
@@ -111,7 +112,7 @@ inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstruct
                         auto campaign=fourth.state.instruction.map.campaign;campaign.lives[campaign.player]=fourth.transition.lives;
                         auto fifth=airProbeNextInstruction(base+".fifth",campaign,fourth.transition,fourth.game->result,stage,difficulty,fourth.state.instruction.map.scroll,sound,ui,fifthInstructionExtent,sample);
                         if(fifthEntry){auto final=airProbeNextRetry(base+".fifth",fifth,*fourth.game,assets,shared,stage,difficulty,sound,ui,sample,fifthUpdates,fifthTerminal);
-                            if(fifthResult)airProbeFinalResult(base+".fifth",final.state,*final.game,sound,ui,sample,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions);}
+                            if(fifthResult)airProbeFinalResult(base+".fifth",final.state,*final.game,sound,ui,sample,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions,titleStart);}
                     }}
             }}
     }

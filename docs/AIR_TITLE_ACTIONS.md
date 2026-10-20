@@ -25,7 +25,8 @@ comparison qualification here is restricted to the four individual buttons.
 Start returns to 0269 before the outgoing fade call. Select reaches 2749 before
 closing/preparing the player-selection page. A/B reach 26ea after advancing
 the actual page index once, before closing page one. The native owner stops
-at those respective boundaries. No later fade, menu rectangle, player toggle
+at those respective boundaries. The [Start fade/stop follow-up](AIR_TITLE_START.md) now qualifies that branch
+through 0272. No later menu rectangle, player toggle
 or next instruction timing is implied by this result.
 
 The first two iterations decrement the independent page duration from 480 to

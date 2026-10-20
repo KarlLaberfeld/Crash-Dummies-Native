@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 title-Start follow-up: both accepted fresh-Start histories match
+complete outgoing fade, final wait and fixed audio stop, including STAT-only
+reset interruption. New scope: 168 boundaries / 66 displays / 200 vectors /
+268 raster boundaries / 656 stores / 4,096 unchanged map bytes, zero differences;
+all 752 preceding complete native CSVs remain exact. Two unhooked extended
+controls and observed captures retain accepted prefix/new full hashes. O2
+diagnostic, 2,524 native Start assertions, CLI guard and 1,012 Python tests pass.
+See [scope](AIR_TITLE_START.md). Intermediate audio-reset RAM/PCM, subsequent
+instruction/page/player preparation, unlock progression, other paths,
+production timing, full graphics/pixels/PCM and final human/device/Windows/
+distribution gates remain open. No release; final acceptance incomplete.
+
 October 20 fresh-title-actions follow-up: single fresh Start/Select/A/B inputs
 match both reopened first pages through their distinct branch endpoints.
 Eight cases: 218 boundaries / 24 displays / 72 vectors / 96 raster boundaries /
