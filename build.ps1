@@ -122,6 +122,14 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title password test compilation failed.' }
     & ./build/air-title-password-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title password tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_password_edit_tests.cpp src/audio.cpp -o build/air-password-edit-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Password edit test compilation failed.' }
+    & ./build/air-password-edit-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Password edit tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_password_feedback_tests.cpp src/audio.cpp src/ui.cpp -o build/air-password-feedback-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Password feedback test compilation failed.' }
+    & ./build/air-password-feedback-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Password feedback tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

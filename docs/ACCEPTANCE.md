@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 password-edit/feedback follow-up: 34 editing plus 34 validation/
+feedback cases cover all ten passwords, bounds/wrap/held/combined inputs and
+Start/A/B. All comparisons match; 1,944 edit checks, 16,572 feedback checks
+and 1,369 Python tests pass. Raster-interrupted reset and stopped-driver
+payload exclusions are explicit. See [scope](PASSWORD_EDIT_FEEDBACK.md).
+Return/test presentation and other families remain open; final acceptance
+incomplete. No release or automation change.
+
 October 20 password-presentation follow-up: both attached histories match
 2b4f..2ba7 with full access/raster/map and active voice projection. 2,899
 native checks and 1,285 Python tests pass. See [scope](AIR_TITLE_PASSWORD.md).

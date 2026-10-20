@@ -1,5 +1,39 @@
 # Crash Dummies Native - project status
 
+## Password editing, all validations and feedback qualified - October 20, 2026
+
+Seventeen cases in both retained histories now match native password editing
+and complete validation/feedback: Start/A/B, cursor bounds, digit wrapping,
+combined/held directions and all ten valid passwords. All 68 comparisons have
+zero differences. Editing: 62,722 boundaries / 7,836 displays / 23,508 vectors /
+31,344 rasters / 1,466 polls / 103,854 stores / 47,016 voice rows. Feedback:
+13,268 boundaries / 4,828 displays / 17,136 vectors / 24,616 rasters / 69,666
+polls / 81,958 stores / 28,968 voice rows. Each extent checks 69,632 map bytes
+and 8,704 shadow-object bytes. See [scope](PASSWORD_EDIT_FEEDBACK.md).
+
+Every case preserves all 383/387 editing or 393/397 feedback ancestor CSVs.
+Repeated unobserved prefix/full controls and observed hashes agree. Batches
+qualify common ancestors once and still independently prove each entire native
+child prefix and original control. No source state, clock, schedule or fitted
+budget drives execution. Cursor publication precedes input; all ten password
+rows, full close/clear/text/open/60-wait hold and selection handlers are owned.
+
+The title raster interrupts the fixed music reset. Individual native reset
+completions produce that interruption without an allowance. Source raw stopped
+presets retain four flags; native logical voices stop. The comparison records
+raw presets and explicitly excludes their payload equality; enabled voices
+cannot be masked. Frames/PCM/hardware parity remain unclaimed.
+
+Validation: optimized diagnostic, 68 complete comparisons, 1,944 native edit
+checks, 16,572 native feedback checks and 1,369 Python tests (84 new integrity
+cases). Native targets join regular test build; Windows EXE rebuilt from
+committed source. No release/automation change; original material stays local.
+
+Next concrete scope: complete title/password return and music-test
+presentation/operations, then other required game/menu families. Validations
+stop at 2bdc or music-test action entry 2d65. Broader request and final
+acceptance remain incomplete; see [coverage](ORIGINAL_COMPARISON_SCOPE.md).
+
 ## First password presentation qualified - October 20, 2026
 
 Both retained single-player Air/easy histories now match the typed native

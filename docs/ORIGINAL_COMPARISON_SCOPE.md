@@ -9,7 +9,7 @@ qualify other players, difficulties, stunts or menu routes.
 | Post-Start header/music/picture | Two retained single-player Air/easy histories; exact text, access timing, direct picture storage and active voice projection | Other start choices and two players |
 | Instruction transition/text/prompt/exit | First post-Start incoming fade plus complete text/fresh-Start prompt and deliberate skip/held-Start exit; bounded post-result Air/Ski controls | Gameplay continuation and other campaign/stunt/player/difficulty paths |
 | Title pages | First-page reopening/timeout; separate Start/Select/A/B decision branches | Subsequent page composition, player selection and transitions |
-| Direction unlock/password | Eight original sequence/wrong/held/combined cases; first password presentation through initial cursor/digit reset in two histories | Password editing/validation/feedback/returns |
+| Direction unlock/password | Eight original sequence/wrong/held/combined cases; first presentation plus 34 editing and 34 validation/feedback cases including all ten passwords | Password/title returns and music-test presentation/operations |
 | Options/player/music test | Native functionality | Original toggles, confirmation, back and music-test paths |
 | Air gameplay | Specific documented ordinary/interruption/pause/retry/result cases | Uncovered difficulty/player/outcome/reset paths |
 | Other four stunts | Native campaigns; bounded Ski instruction evidence | Matched original gameplay/outcome/pause/reset per stunt/difficulty/player |
