@@ -16,11 +16,12 @@ RAM_STORES={0x2be3:0xc03e,0x2b8d:0xff9b,**{0x2b8f+3*i:0xc0a0+i for i in range(8)
 def attachment(parent,child,events,changed,setup):return attach_extension(parent,child,events,changed,setup,TAIL)
 def prepare(args):return prepare_extension(args,TAIL)
 
-def capture(args):
-    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'feedback.json');require_capture_reference(accepted,parent)
+def capture(args,*,after_music_test=False):
+    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');parent=read(args.parent_out/('test.json' if after_music_test else 'feedback.json'));require_capture_reference(accepted,parent)
     old=read(args.capture/'events.json');events=read(args.control/'events.json');attachment(accepted,manifest,old,events,sha((args.control/'setup.state').read_bytes()))
     if (args.capture/'setup.state').read_bytes()!=(args.control/'setup.state').read_bytes() or sha(args.rom.read_bytes())!=manifest['romSha256'] or parent['controlMemorySha256']!=accepted['controlMemorySha256']:raise ValueError('Changed password-return ancestry')
-    target=3 if parent['points'][-1]['action']==9 else 2 if manifest['inputCase'] in ('submit-a','submit-b') else 1
+    target=1 if after_music_test else 3 if parent['points'][-1]['action']==9 else 2 if manifest['inputCase'] in ('submit-a','submit-b') else 1
+    if after_music_test and (parent['inputCase'] not in ('navigation','stop-restart','tunes','effects','completed') or parent['points'][-1]['name']!='end' or not parent['points'][-1]['pressed']&8):raise ValueError('Unowned music-test return edge')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata);p=Reference(str(args.rom),window='null',sound_volume=0)
     active=complete=False;points=[];raw_songs=[];irqs=[];irq=None;writes=[];polls=[];rasters=[];buttons=[];before=maps=before_objects=objects=None;rows=0;end_tune=end_effect=end_last=None
     def word(a):return p.memory[a]+256*p.memory[a+1]
@@ -69,6 +70,7 @@ def capture(args):
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete password return or changed full control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=accepted['controlMemorySha256'],inputCase=manifest['inputCase'],storageReadOwner='direct-vram-title-v1',target=target,points=points,rawSongs=raw_songs,interrupts=irqs,writes=writes,polls=polls,rasters=rasters,beforeMaps=before,maps=maps,beforeObjects=before_objects,objects=objects,endTestTune=end_tune,endTestEffect=end_effect,endTestLast=end_last)
+    if after_music_test:data['afterMusicTest']=True
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'return.rejected.json',data);raise
@@ -76,7 +78,10 @@ def capture(args):
 
 def analyze(data,parent):
     points=data['points'];first=points[0];end=parent['points'][-1];target=data['target'];irqs=data['interrupts'];services=[r for r in irqs if r['kind']=='vblank']
-    wanted=3 if end['action']==9 else 2 if data['inputCase'] in ('submit-a','submit-b') else 1
+    after_test=data.get('afterMusicTest',False)
+    if after_test and (parent['inputCase'] not in ('navigation','stop-restart','tunes','effects','completed') or end['name']!='end' or not end['pressed']&8):raise ValueError('Detached post-test return')
+    if after_test and (first['cursor']!=end['tune'] or first['song']!=end['song']):raise ValueError('Post-test return lost its selector/song state')
+    wanted=1 if after_test else 3 if end['action']==9 else 2 if data['inputCase'] in ('submit-a','submit-b') else 1
     if data.get('version')!=1 or target!=wanted or data['inputCase']!=parent['inputCase'] or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or first['name']!='begin' or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','center','windowY','day','difficulty','musicEnabled','held','pressed','stat','lcdc','scrollY','lyc')):raise ValueError('Detached return/feedback state')
     prefix=['begin']+(['titleWait','titleWaitReturned','titleMusicReady'] if target==1 else [])+['closeCall']+['closeWait','closeReady','centerStored']*40+['clearEntry','closeReturned','clearEntry','clearReturned']
     if target==1:middle=['pageCall','pageEntry','rectangleEntry']+['rowReady']*10+['copyReturned','pageReturn','pageReturned']
@@ -118,23 +123,29 @@ def boundary_projection(data):
         result.append({k:v for k,v in p.items() if k not in excluded})
     return result
 
-def compare(args,_parent_qualified=False):
-    from password_feedback_reference import compare as prior_compare
+def compare(args,_parent_qualified=False,*,after_music_test=False):
+    if after_music_test:
+        from music_test_reference import compare as prior_compare
+    else:
+        from password_feedback_reference import compare as prior_compare
     if not _parent_qualified:
         with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
+    if after_music_test:
+        args=argparse.Namespace(**vars(args));args.feedback_base=args.test_base;args.feedback_out=args.test_out;args.feedback_control=args.test_control;args.return_screen_out=args.exit_out;args.return_screen_control=args.exit_control
     from air_fourth_entry_reference import preserved_native_prefix
-    retained=preserved_native_prefix(args.native_base,args.feedback_base);data=read(args.return_screen_out/'return.json');parent=read(args.feedback_out/'feedback.json');accepted=read(args.feedback_control/'capture-summary.json');child=read(args.return_screen_control/'capture-summary.json')
+    retained=preserved_native_prefix(args.native_base,args.feedback_base);data=read(args.return_screen_out/'return.json');parent=read(args.feedback_out/('test.json' if after_music_test else 'feedback.json'));accepted=read(args.feedback_control/'capture-summary.json');child=read(args.return_screen_control/'capture-summary.json')
     attachment(accepted,child,read(args.feedback_control/'events.json'),read(args.return_screen_control/'events.json'),sha((args.return_screen_control/'setup.state').read_bytes()));require_capture_reference(child,data)
     if any(data[k]!=child[k] for k in ('romSha256','controlMemorySha256','inputCase')):raise ValueError('Mixed return controls')
+    if bool(data.get('afterMusicTest',False))!=after_music_test:raise ValueError('Mixed return context')
     services=analyze(data,parent)
     if (args.return_screen_out/'buttons.txt').read_text()!=(args.feedback_out/'buttons.txt').read_text()+''.join(str(r['held'])+'\n' for r in services):raise ValueError('Detached return raw input stream')
     from air_startup_reference import analyze as startup_epoch
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
     def rows(suffix):
-        with Path(str(args.native_base)+'.fifth.password-return'+suffix).open(newline='') as f:return list(csv.DictReader(f))
+        with Path(str(args.native_base)+('.fifth.music-exit.password-return' if after_music_test else '.fifth.password-return')+suffix).open(newline='') as f:return list(csv.DictReader(f))
     native=rows('.csv');ns=rows('.services.csv');ni=rows('.interrupts.csv');nr=rows('.raster.csv');np=rows('.polls.csv');nw=rows('.writes.csv');maps=rows('.maps.csv');objects=rows('.objects.csv');summary=rows('.summary.csv');voices=rows('.voices.csv')
     if [len(native),len(ns),len(ni),len(nr),len(np),len(nw),len(maps),len(objects),len(summary)]!=[len(data['points']),len(services),len(data['interrupts']),len(data['rasters']),len(data['polls']),len(data['writes']),2048,256,1]:raise ValueError('Incomplete native return outputs')
-    with Path(str(args.feedback_base)+'.fifth.password-feedback.summary.csv').open(newline='') as f:before=next(csv.DictReader(f))
+    with Path(str(args.feedback_base)+('.fifth.music-test.summary.csv' if after_music_test else '.fifth.password-feedback.summary.csv')).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);differences=compare_voices(logical_voice_projection(services),voices,preceding)
     def check(kind,i,wanted,q):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if int(q[k])!=v}
@@ -163,7 +174,8 @@ def compare(args,_parent_qualified=False):
     if target==3:wanted.update(tune=0,effect=0,lastTune=255)
     check('summary',0,wanted,summary[0])
     report=dict(inputCase=data['inputCase'],target=target,comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedPolls=len(np),comparedWrites=len(nw),comparedMapBytes=2048,comparedObjectBytes=256,comparedVoiceRows=len(voices),preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],stoppedDriverPayloadCompared=False,titleFormatterScratchCursorExcluded=target==1,productionSchedulerAccepted=False,evidenceLimit='Complete feedback return to page zero/password input or first music-test screen. Disabled driver song/presets use explicit logical projection. The inactive password cursor byte is formatter scratch from title rectangle entry and excluded there; raw source observations remain recorded. Subsequent menu/test operations, frames/PCM and production scheduling remain unqualified.')
-    write_json(Path(str(args.native_base)+'.password-return.comparison.json'),report);print(report)
+    if after_music_test:report.update(afterMusicTest=True,evidenceLimit='Complete post-music-test Start return through page-zero menu. Existing disabled-driver and inactive formatter scratch exclusions apply. Other player/game paths, frames/PCM and production scheduler remain unqualified.')
+    write_json(Path(str(args.native_base)+('.music-exit.comparison.json' if after_music_test else '.password-return.comparison.json')),report);print(report)
     if differences:raise ValueError('Native password return differs')
 
 def compare_many(cases):

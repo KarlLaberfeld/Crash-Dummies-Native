@@ -7,12 +7,13 @@ struct AirPasswordReturn {AirPasswordFeedback feedback;int target=0,center=0,clo
 // caller clock; password/test layouts use their already decoded glyph data.
 template<class Boundary,class Service,class Interrupt,class Raster,class Poll,class Write>
 AirPasswordReturn airPasswordReturn(AirPasswordFeedback feedback,NativeAudio& sound,const UiAssets& ui,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={}){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={},bool afterMusicTest=false){
     const auto& l0=feedback.edit.password.menu.page.close.fade.layout;const auto& r0=l0.reset;
     if(feedback.remaining||feedback.center||feedback.closed!=40||feedback.cleared!=2||feedback.opened!=40||feedback.musicTest!=(feedback.action==9)||
-       l0.windowX!=166||l0.windowY!=112||l0.lyc!=23||r0.display||r0.stat!=1||r0.lcdc!=0xc3||r0.scrollX||r0.scrollY||r0.servicesMasked||r0.pendingRequests||r0.timing.countdown!=54||sound.enabled||sound.paused||sound.pendingEffect!=-1||
+       (afterMusicTest&&(!feedback.musicTest||!(feedback.edit.submit&8)))||
+       l0.windowX!=166||l0.windowY!=112||l0.lyc!=23||r0.display||r0.stat!=1||r0.lcdc!=0xc3||r0.scrollX||r0.scrollY||r0.servicesMasked||r0.pendingRequests||r0.timing.countdown!=54||(!afterMusicTest&&sound.enabled)||sound.paused||sound.pendingEffect!=-1||
        std::any_of(r0.objects.begin(),r0.objects.end(),[](int v){return v!=0;}))throw std::runtime_error("Unowned password return entry");
-    AirPasswordReturn state;state.feedback=std::move(feedback);state.target=state.feedback.musicTest?3:(state.feedback.edit.submit&8)?1:2;
+    AirPasswordReturn state;state.feedback=std::move(feedback);state.target=!afterMusicTest&&state.feedback.musicTest?3:(state.feedback.edit.submit&8)?1:2;
     auto& p=state.feedback.edit.password;auto& title=p.menu.page.close.fade.layout;auto& r=title.reset;auto& t=r.timing;
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;
     clock.interrupt=[&](const char* name,int64_t cycle,AirIrqOwner owner){interrupt(name,cycle,owner);};bool resetting=false;

@@ -1,5 +1,15 @@
 # Crash Dummies Native - project status
 
+## Full music-test menu return - October 20, 2026
+
+All ten test cases now match the complete title return, including live/stopped
+music, song-1 reset, close/clear/full page/open and restored menu duration.
+2,660 boundaries / 830 displays / 3,270 vectors / 19,010 stores and all maps,
+shadow objects and active voices match, preserving 423 / 427 complete ancestor
+CSVs. 43,606 native music/return checks, 9,058 return regression checks and
+1,453 Python tests pass. See [scope](MUSIC_TEST.md). Other player/game/menu
+families and final acceptance remain open. No release/automation change.
+
 ## Music-test operations and pulse-envelope correction - October 20, 2026
 
 All ten attached music-test cases match, including all 14 tunes / 26 effects,

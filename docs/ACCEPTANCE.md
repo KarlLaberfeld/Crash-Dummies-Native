@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 post-music-test return follow-up: All ten test cases now match the complete title return, including live/stopped
+music, song-1 reset, close/clear/full page/open and restored menu duration.
+2,660 boundaries / 830 displays / 3,270 vectors / 19,010 stores and all maps,
+shadow objects and active voices match, preserving 423 / 427 complete ancestor
+CSVs. 43,606 native music/return checks, 9,058 return regression checks and
+1,453 Python tests pass. See [scope](MUSIC_TEST.md). Other player/game/menu
+families and final acceptance remain open. No release/automation change.
+
 October 20 music-test follow-up: all ten attached operation cases match all
 14 tunes / 26 effects and their input/stop/restart/exit boundaries. A measured
 pulse-envelope peak/work bug is corrected in production audio. 43,181 native

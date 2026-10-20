@@ -4,6 +4,7 @@
 using namespace ticd;
 int main(){int checks=0;auto require=[&](bool ok,const char* why){++checks;if(!ok)throw std::runtime_error(why);};try{
     auto audio=AudioAssets::load(L"build/audio.dat");auto ui=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));AirPasswordReturn seed;seed.target=3;seed.closed=seed.opened=40;seed.cleared=2;
+    seed.feedback.remaining=0;seed.feedback.closed=seed.feedback.opened=40;seed.feedback.cleared=2;seed.feedback.action=9;seed.feedback.musicTest=true;seed.feedback.edit.submit=8;
     auto& l=seed.feedback.edit.password.menu.page.close.fade.layout;auto& r=l.reset;auto& t=r.timing;l.windowX=166;l.windowY=112;l.lyc=23;r.servicesMasked=false;r.stat=1;r.lcdc=0xc3;r.window=ui->hiddenMaps[3];r.background.fill(19);
     t.end=200*AirClock::Frame+144*456+2300;t.nextStat=201*AirClock::Frame+23*456;t.nextVBlank=201*AirClock::Frame+144*456;t.tick=65520;t.countdown=54;t.displays=1500;t.stats=2800;
     std::vector<std::vector<int>> cases(5);cases[0]={48,0,192,0};cases[0].insert(cases[0].end(),24,16);cases[0].push_back(0);cases[0].insert(cases[0].end(),24,64);cases[0].insert(cases[0].end(),{0,8});
@@ -27,6 +28,12 @@ int main(){int checks=0;auto require=[&](bool ok,const char* why){++checks;if(!o
         if(scenario==4)require(result.plays==2&&result.stops==1&&!sound.enabled,"A completed same tune restarts instead of queueing an effect");
         const auto& after=result.screen.feedback.edit.password.menu.page.close.fade.layout.reset;
         require(after.background==r.background&&after.objects==r.objects&&after.timing.tick==((65520+services)&65535)&&after.timing.nextStat>after.timing.end&&after.timing.nextVBlank>after.timing.end,"Test retains background/objects and its independently advanced LCD clock");
+        auto feedback=result.screen.feedback;feedback.edit.password.cursor=result.screen.tune;int returnedServices=0;
+        auto returned=airPasswordReturn(feedback,sound,*ui,[](auto...){},
+            [&](unsigned,int64_t,int,int,int display,int effects,int music,const DisplayInput&){require(display==116&&effects>=64&&music>=60,"Post-test return services retain the actual current music until title reset");++returnedServices;},
+            [](auto...){},[](auto...){},[](auto...){},[](auto...){},[]{return 0;},true);
+        require(returned.target==1&&returned.closed==40&&returned.cleared==2&&returned.opened==40&&returned.rows==10&&returnedServices==83&&sound.enabled&&sound.song==1,"Every stopped/live/completed test case returns through the entire title page and song restart");
+        require(returned.feedback.edit.password.menu.remaining==480&&returned.feedback.edit.password.menu.index==0&&returned.feedback.edit.password.menu.route==0,"Music-test return restores the actual page-zero menu loop");
     }
     printf("PASS: %d native music-test assertions.\n",checks);return 0;
 }catch(const std::exception& e){fprintf(stderr,"FAIL after %d checks: %s\n",checks,e.what());return 1;}}

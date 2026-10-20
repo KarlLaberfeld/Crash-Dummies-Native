@@ -48,8 +48,40 @@ Python tests (39 new evidence-integrity tests). The music-test target joins
 the regular test build. No ROM/assets/reference recordings or binaries are
 published. No release or automation change.
 
-This qualifies the music-test loop and its RET boundary, not its subsequent
-complete menu return. That return, other title/player/campaign/stunt paths,
-rendered frames/PCM, device tests and production scheduler integration remain
-open in the [completion matrix](ORIGINAL_COMPARISON_SCOPE.md). The broader
-request and final acceptance remain incomplete.
+## Complete menu return follow-up
+
+All ten cases now continue through the full 2bdc..2707 title return as well.
+This includes leaving with a live tune/effect, an ended tune and a stopped
+driver. A native typed test-exit state retains its selected tune and actual
+audio; the first return wait services that audio before resetting song 1.
+The return then completes forty closing waits, both clears, the entire ten-row
+page-zero rectangle and forty reopening waits, restoring the 480-update menu.
+It uses the existing return owner with an explicit post-test context; ordinary
+feedback guards are unchanged. This qualified context requires the original
+Start-submitted valid-9 password ancestry and a completed music-test Start edge.
+
+All ten complete returns match 2,660 boundaries, 830 display/music services,
+3,270 vectors, 4,880 raster boundaries, 27,150 polls, 19,010 stores, 20,480 map
+bytes, 2,560 shadow-object bytes and 4,980 voice rows, zero differences. All
+423 / 427 complete preceding native CSVs remain identical per case. Original
+controls again preserve two unobserved prefix/full repetitions and observed
+hash agreement. Existing disabled-driver and inactive title formatter scratch
+exclusions apply; active voices, maps, stores, input and time remain compared.
+
+Use `tools/music_test_exit_reference.py prepare/capture/compare-batch`, extending
+the accepted music-test control by 100 host frames. Capture takes the accepted
+test control and test-reference folder as its parent. Native replay uses
+`--music-test-return`; new CSVs use `.fifth.music-exit.password-return*`.
+Batch argument dictionaries extend the music-test comparator with `--test-base`,
+`--exit-out`, `--exit-control` paths (dictionary keys use underscores). Reports
+use `.music-exit.comparison.json`. Every parent test is qualified before its
+attached child, including a complete unchanged native prefix proof.
+
+Validation now includes 43,606 native music-test/return checks (425 additional),
+the unchanged 9,058 password-return checks and 1,453 Python tests (14 additional
+post-test provenance/context tests). These bounded paths are qualified;
+other title/player/game families, frames/PCM, device tests and production
+scheduler integration remain open. No final release/automation change.
+
+The broader request and final acceptance remain incomplete; see the
+[completion matrix](ORIGINAL_COMPARISON_SCOPE.md).

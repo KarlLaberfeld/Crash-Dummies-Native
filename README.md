@@ -119,7 +119,8 @@ through initial cursor/digit reset. [Editing and complete feedback](docs/PASSWOR
 now match all ten passwords and input-boundary cases. Their
 [complete returns and music-test presentation](docs/PASSWORD_RETURN.md) also match.
 The [music-test operations](docs/MUSIC_TEST.md) now match all 14 tunes and 26
-effects, including navigation/stop/restart and the Start return edge; this also
+effects, including navigation/stop/restart and ten complete returns to the title
+menu; this also
 corrects a pulse-envelope peak in production audio. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
