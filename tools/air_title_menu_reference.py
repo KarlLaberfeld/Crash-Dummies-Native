@@ -9,6 +9,13 @@ POINTS={0x2707:'begin',0x2708:'wait',0x270b:'ready',0x2b1a:'unlockEntry',0x270e:
 STORES={0x2506:0xff40,0x250d:0xff42,0x2519:0xff45,0x251e:0xc099,0x2529:0xff42,0x252d:0xff45,0x2532:0xc099,0x2539:0xff40,0x253c:0xff42,0x2540:0xff45,0x2544:0xc099,0x2729:0xc03e}
 
 
+def inherited_title_epoch(base):
+    # Read the independently accepted parent output, not this owner's summary.
+    with Path(str(base)+'.fifth.title-page.summary.csv').open(newline='') as f:rows=list(csv.DictReader(f))
+    if len(rows)!=1 or int(rows[0]['lcdEpoch'])<0:raise ValueError('Incomplete inherited title epoch')
+    return int(rows[0]['lcdEpoch'])
+
+
 def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text());parent=json.loads((args.parent_out/'page.json').read_text());start=json.loads((args.fade_out/'fade.json').read_text())
     for d in (parent,start):
@@ -123,8 +130,7 @@ def compare(args):
             if 'boundary' in p and p['boundary']!=q['boundary']:raise ValueError('Reordered native raster')
             check(kind,i,{k:v-epoch if k=='cycle' else v for k,v in p.items() if k!='boundary'},q)
     for i,(value,q) in enumerate(zip(data['maps'],maps)):check('map',i,dict(address=0x9800+i,value=value),q)
-    with Path(str(args.native_base)+'.fifth.title-menu.summary.csv').open(newline='') as f:prior=next(csv.DictReader(f))
-    lcd=int(prior['lcdEpoch']);frame=(services[-1]['start']-epoch-lcd)//70224;final=data['points'][-1]
+    lcd=inherited_title_epoch(args.native_base);frame=(services[-1]['start']-epoch-lcd)//70224;final=data['points'][-1]
     check('summary',0,dict(end=final['cycles']-epoch,lcdEpoch=lcd,tick=final['tick'],countdown=54,displays=662+len(services),stats=854+sum(p['kind']=='stat' for p in data['interrupts']),nextStat=lcd+(frame+1)*70224+23*456,nextVBlank=lcd+(frame+1)*70224+144*456,remaining=0,waits=480,index=1,song=1),summary[0])
     report=dict(comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedWrites=len(nw),unchangedMapBytes=2048,preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Complete first-page idle timeout: 480 waits with unchanged held input, empty unlock sequence and automatic index advance to page one. Fresh action/direction/reset branches, page-one composition, pixels/PCM and production timing remain unqualified.')
     write_json(Path(str(args.native_base)+'.title-menu.comparison.json'),report);print(json.dumps(report,indent=2))

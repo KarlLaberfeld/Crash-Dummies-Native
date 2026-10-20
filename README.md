@@ -103,15 +103,15 @@ all seven prepared files are beside the EXE.
 - [Code/data provenance and licensing status](docs/PROVENANCE.md)
 - [Separate original-reference tools](docs/REFERENCE_BACKENDS.md)
 
-Next fidelity work: qualifying high-score/name entry and title menu input/page/player paths after game over,
+Next fidelity work: qualifying high-score/name entry and title menu unlock/page/player paths after game over,
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_MENU.md) qualifies
-both existing Air histories through the first page's complete 480-display idle
-timeout and automatic page advance, including unchanged full maps. Fresh menu
-input/other pages, complete graphics/pixels/PCM and qualifying name entry remain
-unqualified.
+The [latest timing comparison](docs/AIR_TITLE_ACTIONS.md) qualifies
+fresh Start/Select/A/B decisions on the first reopened title page in both existing
+Air histories. The complete idle timeout also matches. Unlock progression,
+subsequent page/player/fade work, full graphics/pixels/PCM and qualifying name
+entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

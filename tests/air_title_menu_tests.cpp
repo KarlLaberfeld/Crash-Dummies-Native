@@ -42,6 +42,27 @@ int main(){
             require(rejected,"Unknown geometry/audio, reset chord, invalid samples and fresh menu branches must reject");
             if(mode==10)require(samples==200,"A late fresh edge rejects where it occurs, without silently completing timeout");
         }
+        for(int mask:{1,2,4,8,9,12,7})for(int first:{0,32}){
+            auto page=initial;page.close.fade.layout.reset.timing.input={33,33,0};
+            NativeAudio sound(assets);sound.enabled=true;sound.song=1;sound.measureWork=true;
+            int samples=0,selectors=0,pages=0;std::vector<std::string> names;
+            auto menu=airTitleMenuIdle(page,sound,
+                [&](const char* name,int64_t,const AirTitleMenu&){names.emplace_back(name);},
+                [&](unsigned,int64_t,int,int,int,int,int,const DisplayInput& input){
+                    require(input.held==(samples==1?first:samples==2?0:mask)&&input.pressed==(samples==3?mask:0),"A partial release can retain old bits but must not create a fresh edge");},
+                [](auto...){},[](auto...){},[&](int64_t,int address,int value){
+                    if(address==0xc0b5||address==0xc0b6){++selectors;require(value==(address==0xc0b5?0x15:0x2b),"Mismatched actions reset both unlock-selector bytes");}
+                    if(address==0xc03e)++pages;
+                },[&]{++samples;return samples==1?first:samples==2?0:mask;},true);
+            int route=mask&8?2:mask&4?3:1;
+            require(samples==3&&menu.waits==3&&menu.remaining==478&&selectors==2,"Fresh actions stop before another wait or duration decrement");
+            require(menu.route==route&&menu.index==(route==1)&&pages==(route==1),"Start precedes Select, which precedes A/B; only A/B advance the page");
+            require(menu.page.close.fade.layout.reset.background==r.background&&menu.page.close.fade.layout.reset.window==r.window&&sound.ticks==3,"Action branch preserves graphics and advances audio for actual displays only");
+            require((std::find(names.begin(),names.end(),"selectDecision")!=names.end())&&names.back()=="end","Earlier idle iterations still include ordinary decisions");
+        }
+        for(int mask:{64,128,32,16,15}){NativeAudio sound(assets);sound.enabled=true;sound.song=1;sound.measureWork=true;bool rejected=false;
+            try{airTitleMenuIdle(initial,sound,[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[&]{return mask;},true);}
+            catch(const std::runtime_error&){rejected=true;}require(rejected,"Action ownership cannot admit direction/unlock progression or reset chords");}
         printf("PASS: %d native title-menu assertions.\n",checks);return 0;
     }catch(const std::exception& e){fprintf(stderr,"FAIL after %d checks: %s\n",checks,e.what());return 1;}
 }

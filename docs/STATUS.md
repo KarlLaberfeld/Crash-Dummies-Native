@@ -1,5 +1,40 @@
 # Crash Dummies Native - project status
 
+## Fresh first-page title actions - October 20, 2026
+
+Fresh Start, Select, A and B now match both existing post-campaign histories
+through their distinct outgoing branch endpoints. Eight cases: 218 boundaries /
+24 displays / 72 vectors / 96 raster boundaries / 236 stores / 16,384 unchanged
+map bytes, zero differences. Each case retains all 366 / 370 accepted native
+page-prefix CSVs. See [scope](AIR_TITLE_ACTIONS.md).
+
+The input-only controls preserve the full original prefix through reopening,
+release buttons for two host frames, then press one action. Original setup
+files and earlier events are unchanged. Two unhooked runs agree on both prefix
+and complete new-control hashes; hooked captures preserve both. The earlier-
+paused history retains raw Left in its first release sample because the
+original reads joypad halves separately; it creates no edge and is released
+next time. Native execution receives only the actual raw input samples, never
+observed state/clocks/schedules. It preserves action priority, both unlock-
+mismatch stores and the menu duration (no decrement on the action iteration).
+Start stops before outgoing fade, Select before player-page preparation,
+and A/B before closing the next page; later work remains open.
+
+Validation: O2 native Windows diagnostic, all eight attached comparisons,
+44,343 native menu assertions, CLI guard and 982 Python tests. Both earlier
+480-wait comparisons still match. Their summary proof now reads the inherited
+LCD epoch from the independently accepted page output, correcting an earlier
+self-read; dedicated regression tests cover this provenance gap. Execution
+and accepted old CSVs are unchanged. Regular Windows EXE rebuilt from committed
+source; timing remains diagnostic. No release or automation change; original
+ROM/data/recordings and binaries stay local.
+
+Next: direction/unlock progression, subsequent page/player-selection/Start-
+fade work and other menu cases. Qualifying-score/name entry, vacant flags,
+other campaign/player/stunt/reset paths, production timing, full graphics/
+pixels/PCM and final human/device/independent-Windows/distribution gates remain
+open. Final acceptance is incomplete.
+
 ## First title-menu idle timeout - October 20, 2026
 
 Both existing zero-savings Air histories now match the first page's complete
@@ -10,7 +45,7 @@ complete native CSVs remain exact. See [scope](AIR_TITLE_MENU.md).
 
 The native menu continues the actual reopened page, LCD epoch/deadlines, input,
 countdown and song 1. It distinguishes held input from fresh edges and rejects
-unqualified fresh-input branches; held A+Right in the two original histories
+unqualified fresh-input branches; held A+Left in the two original histories
 never skips a wait. The game countdown remains 54 while the separate menu
 counter reaches zero and advances the page index once. Direct entry maps match
 the accepted page endpoint and remain unchanged. Existing full-control hashes

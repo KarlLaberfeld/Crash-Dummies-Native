@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 fresh-title-actions follow-up: single fresh Start/Select/A/B inputs
+match both reopened first pages through their distinct branch endpoints.
+Eight cases: 218 boundaries / 24 displays / 72 vectors / 96 raster boundaries /
+236 stores / 16,384 unchanged map bytes, zero differences; all 366 / 370 prior
+native page-prefix CSVs stay exact in each case. Two unhooked prefix/full-control
+repetitions agree; hooked captures preserve those hashes. O2 diagnostic,
+44,343 native menu assertions, CLI guard and 982 Python tests pass. Both idle
+comparisons also pass with the corrected independent-parent LCD epoch proof.
+See [scope](AIR_TITLE_ACTIONS.md). Direction/unlock progression, subsequent
+page/player/fade work, combined inputs, qualifying name entry, other paths,
+production timing, full graphics/pixels/PCM and final human/device/Windows/
+distribution gates remain open. No release; final acceptance incomplete.
+
 October 20 first-menu-timeout follow-up: both zero-savings histories match
 all 480 idle waits and automatic page advance. New scope: 8,648 boundaries /
 960 displays / 2,880 vectors / 3,840 raster boundaries / 8,642 stores / 4,096

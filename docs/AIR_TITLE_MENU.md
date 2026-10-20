@@ -21,7 +21,7 @@ Start, Select and A/B before decrementing the duration. With no fresh input,
 the full counter expires and the actual page index advances from zero to one.
 The native owner stops before closing that next page.
 
-Both original histories retain held A+Right with no fresh edge throughout
+Both original histories retain held A+Left with no fresh edge throughout
 this scope. The native idle owner also distinguishes held Start/Select from
 fresh edges in unit tests. It rejects any fresh-input/unlock branch rather
 than applying the idle timing to a different path. Those branches still need
@@ -85,7 +85,11 @@ Regular Windows EXE rebuilt from committed source. The semantic timing owner
 remains diagnostic, outside the production scheduler. No release or automation
 change; ROM, extracted assets, recordings and binaries remain local.
 
-Next: qualify fresh menu inputs/unlock progression, page-one composition and
+Follow-up: [fresh individual actions](AIR_TITLE_ACTIONS.md) now match their
+first-page branch endpoints. The summary comparison now obtains its LCD epoch
+from the independently accepted page output, correcting an earlier self-read;
+both complete idle comparisons still have zero differences. No native timing
+or earlier CSV changed. Next: qualify direction/unlock progression, page-one composition and
 player selection. Qualifying high-score/name entry, vacant flags, other player/
 campaign/stunt/reset paths, production timing, full graphics/pixels/PCM and
 human/device/independent-Windows/distribution gates remain open.

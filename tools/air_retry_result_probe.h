@@ -46,7 +46,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -128,16 +128,17 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                         std::ofstream maps(base+".title-page.maps.csv");maps<<"address,value\n";const auto& r=installed.close.fade.layout.reset;
                         for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
                         if(titleMenu){
-                            AirNextInstructionCsv menu(base+".title-menu","boundary,cycle,remaining,waits,index,tick,countdown,stat,lcdc,scrollY,lyc,inputHeld,inputPressed");
-                            std::ofstream raster(base+".title-menu.raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
+                            std::string menuBase=base+(titleActions?".title-actions":".title-menu");
+                            AirNextInstructionCsv menu(menuBase,std::string("boundary,cycle,remaining,waits,index,tick,countdown,stat,lcdc,scrollY,lyc,inputHeld,inputPressed")+(titleActions?",route":""));
+                            std::ofstream raster(menuBase+".raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
                             auto waited=airTitleMenuIdle(installed,sound,
                                 [&](const char* name,int64_t cycle,const AirTitleMenu& s){const auto& l=s.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
-                                    menu.points<<name<<','<<cycle<<','<<s.remaining<<','<<s.waits<<','<<s.index<<','<<t.tick<<','<<t.countdown<<','<<r.stat<<','<<r.lcdc<<','<<r.scrollY<<','<<l.lyc<<','<<t.input.held<<','<<t.input.pressed<<'\n';},
+                                    menu.points<<name<<','<<cycle<<','<<s.remaining<<','<<s.waits<<','<<s.index<<','<<t.tick<<','<<t.countdown<<','<<r.stat<<','<<r.lcdc<<','<<r.scrollY<<','<<l.lyc<<','<<t.input.held<<','<<t.input.pressed;if(titleActions)menu.points<<','<<s.route;menu.points<<'\n';},
                                 [&](auto... args){menu.service(args...);},[&](auto... args){menu.irq(args...);},
-                                [&](const char* name,auto... values){raster<<name;((raster<<','<<values),...);raster<<'\n';},[&](auto... args){menu.write(args...);},sample);
+                                [&](const char* name,auto... values){raster<<name;((raster<<','<<values),...);raster<<'\n';},[&](auto... args){menu.write(args...);},sample,titleActions);
                             const auto& t=waited.page.close.fade.layout.reset.timing;
                             menu.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,remaining,waits,index,song\n"<<t.end<<','<<t.lcdEpoch<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.nextStat<<','<<t.nextVBlank<<','<<waited.remaining<<','<<waited.waits<<','<<waited.index<<','<<sound.song<<'\n';
-                            std::ofstream maps(base+".title-menu.maps.csv");maps<<"address,value\n";const auto& storage=waited.page.close.fade.layout.reset;
+                            std::ofstream maps(menuBase+".maps.csv");maps<<"address,value\n";const auto& storage=waited.page.close.fade.layout.reset;
                             for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?storage.background[i]:storage.window[i-1024])<<'\n';
                         }
                     }
