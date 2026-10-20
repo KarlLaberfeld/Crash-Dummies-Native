@@ -107,9 +107,10 @@ Next fidelity work: qualifying high-score/name entry and title menu unlock/page/
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_PICTURE.md) qualifies instruction
-music, active voices and directly observed picture tiles/maps after Start in
-both existing single-player Air/easy histories. The broader
+The [latest menu comparison](docs/AIR_TITLE_UNLOCK.md) qualifies direction
+unlock with correct, held, wrong and combined input cases. The preceding
+[music/picture comparison](docs/AIR_TITLE_PICTURE.md) qualifies instruction music,
+active voices and directly observed picture tiles/maps in two Air/easy histories. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.

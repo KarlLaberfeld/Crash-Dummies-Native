@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 direction-unlock follow-up: eight matched cases cover correct,
+held, wrong/reset and combined/reset inputs through 2b4f before password
+transition. New scope: 1,957 boundaries / 221 displays / 663 vectors / 884 raster
+boundaries / 2,065 stores / 16,384 map bytes, zero differences; all 366 / 370
+preceding native files remain exact per case. Both unobserved prefix/full-hash
+repetitions and observed hashes agree. O2 diagnostic, 748 new native checks,
+44,343 rebuilt menu checks, CLI guard and 1,167 Python tests pass. See
+[scope](AIR_TITLE_UNLOCK.md). Password presentation/validation and the broader
+[comparison request](ORIGINAL_COMPARISON_SCOPE.md) remain open. No release;
+final acceptance incomplete.
+
 October 20 music/picture follow-up: both retained single-player Air/easy
 histories match 031c..268b, including direct final tile storage and active voice
 projection. New scope: 18 boundaries / eight displays / 16 vectors / 10,554

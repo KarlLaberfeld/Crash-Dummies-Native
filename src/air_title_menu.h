@@ -2,16 +2,17 @@
 #include "air_title_page.h"
 
 namespace ticd {
-struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0;};
+struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0,unlockProgress=0;};
 // 2707..26ea: page-zero's full idle duration and automatic page advance.
 // The title reset established an empty unlock sequence. Optional action
 // ownership ends at the Start/Select/page branch, before its next UI operation.
-// Direction/unlock progression remains separate. Held input creates no edge.
+// Opt-in direction ownership ends before the password transition. Held input
+// creates no edge; complete password presentation/validation is separate.
 template<class Boundary,class Service,class Interrupt,class Raster,class Write>
 AirTitleMenu airTitleMenuIdle(AirTitlePage page,NativeAudio& sound,Boundary&& boundary,
-    Service&& service,Interrupt&& interrupt,Raster&& raster,Write&& write,std::function<int()> sample={},bool actions=false){
+    Service&& service,Interrupt&& interrupt,Raster&& raster,Write&& write,std::function<int()> sample={},bool actions=false,bool unlock=false){
     const auto& l=page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
-    if(page.cleared!=2||page.rows!=10||page.opened!=40||page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
+    if((unlock&&!actions)||page.cleared!=2||page.rows!=10||page.opened!=40||page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
        r.stat!=1||r.lcdc!=0xc3||r.scrollX||r.scrollY||r.servicesMasked||r.pendingRequests||t.countdown!=54||
        t.displays!=662||t.stats!=854||!sound.enabled||sound.song!=1||
        std::any_of(r.objects.begin(),r.objects.end(),[](int value){return value!=0;}))
@@ -39,11 +40,22 @@ AirTitleMenu airTitleMenuIdle(AirTitlePage page,NativeAudio& sound,Boundary&& bo
         // Read the native reset's sequence selector, then the fresh-input byte.
         work({16,4,16,4,12,4});
         if(timing.input.pressed){
-            if(!actions||(timing.input.pressed&0xf0))throw std::runtime_error("Fresh title-menu direction branch is not qualified");
-            // An action cannot match the initial Up unlock step. The original
-            // stores both bytes of the unchanged selector on every mismatch.
-            work({8,8,8,12,4});write(clock.now,0xc0b5,0x15);work({16,4});
-            write(clock.now,0xc0b6,0x2b);work({16,16});
+            if(!actions||(!unlock&&(timing.input.pressed&0xf0)))throw std::runtime_error("Fresh title-menu direction branch is not qualified");
+            if(unlock&&timing.input.pressed==std::array<int,4>{64,128,32,16}.at(state.unlockProgress)){
+                // Exact fresh masks advance the native sequence; held buttons
+                // create no edge. Mismatches reset without retrying that edge.
+                work({8,8,12,8,8,8});++state.unlockProgress;
+                const bool complete=state.unlockProgress==4;
+                if(complete){work({12,12,4});state.unlockProgress=0;}else work({8,4});
+                write(clock.now,0xc0b5,0x15+state.unlockProgress);work({16,4});write(clock.now,0xc0b6,0x2b);work({16});
+                if(complete){state.route=4;return finish();}
+                work({16});
+            }else{
+                // A mismatched fresh mask resets to the initial Up step;
+                // the same edge is not retried against the reset selector.
+                work({8,8,8,12,4});write(clock.now,0xc0b5,0x15);work({16,4});
+                write(clock.now,0xc0b6,0x2b);work({16,16});state.unlockProgress=0;
+            }
         }else work({20});
         point("unlockReturned");work({12,8});point("startDecision");
         if(timing.input.pressed&8){work({20});state.route=2;return finish();}

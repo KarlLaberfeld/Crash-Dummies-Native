@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Direction sequence, held/mismatched/combined inputs - October 20, 2026
+
+Four new input-only cases per history now match first-page direction unlock:
+correct sequence, long-held Up, wrong direction/reset and combined Up+Left/reset.
+Eight full comparisons: 1,957 boundaries / 221 displays / 663 vectors / 884
+raster boundaries / 2,065 stores / 16,384 map bytes, zero differences. Each
+preserves all 366 / 370 prior native CSVs. See [scope](AIR_TITLE_UNLOCK.md).
+
+Native exact fresh masks advance sequence progress; held input does not repeat
+steps. Mismatches reset without retrying the same edge. Completion stops at
+2b4f before password transition/presentation and another menu decrement. The
+long-held original cases contain 29 / 30 display samples respectively; native
+execution preserves their actual independent sampling edges. Game countdown
+and full maps stay unchanged. Every control has two unobserved prefix/full-hash
+repetitions, and observed replay preserves both. No original state/time/service
+schedule or fitted budget initializes execution.
+
+Validation: O2 diagnostic, eight attached comparisons, 748 new native unlock
+checks, 44,343 rebuilt menu checks, CLI prerequisite guard and 1,167 Python
+tests. Native target added to regular test build. Windows EXE rebuilt from
+committed source; timing remains diagnostic. No release/automation change;
+ROM/data/recordings/binaries stay local.
+
+The requested complete original comparisons remain **in progress**. Next:
+first-instruction incoming fade (the native title reset retains alternate=0;
+this is not the later 64-step patterned transition), then instruction text/
+prompt/exit. Password presentation/validation, other pages/player/options/music
+test/name-entry/campaign/stunt/difficulty/outcome/reset paths and full frames/
+PCM, production timing and final human/device/independent-Windows/distribution
+gates remain open. See [coverage](ORIGINAL_COMPARISON_SCOPE.md).
+
 ## Post-title music/picture and active voices - October 20, 2026
 
 Both retained single-player Air/easy Start histories match 031c..268b: song 2,
