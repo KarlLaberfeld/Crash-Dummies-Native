@@ -7,7 +7,7 @@ qualify other players, difficulties, stunts or menu routes.
 | Path family | Existing original evidence | Remaining comparisons |
 |---|---|---|
 | Post-Start header/music/picture | Two retained single-player Air/easy histories; exact text, access timing, direct picture storage and active voice projection | Other start choices and two players |
-| Instruction transition/text/prompt/exit | First post-Start incoming fade; bounded post-result Air/Ski controls | Full post-Start text, skip, held/fresh Start and continuation across stunts |
+| Instruction transition/text/prompt/exit | First post-Start incoming fade plus complete text/fresh-Start prompt and deliberate skip/held-Start exit; bounded post-result Air/Ski controls | Gameplay continuation and other campaign/stunt/player/difficulty paths |
 | Title pages | First-page reopening/timeout; separate Start/Select/A/B decision branches | Subsequent page composition, player selection and transitions |
 | Direction unlock/password | Eight original sequence/wrong/held/combined cases through password-transition entry | Password presentation/validation/returns |
 | Options/player/music test | Native functionality | Original toggles, confirmation, back and music-test paths |
@@ -23,7 +23,7 @@ exclusions. Original clocks/snapshots/services must never drive native code.
 ROM/assets/recordings/reference binaries stay local. Synthetic/native-only
 tests and unchanged static reruns do not close original-comparison gaps.
 
-See [status](STATUS.md), [music/picture](AIR_TITLE_PICTURE.md) and
+See [status](STATUS.md), [music/picture](AIR_TITLE_PICTURE.md) [first text/exit](AIR_TITLE_TEXT_EXIT.md) and
 [final acceptance](ACCEPTANCE.md). Production scheduler integration remains a
 separate outstanding gate. This request is not complete while the required
 path families above remain uncovered.

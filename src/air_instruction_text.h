@@ -15,16 +15,18 @@ struct AirInstructionTextState {
 // preceding instruction's unused cursor/delay are overwritten by its layout.
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirInstructionTextState airInstructionText(AirInstructionMapState map,int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,std::function<int()> sampleInput={}){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,std::function<int()> sampleInput={},bool traceScroll=false){
     if(stage<1||stage>2||difficulty<0||difficulty>3||map.display!=5||map.stat!=5||map.lyc!=95||
         map.scroll||map.lcdc&2||map.campaign.result||!sound.enabled)throw std::runtime_error("Unowned instruction text entry");
     AirInstructionTextState state;state.map=map;auto& timing=state.map.campaign.timing;
     AirClock clock;clock.now=timing.end;clock.nextStat=timing.nextStat;clock.nextVBlank=timing.nextVBlank;
     clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=288;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    if(traceScroll)clock.rasterWork=[&](int64_t start){write(start+216,0xff42,state.map.scroll);return 288;};
     auto display=[&](bool){
         timing.input.sample(sampleInput?sampleInput():timing.input.held);
         if(timing.input.held<0||timing.input.held>255||(timing.input.held&15)==15)throw std::runtime_error("Unowned instruction text input/reset");
+        if(traceScroll)write(clock.now+20+1284,0xff42,0);
         int tick=timing.tick;timing.tick=(tick+1)&65535;sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned instruction text audio");
         service(clock.displays,clock.now+20,tick,timing.countdown,144,sound.effectWorkCycles,sound.musicWorkCycles,timing.input);
@@ -78,7 +80,9 @@ AirInstructionTextState airInstructionText(AirInstructionMapState map,int stage,
             point("scrollBegin");work({16,16,8,12,12});
             for(int step=0;step<5;++step){
                 point("scrollWait");clock.wait(display,false);clock.wait(display,false);point("scrollReady");
-                work({8,8,8});clock.atomicWork(8,[&]{state.map.scroll=(state.map.scroll+std::array<int,5>{1,2,3,1,1}[step])&255;},display,false);point("scrollStored");
+                work({8,8,8});int nextScroll=(state.map.scroll+std::array<int,5>{1,2,3,1,1}[step])&255;
+                if(traceScroll)write(clock.now,0xc09c,nextScroll);
+                clock.atomicWork(8,[&]{state.map.scroll=nextScroll;},display,false);point("scrollStored");
                 work({4,step==4?8:12});
             }
             point("scrollEnd");work({12,12,12,12,4,16,4,24});++writer.row;writer.cursor=writer.layer+32*writer.row+writer.anchor;writer.positionWork();work({16});

@@ -4,16 +4,18 @@
 namespace ticd {
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirInstructionTextState airInstructionExit(AirInstructionTextState state,NativeAudio& sound,const UiAssets& ui,
-    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,std::function<int()> sampleInput={}){
+    Boundary&& boundary,Service&& service,Interrupt&& interrupt,Poll&& poll,Write&& write,std::function<int()> sampleInput={},bool traceScroll=false){
     if(state.speed||state.skipMask||state.map.display!=5||state.map.stat!=5||state.map.lyc!=95||!sound.enabled)
         throw std::runtime_error("Unowned instruction exit entry");
     auto& timing=state.map.campaign.timing;AirClock clock;
     clock.now=timing.end;clock.nextStat=timing.nextStat;clock.nextVBlank=timing.nextVBlank;
     clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=288;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    if(traceScroll)clock.rasterWork=[&](int64_t start){write(start+216,0xff42,state.map.scroll);return 288;};
     auto display=[&](bool){
         timing.input.sample(sampleInput?sampleInput():timing.input.held);
         if(timing.input.held<0||timing.input.held>255||(timing.input.held&15)==15)throw std::runtime_error("Unowned instruction exit input/reset");
+        if(traceScroll)write(clock.now+20+1284,0xff42,0);
         int tick=timing.tick;timing.tick=(tick+1)&65535;sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned instruction exit audio");
         service(clock.displays,clock.now+20,tick,timing.countdown,144,sound.effectWorkCycles,sound.musicWorkCycles,timing.input);
@@ -40,8 +42,11 @@ AirInstructionTextState airInstructionExit(AirInstructionTextState state,NativeA
     point("fadeCall");work({24,12,8});
     for(int segment=0;segment<8;++segment){
         point("fadePalette");int value=ui.fadePalettes[segment];work({8});
+        if(traceScroll)write(clock.now,0xff47,value);
         clock.accessWork(12,8,[&]{bgp=value;},display,false);point("bgpReady");work({8});
+        if(traceScroll)write(clock.now,0xff49,value&0xf3);
         clock.accessWork(12,8,[&]{obp1=value&0xf3;},display,false);work({8,8});
+        if(traceScroll)write(clock.now,0xff48,value&0xcf);
         clock.accessWork(12,8,[&]{obp0=value&0xcf;},display,false);work({8});
         for(int wait=0;wait<4;++wait){
             point("fadeWait");clock.wait(display,false);point("fadeReady");work({4,wait==3?8:12});

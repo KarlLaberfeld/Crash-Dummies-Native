@@ -1,5 +1,41 @@
 # Crash Dummies Native - project status
 
+## Complete first-instruction text, skip, prompt and exit - October 20, 2026
+
+Both retained single-player Air/easy histories now have input-only full-text/
+fresh-Start and skipped-text/held-Start controls. All four text comparisons and
+all four exits through 0355 match. Text: 2,716 boundaries / 1,144 displays /
+2,288 vectors / 436 polls / 224 glyphs / 2,368 scroll stores / 6,864 voice rows.
+Exit: 2,994 boundaries / 1,456 displays / 2,912 vectors / 200 polls / 40 prompt
+glyphs / 3,008 scroll-palette stores / 8,736 voice rows. Each extent additionally
+compares 8,192 map bytes and 4,096 tile bytes. Zero differences; all preceding
+native CSVs remain exact per case. See [scope](AIR_TITLE_TEXT_EXIT.md).
+
+The complete text reaches center 64; deliberate skip retains zero and bypasses
+the prompt with Start held. Full prompt waits for a fresh edge. Timed glyphs,
+macro expansion, actual scroll/palette stores, music services, outgoing fade,
+final wait and logical audio stop are independently reconstructed. Repeated
+unobserved prefix/full hashes and observed controls agree. No original state,
+clock, schedule or fitted allowance initializes native execution.
+
+The disabled original music driver retains four parked raw active flags while
+native logical voices are cleared. Raw reset payloads are explicitly excluded;
+driver-disabled/logical-stop and pre-stop active voice projections are compared.
+Rendered frames/PCM/hardware parity are not claimed. ROM/data/recordings and
+reference binaries stay local.
+
+Validation: optimized diagnostic, eight full attached comparisons, 220 native
+text checks, 582 native exit checks, 52,920 shared result-clock checks and 1,243
+Python tests (51 new integrity cases). Native targets join regular test build;
+Windows EXE rebuilt from committed source. No release or automation change.
+
+Complete comparison request remains **in progress**. Next concrete point:
+password presentation/validation/returns after accepted direction unlock 2b4f.
+Other title/player/options/music-test, campaign/name-entry/stunt/difficulty/
+player/outcome/reset and gameplay continuation paths, full frames/PCM,
+production scheduler and final human/device/independent-Windows/distribution
+checks remain open; see [coverage](ORIGINAL_COMPARISON_SCOPE.md).
+
 ## First instruction incoming fade and alternate state - October 20, 2026
 
 Both retained single-player Air/easy histories match 268b..0a0a: the actual

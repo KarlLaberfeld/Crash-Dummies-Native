@@ -1,5 +1,14 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 first-instruction text/exit follow-up: four cases across both
+retained Air/easy histories cover full text/fresh-Start prompt and skip/held-
+Start exit through 0355. Eight attached comparisons match text, glyph access,
+scroll/palette stores, direct image/maps, active music and logical audio stop.
+Raw stopped voice presets are explicitly excluded. 220 native text checks,
+582 native exit checks, 52,920 shared checks and 1,243 Python tests pass.
+See [scope](AIR_TITLE_TEXT_EXIT.md). Other required game/menu paths, frames/PCM
+and production scheduling remain open. No release; final acceptance incomplete.
+
 October 20 first-instruction reveal follow-up: both retained Air/easy histories
 match alternate=0 branch, flag enable and incoming fade through text entry.
 New scope: 152 boundaries / 64 displays / 128 vectors / 178 stores / 4,096 map
