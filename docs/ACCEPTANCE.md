@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 post-title-header follow-up: both retained single-player Air/easy
+histories match player/lives/day/difficulty text, callback 5 and the first
+counter wait through 031c. New scope: 24 boundaries / two displays / four
+vectors / 544 reads / 78 glyph stores / four scroll stores / 4,096 map bytes,
+zero differences; all 808 preceding complete native CSVs remain exact. The
+explicit instruction presentation retains countdown/lives and leaves default
+result behavior unchanged. O2 diagnostic, 1,613 new native header assertions,
+52,920 rebuilt shared result/instruction checks, CLI guard and 1,112 Python
+tests pass. See [scope](AIR_TITLE_HEADER.md). Subsequent music/picture/content,
+other paths, production timing, full pixels/PCM and final human/device/Windows/
+distribution gates remain open. No release; final acceptance incomplete.
+
 October 20 instruction-resume follow-up: both retained single-player Air/easy
 histories match EI follower completion, pending VBlank/STAT priority, native
 life selection, every LCD-safe background-clear access and result reset

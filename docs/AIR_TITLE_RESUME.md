@@ -4,6 +4,9 @@ October 20, 2026. Continues the accepted [campaign restart](AIR_TITLE_CAMPAIGN.m
 from 02bc before EI through current-player life selection, the full LCD-on
 background clear and result reset to 02ce, before the instruction header.
 
+The following player/lives/day/difficulty header and its first wait are now
+qualified separately in [post-title header](AIR_TITLE_HEADER.md).
+
 Both retained single-player Air/easy histories match seven boundaries, four
 display services, eight vectors, 3,567 readiness reads, 1,034 stores and all
 2,048 final map bytes each. Combined: 14 boundaries / eight displays / 16

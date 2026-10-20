@@ -22,20 +22,26 @@ struct AirInstructionHeaderAssets {
         if(file.peek()!=std::char_traits<char>::eof())throw std::runtime_error("Trailing instruction header assets");return assets;
     }
 };
-// Identified result-cleared 02ce..031c header and its first counter wait.
+enum class AirHeaderPresentation { Result, Instruction };
+// Identified cleared-result 02ce..031c header and its first counter wait.
 // Campaign values and LCD/list state come from the native preceding handoff.
+// The post-title wrapper separately owns callback 5's zero center/scroll and
+// empty maps/objects; Result retains the original success/failure callbacks.
 // Instruction music/text/fades and next LCD/gameplay setup remain separate.
 template<class Boundary,class Service,class Interrupt,class Poll,class Write>
 AirResultHandoff airInstructionHeader(AirResultHandoff state,int stage,int difficulty,NativeAudio& sound,
     const AirInstructionHeaderAssets& assets,Boundary&& boundary,Service&& service,Interrupt&& interrupt,
-    Poll&& poll,Write&& write,std::function<int()> sampleInput={}){
+    Poll&& poll,Write&& write,std::function<int()> sampleInput={},AirHeaderPresentation presentation=AirHeaderPresentation::Result){
+    const bool instruction=presentation==AirHeaderPresentation::Instruction;
     if(state.result||state.player<0||state.player>1||state.lives[state.player]<1||state.lives[state.player]>255||
-        stage<0||stage>4||difficulty<0||difficulty>3||sound.enabled)
+        stage<0||stage>4||difficulty<0||difficulty>3||sound.enabled||(instruction&&state.timing.perfect)||
+        (presentation!=AirHeaderPresentation::Result&&!instruction))
         throw std::runtime_error("Unowned instruction header campaign state");
     auto& timing=state.timing;
     AirClock clock;clock.now=timing.end;clock.nextStat=timing.nextStat;clock.nextVBlank=timing.nextVBlank;
-    clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=timing.perfect?288:248;
+    clock.displays=timing.displays;clock.statServices=timing.stats;clock.statBody=(timing.perfect||instruction)?288:248;
     clock.interrupt=[&](const char* kind,int64_t cycle,AirIrqOwner owner){interrupt(kind,cycle,owner);};
+    if(instruction)clock.rasterWork=[&](int64_t start){write(start+216,0xff42,0);return 288;};
     AirPauseLcd* graphics=nullptr;
     auto updateGraphics=[&]{if(!graphics||!timing.perfect)return;
         graphics->objectsEnabled=true;graphics->objectHeight=8;graphics->objectDisableLine=120;
@@ -45,7 +51,8 @@ AirResultHandoff airInstructionHeader(AirResultHandoff state,int stage,int diffi
         if(timing.input.held<0||timing.input.held>255||(timing.input.held&15)==15)throw std::runtime_error("Unowned instruction header input/reset");
         int tick=timing.tick;timing.tick=(tick+1)&65535;
         if(timing.perfect){timing.celebrationVisible=timing.celebration.prepared;updateGraphics();}
-        int work=airResultCountdownWork(timing.countdown)+(timing.perfect?68:0);sound.tick();
+        if(instruction)write(clock.now+20+1284,0xff42,0);
+        int work=instruction?144:airResultCountdownWork(timing.countdown)+(timing.perfect?68:0);sound.tick();
         if(sound.effectWorkCycles<0||sound.musicWorkCycles<0)throw std::runtime_error("Unowned instruction header audio");
         service(clock.displays,clock.now+20,tick,timing.countdown,work,sound.effectWorkCycles,sound.musicWorkCycles,timing.input);
         return 1592+work+sound.effectWorkCycles+sound.musicWorkCycles;

@@ -1,5 +1,42 @@
 # Crash Dummies Native - project status
 
+## Post-title instruction header and first wait - October 20, 2026
+
+Both accepted Start/resume histories now match 02ce..031c: player name/lives,
+day and difficulty text, all glyph readiness/stores, callback 5's scroll stores
+and the first counter wait. Combined: 24 boundaries / two displays / four
+vectors / 544 reads / 78 glyph stores / four scroll stores / 4,096 map bytes,
+zero differences. All 402 / 406 preceding complete native CSVs remain exact.
+See [scope](AIR_TITLE_HEADER.md).
+
+The shared header writer now has an explicit instruction presentation. Its
+default result presentation retains prior behavior. The post-title wrapper
+owns actual native campaign choices/five lives, completed clear, empty object
+list and LCD geometry/deadlines. Callback 5 keeps countdown 54 while the actual
+display advances tick and samples input with stopped audio. Every glyph and
+final map byte agrees; window and full object storage stay unchanged.
+
+Existing full-control hashes remain unchanged. No events/extensions change;
+the accepted input-only resume prefix gains exactly one raw display sample per
+history. Observed clocks, service schedules, source snapshots and fitted work
+allowances never initialize the native owner. Map/access parity does not prove
+pixels, PCM or hardware parity.
+
+Validation: O2 diagnostic, both complete attached comparisons, 1,613 new native
+header assertions, 52,920 rebuilt shared result/instruction regression checks,
+CLI guard and 1,112 Python tests. All 20 native day/difficulty choices have
+functional synthetic-layout tests; original timing proof remains restricted
+to the two retained single-player Air/easy histories. The new target joins the
+regular test build. Regular Windows EXE rebuilt from committed source; timing
+remains diagnostic. No release/automation change; ROM/data/recordings/binaries
+stay local.
+
+Next: instruction music and stunt picture/content after 031c with retained
+instruction callbacks. Other menu/unlock/page/player paths, qualifying name
+entry, vacant flags, other campaigns/stunts, production timing, full graphics/
+pixels/PCM and final human/device/independent-Windows/distribution gates remain
+open. Final acceptance incomplete.
+
 ## Pending instruction services and first background clear - October 20, 2026
 
 Both accepted Start/campaign histories now match 02bc..02ce: the complete

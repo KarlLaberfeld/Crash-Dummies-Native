@@ -74,19 +74,20 @@ def capture(args):
 def analyze(data):
     points=data.get('points',[]);irqs=data.get('interrupts',[])
     if data.get('version')!=1 or [p['name'] for p in points]!=list(POINTS.values()) or not isinstance(data.get('precedingDisplays'),int) or data['precedingDisplays']<0:raise ValueError('Incomplete header boundaries')
-    first=points[0];perfect=first['display']==2;previous=first['inputHeld'];services=[];last=first['cycles']
+    first=points[0];perfect=first['display']==2;instruction=first['display']==5;previous=first['inputHeld'];services=[];last=first['cycles']
+    if instruction!=bool(data.get('afterTitle',False)):raise ValueError('Instruction callback requires explicit post-title provenance')
     if first['player'] not in (0,1) or not 0<=first['stage']<5 or not 0<=first['difficulty']<4 or not 1<=first['lives']<=255:raise ValueError('Invalid header campaign')
     for p in points:
-        if any(p[k]!=first[k] for k in ('player','stage','difficulty','lives','display')) or p['result'] or p['musicEnabled'] or first['display'] not in (2,10):raise ValueError('Unowned header campaign mutation')
+        if any(p[k]!=first[k] for k in ('player','stage','difficulty','lives','display')) or p['result'] or p['musicEnabled'] or first['display'] not in (2,10,5):raise ValueError('Unowned header campaign mutation')
         if (p['inputHeld']&15)==15 or p['inputPressed']&~p['inputHeld']:raise ValueError('Unowned header input/reset')
     if any(b['cycles']<=a['cycles'] for a,b in zip(points,points[1:])):raise ValueError('Reordered header boundaries')
     for r in irqs:
         if not last<=r['start']<r['end'] or r['end']+16>points[-1]['cycles']:raise ValueError('Incomplete header IRQ extent')
         last=r['end']+16
         if r['kind']=='stat':
-            if r['selector']!=(4 if perfect else 0) or r['end']-r['start']!=stat_cycles(r['selector']):raise ValueError('Unowned header STAT')
+            if r['selector']!=(5 if instruction else 4 if perfect else 0) or r['end']-r['start']!=(288 if instruction else stat_cycles(r['selector'])):raise ValueError('Unowned header STAT')
         elif r['kind']=='vblank':
-            wanted={**VBLANK_FIXED,'display':(228 if r['countdown']==1 else 272)+(68 if perfect else 0),
+            wanted={**VBLANK_FIXED,'display':144 if instruction else (228 if r['countdown']==1 else 272)+(68 if perfect else 0),
                 'bookkeeping':vblank_bookkeeping_work(r['resetEnabled'],r['held'],r['resetLatched']),'effects':64,'music':60}
             if vblank_work(r)!=wanted or r['effectRequest']!=-1 or r['musicEnabled'] or r['pressed']!=r['held']&~previous or (r['held']&15)==15:raise ValueError('Unowned header display/input/audio')
             previous=r['held'];services.append(r)
@@ -111,7 +112,7 @@ def compare_header(data,points,services,irqs,polls,writes,summary,epoch):
         if q['boundary']!=p['name']:raise ValueError('Reordered native header')
         check('boundary',i,dict(cycle=p['cycles']-epoch,**{k:p[k] for k in ('tick','countdown','player','stage','difficulty','inputHeld','inputPressed')}),q)
     for i,(p,q) in enumerate(zip(expected_services,services)):
-        w=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],countdown=max(1,p['countdown']-1),
+        w=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],countdown=p['countdown'] if data.get('afterTitle') else max(1,p['countdown']-1),
             display=w['display'],effects=w['effects'],music=w['music'],inputHeld=p['held'],inputPressed=p['pressed']),q)
         if i and int(q['service'])!=int(services[i-1]['service'])+1:raise ValueError('Reordered header services')
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
