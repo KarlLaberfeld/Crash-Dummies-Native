@@ -1,5 +1,14 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 player-selection follow-up: All sixteen attached selection cases now match, including complete Select-page
+presentation, one/two-player choice, held/combined controls, blinking cursor
+and Start/A/B outgoing clear entry. 3,261 native selection assertions and
+1,487 Python tests pass. The comprehensive game/campaign/playthrough/audio
+suite also passed after the pulse-envelope correction. See [scope](AIR_TITLE_PLAYERS.md).
+The following clear/menu/campaign continuation, other path families, frames/PCM
+and production scheduling remain open. Broader request/final acceptance incomplete.
+No release/automation change.
+
 October 20 post-music-test return follow-up: All ten test cases now match the complete title return, including live/stopped
 music, song-1 reset, close/clear/full page/open and restored menu duration.
 2,660 boundaries / 830 displays / 3,270 vectors / 19,010 stores and all maps,

@@ -1,5 +1,16 @@
 # Crash Dummies Native - project status
 
+## Player-selection comparison - October 20, 2026
+
+All sixteen attached selection cases now match, including complete Select-page
+presentation, one/two-player choice, held/combined controls, blinking cursor
+and Start/A/B outgoing clear entry. 3,261 native selection assertions and
+1,487 Python tests pass. The comprehensive game/campaign/playthrough/audio
+suite also passed after the pulse-envelope correction. See [scope](AIR_TITLE_PLAYERS.md).
+The following clear/menu/campaign continuation, other path families, frames/PCM
+and production scheduling remain open. Broader request/final acceptance incomplete.
+No release/automation change.
+
 ## Full music-test menu return - October 20, 2026
 
 All ten test cases now match the complete title return, including live/stopped

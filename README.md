@@ -121,7 +121,9 @@ now match all ten passwords and input-boundary cases. Their
 The [music-test operations](docs/MUSIC_TEST.md) now match all 14 tunes and 26
 effects, including navigation/stop/restart and ten complete returns to the title
 menu; this also
-corrects a pulse-envelope peak in production audio. The broader
+corrects a pulse-envelope peak in production audio. [Player selection](docs/AIR_TITLE_PLAYERS.md)
+now matches full page presentation, one/two-player choices, held/combined
+controls and cursor blinking through the outgoing Start/A/B decision. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.
 Later instruction/menu/player/stunt paths, full frames/PCM and qualifying name
 entry remain unqualified.

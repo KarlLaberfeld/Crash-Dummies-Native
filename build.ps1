@@ -138,6 +138,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Music-test compilation failed.' }
     & ./build/air-music-test-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Music-test checks failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_players_tests.cpp src/audio.cpp src/ui.cpp -o build/air-title-players-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Player-selection compilation failed.' }
+    & ./build/air-title-players-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Player-selection checks failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

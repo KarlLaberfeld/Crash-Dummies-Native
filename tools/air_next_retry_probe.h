@@ -15,7 +15,7 @@ struct AirRetryProbeResult {
 // returned state. Original observations never enter this execution path.
 inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstructionTextState text,
     const AirGame& preceding,const AirAssets& assets,const Assets& shared,
-    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false,int fifthInstructionExtent=0,bool fifthEntry=false,int fifthUpdates=1,bool fifthTerminal=false,bool fifthResult=false,bool fifthReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleUnlock=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool titlePassword=false,bool passwordEdit=false,bool passwordFeedback=false,bool passwordReturn=false,bool musicTest=false,bool musicExit=false){
+    int stage,int difficulty,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int updates=1,bool terminal=false,bool result=false,int thirdInstructionExtent=0,bool fourthEntry=false,int fourthUpdates=1,bool fourthResult=false,int fifthInstructionExtent=0,bool fifthEntry=false,int fifthUpdates=1,bool fifthTerminal=false,bool fifthResult=false,bool fifthReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleUnlock=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool titlePassword=false,bool passwordEdit=false,bool passwordFeedback=false,bool passwordReturn=false,bool musicTest=false,bool musicExit=false,bool playersPage=false){
     if(updates<1||updates>100000)throw std::runtime_error("Invalid second-retry update extent");
     if(result&&!terminal)throw std::runtime_error("Subsequent result requires terminal ownership");
     if(thirdInstructionExtent<0||thirdInstructionExtent>5||(thirdInstructionExtent&&!result))throw std::runtime_error("Subsequent instruction requires complete result ownership");
@@ -28,6 +28,7 @@ inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstruct
     if(titleInstructionExit&&!titleText)throw std::runtime_error("First instruction exit requires completed text/skip ownership");
     if(titleText&&!titleEntrance)throw std::runtime_error("First instruction text requires its incoming fade owner");
     if(titleEntrance&&!titlePicture)throw std::runtime_error("First instruction fade requires its complete picture/music owner");
+    if(playersPage&&!titleActions)throw std::runtime_error("Player page requires Select action ownership");
     if(musicExit&&!musicTest)throw std::runtime_error("Music-test return requires completed loop");
     if(musicTest&&!passwordReturn)throw std::runtime_error("Music-test loop requires completed test presentation");
     if(passwordReturn&&!passwordFeedback)throw std::runtime_error("Password return requires completed feedback");
@@ -127,7 +128,7 @@ inline AirRetryProbeResult airProbeNextRetry(const std::string& base,AirInstruct
                         auto campaign=fourth.state.instruction.map.campaign;campaign.lives[campaign.player]=fourth.transition.lives;
                         auto fifth=airProbeNextInstruction(base+".fifth",campaign,fourth.transition,fourth.game->result,stage,difficulty,fourth.state.instruction.map.scroll,sound,ui,fifthInstructionExtent,sample);
                         if(fifthEntry){auto final=airProbeNextRetry(base+".fifth",fifth,*fourth.game,assets,shared,stage,difficulty,sound,ui,sample,fifthUpdates,fifthTerminal);
-                            if(fifthResult)airProbeFinalResult(base+".fifth",final.state,*final.game,sound,ui,sample,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions,titleStart,titleInstruction,titleCampaign,titleResume,titleHeader,titlePicture,titleUnlock,titleEntrance,titleText,titleInstructionExit,titlePassword,passwordEdit,passwordFeedback,passwordReturn,musicTest,musicExit);}
+                            if(fifthResult)airProbeFinalResult(base+".fifth",final.state,*final.game,sound,ui,sample,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions,titleStart,titleInstruction,titleCampaign,titleResume,titleHeader,titlePicture,titleUnlock,titleEntrance,titleText,titleInstructionExit,titlePassword,passwordEdit,passwordFeedback,passwordReturn,musicTest,musicExit,playersPage);}
                     }}
             }}
     }
