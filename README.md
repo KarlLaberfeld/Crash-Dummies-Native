@@ -107,12 +107,11 @@ Next fidelity work: qualifying high-score/name entry and title menu unlock/page/
 remaining interrupted
 work, other stunt/player/reset paths and production scheduler integration; expand matched
 original image/audio comparisons and human/independent Windows tests.
-The [latest timing comparison](docs/AIR_TITLE_INSTRUCTION.md) qualifies masked
-LCD-off polling and instruction register setup after Start in both existing
-Air histories. The preceding fade, music stop, individual actions and idle
-timeout also match. Campaign setup, subsequent instruction/page/player work,
-unlock progression, full graphics/pixels/PCM and qualifying name entry remain
-unqualified.
+The [latest timing comparison](docs/AIR_TITLE_CAMPAIGN.md) qualifies retained
+campaign values/lives, the complete masked window clear and instruction LCD
+restart after Start in both existing single-player Air/easy histories. Pending
+service acceptance and subsequent instruction/page/player work, unlock
+progression, full graphics/pixels/PCM and qualifying name entry remain unqualified.
 Diagnostic timing is not yet integrated
 into the production Windows scheduler.
 Potential later conveniences include remapping, saved settings/high scores and

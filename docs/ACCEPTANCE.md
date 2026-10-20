@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 campaign-restart follow-up: both retained single-player Air/easy
+histories match campaign values/lives, full masked window clear and LCD restart
+through 02bc before EI. New scope: 18 boundaries / 2,048 polls / 2,064 stores /
+4,096 map bytes / zero vectors, zero differences; all 780 preceding complete
+native CSVs remain exact. Original IF bits agree at all new boundaries. O2
+diagnostic, 82,670 native campaign assertions, CLI guard and 1,049 Python tests
+pass. Other configurations have native functional tests only. See
+[scope](AIR_TITLE_CAMPAIGN.md). Pending service acceptance, instruction content,
+other paths, production timing, full pixels/PCM and final human/device/Windows/
+distribution gates remain open. No release; final acceptance incomplete.
+
 October 20 masked instruction-prefix follow-up: both Start histories match
 LCD-off equality polling and instruction register setup through 0292. Six
 boundaries / 3,282 polls / 18 stores / zero vectors, zero differences; all 768

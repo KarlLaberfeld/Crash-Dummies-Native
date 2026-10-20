@@ -12,6 +12,7 @@
 #include "air_title_menu.h"
 #include "air_title_start.h"
 #include "air_title_instruction.h"
+#include "air_title_campaign.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -48,7 +49,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false,bool titleFade=false,bool titleClose=false,bool titlePage=false,bool titleMenu=false,bool titleActions=false,bool titleStart=false,bool titleInstruction=false,bool titleCampaign=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -162,6 +163,23 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
                                         [&](auto... args){out.poll(args...);},[&](auto... args){out.write(args...);});
                                     const auto& r=prepared.start.menu.page.close.fade.layout.reset;
                                     out.summary<<"end,lcdDisabled,polls,pendingRequests,servicesMasked\n"<<r.timing.end<<','<<prepared.lcdDisabled<<','<<prepared.polls<<','<<r.pendingRequests<<','<<r.servicesMasked<<'\n';
+                                    if(titleCampaign){
+                                        // This diagnostic began with native Air (day index one) password selection,
+                                        // one player, and only failed retries. No successful settlement or
+                                        // title-selection change has altered those retained session choices.
+                                        if(state.stage!=1||state.difficulty!=0||state.instruction.map.campaign.player||state.instruction.map.campaign.lives[1]||result.lives)throw std::runtime_error("Unowned retained title choices");
+                                        Campaign previous;for(auto& p:previous.players){p.day=state.stage;p.difficulty=state.difficulty;}
+                                        AirTitleChoices choices{state.stage,state.difficulty,false};
+                                        AirNextInstructionCsv out(base+".title-campaign","boundary,cycle,tick,countdown,inputHeld,inputPressed,day0,day1,difficulty0,difficulty1,lives0,lives1,lcdc,pendingRequests","cycle,address,value","mode");
+                                        auto fresh=airTitleCampaign(prepared,previous,choices,sound,
+                                            [&](const char* name,int64_t cycle,const AirTitleCampaign& s){const auto& t=s.instruction.start.menu.page.close.fade.layout.reset.timing;const auto& p=s.campaign.players;
+                                                out.points<<name<<','<<cycle<<','<<t.tick<<','<<t.countdown<<','<<t.input.held<<','<<t.input.pressed<<','<<p[0].day<<','<<p[1].day<<','<<p[0].difficulty<<','<<p[1].difficulty<<','<<p[0].lives<<','<<p[1].lives<<','<<s.instruction.start.menu.page.close.fade.layout.reset.lcdc<<','<<s.instruction.start.menu.page.close.fade.layout.reset.pendingRequests<<'\n';},
+                                            [&](auto... args){out.poll(args...);},[&](auto... args){out.write(args...);});
+                                        const auto& r=fresh.instruction.start.menu.page.close.fade.layout.reset;const auto& t=r.timing;
+                                        out.summary<<"end,lcdEpoch,nextStat,nextVBlank,pendingRequests,servicesMasked,active,player\n"<<t.end<<','<<t.lcdEpoch<<','<<t.nextStat<<','<<t.nextVBlank<<','<<r.pendingRequests<<','<<r.servicesMasked<<','<<fresh.campaign.active<<','<<fresh.campaign.current<<'\n';
+                                        std::ofstream maps(base+".title-campaign.maps.csv");maps<<"address,value\n";
+                                        for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?r.background[i]:r.window[i-1024])<<'\n';
+                                    }
                                 }
                             }
                         }

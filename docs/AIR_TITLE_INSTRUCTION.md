@@ -57,3 +57,7 @@ campaign configuration/lives, window clearing and LCD restart, then instruction
 content/presentation. Other paths, full graphics/pixels/PCM and final human/
 device/independent-Windows/distribution gates remain open.
 [Final acceptance](ACCEPTANCE.md) is incomplete.
+
+Follow-up: [campaign initialization and LCD restart](AIR_TITLE_CAMPAIGN.md)
+now qualify 0292..02bc for both retained single-player Air/easy histories.
+Pending service acceptance after EI and instruction presentation remain open.

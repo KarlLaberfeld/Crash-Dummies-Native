@@ -1,5 +1,46 @@
 # Crash Dummies Native - project status
 
+## Retained campaign choices and instruction LCD restart - October 20, 2026
+
+Both existing post-Start histories now match 0292..02bc: retained day/
+difficulty choices for both player records, fresh lives, all 1,024 window
+cells and the masked LCD restart before EI. Combined: 18 boundaries / 2,048
+readiness polls / 2,064 stores / 4,096 map bytes / zero vectors, zero differences.
+All 388 / 392 preceding complete native CSVs remain exact. See
+[scope](AIR_TITLE_CAMPAIGN.md).
+
+Native choices come from the diagnostic's retained Air/easy, single-player
+selection. The complete native chain contains only failed retries and no new
+title selection. Source configuration bytes are comparison targets only.
+The owner takes separate prior player state and requested choices; it uses
+the existing native Campaign start model and commits both records at their
+source-owned boundaries. Native tests cover all 40 day/difficulty/player-count
+combinations, including prior values different from the requested ones. Only
+the two retained single-player Air/easy histories have original timing proof.
+
+The clear retains a readiness read for every cell while LCD is off, preserves
+the complete background/object storage and sets all window cells to zero.
+Restart creates a new native LCD epoch and future line-95/VBlank deadlines,
+but retains both pending requests and masked services. Original IF bits 0/1
+are now independently compared at every new boundary and remain three.
+Pending interrupt acceptance after EI is deliberately outside this owner.
+Existing original full-control hashes and native raw input files are retained;
+no new event extension, input sample, imported source state or fitted work
+allowance is used.
+
+Validation: O2 Windows diagnostic, both complete attached comparisons, 82,670
+native campaign assertions, CLI guard and 1,049 Python tests. New native tests
+join the regular test build. Unchanged game/audio/shared-clock checks retain
+their earlier scope without repetition. Regular Windows EXE rebuilt from
+committed source; timing remains diagnostic. No release or automation change;
+ROM/data/recordings/binaries stay local. The previous LCD/register milestone's
+publication and Windows build also completed after usage became available.
+
+Next: pending display/STAT acceptance after EI and initial instruction flow.
+Unlock/player/page paths, qualifying name entry, vacant flags, other campaigns/
+stunts, production timing, full graphics/pixels/PCM and final human/device/
+independent-Windows/distribution gates remain open. Final acceptance incomplete.
+
 ## Masked instruction LCD/register prefix - October 20, 2026
 
 Both accepted Start histories now match 0272..0292: DI, inherited LY=145
