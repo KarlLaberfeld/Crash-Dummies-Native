@@ -62,6 +62,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw "Title reset test compilation failed" }
     & ./build/air-title-reset-tests.exe
     if ($LASTEXITCODE -ne 0) { throw "Title reset tests failed" }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_layout_tests.cpp src/audio.cpp -o build/air-title-layout-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title layout test compilation failed.' }
+    & ./build/air-title-layout-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Title layout tests failed.' }
     & python -m unittest discover -s tests -p 'test_*.py'
     if ($LASTEXITCODE -ne 0) { throw 'Extractor tests failed.' }
     Push-Location build

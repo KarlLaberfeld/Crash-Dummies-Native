@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 title-layout follow-up: both zero-savings histories match the
+post-boot branch, four title rectangles, full map storage, register setup and
+masked LCD restart through EI entry. New scope: 110 boundaries / 482 stores /
+4,096 map bytes, no interrupt services, zero differences; all 678 earlier
+complete native CSVs stay exact. O2 diagnostic, both attached chains, 2,117
+native title-layout assertions and 872 Python tests pass. See [scope](AIR_TITLE_LAYOUT.md).
+Pending display/STAT acceptance, first-frame pixels, title fade, complete tile
+payload/PCM, qualifying name entry, other paths, production timing and final
+human/device/Windows/distribution gates remain open. No release; final
+acceptance incomplete.
+
 October 20 masked title-reset follow-up: both zero-savings histories match the
 inherited line-145 wait, map/object/selector clears and fixed graphics-copy work
 through data-bank restoration. New scope: 20 boundaries / 4,256 polls / 4,640

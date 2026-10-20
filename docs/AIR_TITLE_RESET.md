@@ -1,5 +1,10 @@
 # Post-game-over masked title reset
 
+Follow-up: [post-campaign title composition](AIR_TITLE_LAYOUT.md) now qualifies
+both histories through the static maps, register setup and masked LCD restart.
+Its endpoint is before EI; pending services, first-frame pixels and fade remain
+unqualified.
+
 October 20, 2026. Continues both accepted [game-over returns](AIR_GAME_OVER_RETURN.md)
 from title-reset entry through LCD disable, map/object/selector reset, fixed
 title-graphics copy work and data-bank restoration. The endpoint precedes the

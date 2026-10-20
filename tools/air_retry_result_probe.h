@@ -5,6 +5,7 @@
 #include "air_final_result.h"
 #include "air_game_over_return.h"
 #include "air_title_reset.h"
+#include "air_title_layout.h"
 
 namespace ticd {
 // Adapter around the existing native result owners. The current stunt's LCD,
@@ -41,7 +42,7 @@ inline AirResultTransition airProbeRetryResult(const std::string& base,const Air
     return result;
 }
 inline AirResultTransition airProbeFinalResult(const std::string& base,const AirFollowingSetup& state,
-    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false){
+    const AirGame& game,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleReturn=false,bool titleReset=false,bool titleLayout=false){
     const auto& c=state.instruction.map.campaign;const auto& end=c.timing;
     int player=c.player,lives=c.lives.at(player);
     if(game.result!=33||lives!=1||sound.enabled)throw std::runtime_error("Final result requires actual final Air failure ownership");
@@ -77,6 +78,20 @@ inline AirResultTransition airProbeFinalResult(const std::string& base,const Air
             [&](const char* name,int64_t cycle,const AirTitleReset& r){reset.points<<name<<','<<cycle<<','<<r.timing.tick<<','<<r.timing.countdown<<','<<r.timing.input.held<<','<<r.timing.input.pressed<<','<<r.lcdc<<','<<r.bank<<'\n';},
             [&](auto... args){reset.poll(args...);},[&](auto... args){reset.write(args...);});
         reset.summary<<"end,lcdEpoch,lcdDisabled,pollReads,pendingRequests,tick,countdown,displays,stats,display,stat,servicesMasked\n"<<prepared.timing.end<<','<<prepared.timing.lcdEpoch<<','<<prepared.lcdDisabled<<','<<prepared.pollReads<<','<<prepared.pendingRequests<<','<<prepared.timing.tick<<','<<prepared.timing.countdown<<','<<prepared.timing.displays<<','<<prepared.timing.stats<<','<<prepared.display<<','<<prepared.stat<<','<<prepared.servicesMasked<<'\n';
+        if(titleLayout){
+            AirNextInstructionCsv layout(base+".title-layout","boundary,cycle,command,row,tick,countdown,inputHeld,inputPressed,lcdc,bank,display,stat");
+            const auto assets=AirTitleLayoutAssets::load("build/title-layout.dat");
+            // This actual completed campaign is downstream of the one-time
+            // boot screen. No observed C005 byte is supplied to native code.
+            auto titled=airTitleLayout(prepared,true,sound,assets,
+                [&](const char* name,int64_t cycle,int command,int row,const AirTitleLayout& s){const auto& r=s.reset;const auto& t=r.timing;
+                    layout.points<<name<<','<<cycle<<','<<command<<','<<row<<','<<t.tick<<','<<t.countdown<<','<<t.input.held<<','<<t.input.pressed<<','<<r.lcdc<<','<<r.bank<<','<<r.display<<','<<r.stat<<'\n';},
+                [&](auto... args){layout.write(args...);});
+            const auto& t=titled.reset.timing;
+            layout.summary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,display,stat,lyc,windowX,windowY,servicesMasked\n"<<t.end<<','<<t.lcdEpoch<<','<<t.tick<<','<<t.countdown<<','<<t.displays<<','<<t.stats<<','<<t.nextStat<<','<<t.nextVBlank<<','<<titled.reset.display<<','<<titled.reset.stat<<','<<titled.lyc<<','<<titled.windowX<<','<<titled.windowY<<','<<titled.reset.servicesMasked<<'\n';
+            std::ofstream maps(base+".title-layout.maps.csv");maps<<"address,value\n";
+            for(int i=0;i<2048;++i)maps<<(0x9800+i)<<','<<int(i<1024?titled.reset.background[i]:titled.reset.window[i-1024])<<'\n';
+        }
     }
     return result;
 }

@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Post-campaign title layout and masked LCD restart - October 20, 2026
+
+Both existing zero-savings Air histories now match the post-boot decision,
+four static title rectangles, callback/window setup and LCD restart through
+EI entry. New combined scope: 110 boundaries / 482 stores / 4,096 complete map
+bytes, no interrupt services, zero differences. All 678 earlier complete
+native CSVs remain exact. See [scope and reproduction](AIR_TITLE_LAYOUT.md).
+
+Native composition uses the actual reset maps/timing and a decoded local
+layout asset. The completed campaign establishes that boot has already run;
+no observed C005 byte enters execution. The identified layout trampoline is
+included. Display/audio/input services remain masked, song 13 persists and
+score/name storage remains unchanged. The restarted LCD epoch owns future
+line-23/144 deadlines; both retained requests still await service acceptance.
+The endpoint is before EI, not a qualified first displayed title frame.
+
+Validation: O2 native Windows diagnostic, both complete attached comparisons,
+2,117 native title-layout assertions, CLI ownership guard and 872 Python tests.
+New native tests join the regular test build. Shared owners/production
+rendering/assets are unchanged; prior integration scope remains applicable.
+Regular Windows EXE rebuilt from committed source; diagnostic timing remains
+outside its production scheduler. No release or automation change;
+ROM/data/recordings/binaries stay local.
+
+Next concrete owner: title pending-display/STAT acceptance, initial services
+and fade. Qualifying-score/name entry, vacant flags, other campaigns/players/
+stunts/reset paths, production timing, complete tile payload/images/PCM and
+human/device/independent-Windows/distribution gates remain open.
+
 ## Masked post-game-over title reset - October 20, 2026
 
 Both existing zero-savings Air histories now match the inherited LCD-off wait,
