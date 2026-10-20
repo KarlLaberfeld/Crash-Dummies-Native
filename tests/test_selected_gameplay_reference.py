@@ -6,7 +6,8 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from test_air_following_quiet_reference import fixture as quiet_fixture
 from test_air_following_setup_reference import entry_fixture
 from selected_gameplay_reference import analyze,compare_many
-from air_following_gameplay_reference import selected_entry_boundary
+from air_following_gameplay_reference import selected_entry_boundary,selected_extension
+from air_title_actions_reference import event_sha
 
 def fixture(players=0):
     data=quiet_fixture()[0];template=copy.deepcopy(data['points'][10:20]);irqs=copy.deepcopy(data['interrupts'][2:4])
@@ -63,4 +64,29 @@ class SourceEntryBoundary(unittest.TestCase):
     def test_missing_segment(self):self.parent['groups'].pop(0);self.reject()
     def test_incomplete_entry(self):self.parent['groups'][-1]['points'].pop();self.reject()
     def test_wrong_entry_vectors(self):self.parent['groups'][-1]['interrupts'].reverse();self.reject()
+
+class ExtendedControls(unittest.TestCase):
+    def setUp(self):
+        self.events=[['tick',40,True]];self.changed=self.events+[['press','a'],['press','right'],['tick',300,True],['release','a'],['release','right'],['tick',4,True]];self.parent=dict(inputCase='full-prompt',controlMemorySha256='parent',romSha256='rom')
+        self.child=dict(inputCase='full-prompt',controlMemorySha256='child',romSha256='rom',parentControlMemorySha256='parent',parentEventsSha256=event_sha(self.events),setupSha256='setup',gameplayUpdates=320,gameplayInput='a-right-held',controlDifferences=[],prefixControlHashes=['parent']*2,unhookedControlHashes=['child']*2)
+    def check(self):selected_extension(self.parent,self.child,self.events,self.changed,'setup')
+    def reject(self):
+        with self.assertRaises(ValueError):self.check()
+    def test_complete(self):self.check()
+    def test_skip_case_is_separate_but_valid(self):self.parent['inputCase']=self.child['inputCase']='skip-held';self.check()
+    def test_wrong_extent(self):self.child['gameplayUpdates']=256;self.reject()
+    def test_wrong_case(self):self.child['inputCase']='skip-held';self.reject()
+    def test_wrong_input_marker(self):self.child['gameplayInput']='neutral';self.reject()
+    def test_changed_prefix(self):self.changed[0]=['tick',39,True];self.reject()
+    def test_changed_tail(self):self.changed[-1]=['tick',3,True];self.reject()
+    def test_changed_direction(self):self.changed[-5]=['press','left'];self.reject()
+    def test_changed_setup(self):self.child['setupSha256']='other';self.reject()
+    def test_changed_rom(self):self.child['romSha256']='other';self.reject()
+    def test_changed_parent_hash(self):self.child['parentControlMemorySha256']='other';self.reject()
+    def test_changed_event_hash(self):self.child['parentEventsSha256']='other';self.reject()
+    def test_missing_prefix_repeat(self):self.child['prefixControlHashes'].pop();self.reject()
+    def test_missing_full_repeat(self):self.child['unhookedControlHashes'].pop();self.reject()
+    def test_changed_observed_prefix(self):self.child['prefixControlHashes'][1]='other';self.reject()
+    def test_changed_unobserved_full(self):self.child['unhookedControlHashes'][1]='other';self.reject()
+    def test_nonempty_control_differences(self):self.child['controlDifferences']=['changed'];self.reject()
 if __name__=='__main__':unittest.main()

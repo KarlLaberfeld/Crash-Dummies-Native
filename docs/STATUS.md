@@ -1,5 +1,25 @@
 # Crash Dummies Native - project status
 
+## Initial resource request/upload/completion extension - October 20, 2026
+
+Two further one-player/full-prompt cases, ordinary and earlier-paused, now match
+through 320 initial Air updates with held A+Right input. Totals: 640 updates,
+6,400 boundaries, 102,400 actor slots, 640 displays, 1,280 vectors and 25,600
+sprite slots, zero differences. Each case contains two resource requests,
+eight display uploads and two completions. Complete native ancestors and all
+first-32 source/native streams remain exact prefixes. See
+[resource scope](SELECTED_INSTRUCTION.md). The optimized diagnostic and 1,705
+Python tests pass. Production sources are unchanged from the fully regression-
+tested milestone. No release/automation change; broader request incomplete.
+
+Next concrete work: extend the two-player and skip branches through active
+play, then initial-game map deferral/partial-row publication and interrupted
+scene bodies. Later player/campaign/stunt/difficulty/outcome paths, additional
+rendered frames, PCM and production scheduler/final device gates remain open.
+The local resume checkpoint is `local/comparison-next-work.json`; rejected
+neutral/steering-only resource scopes are not acceptance. Earlier entries below
+are historical milestones with their then-current scope and test counts.
+
 ## Initial gameplay and stable original UI pixels - October 20, 2026
 
 Eight additional selected-player cases now match the first 32 Air updates:

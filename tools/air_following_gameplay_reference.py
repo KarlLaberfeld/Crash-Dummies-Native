@@ -14,9 +14,15 @@ TERMINAL_POINTS={0x0400:'terminalWait',0x0403:'terminalEnd'}
 TERMINAL_ORDER=ORDER[:8]+list(TERMINAL_POINTS.values())
 FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','mapScratch','cameraX','cameraY','hudCursor','fadeRemaining','held','pressed','lcdc','display','transfer','remaining','effect','reverse')
 
-def selected_entry_boundary(parent,manifest):
+def selected_extension(parent,child,events,changed,setup):
+    from air_title_actions_reference import event_sha
+    tail=[['press','a'],['press','right'],['tick',300,True],['release','a'],['release','right'],['tick',4,True]]
+    if child.get('gameplayUpdates')!=320 or child.get('gameplayInput')!='a-right-held' or child['inputCase']!=parent['inputCase'] or child['inputCase'] not in ('full-prompt','skip-held') or changed!=events+tail or child['romSha256']!=parent['romSha256'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached selected gameplay extension')
+
+def selected_entry_boundary(parent,manifest,accepted=None):
     require_capture_reference(manifest,parent)
-    if parent.get('version')!=1 or parent.get('inputCase') not in ('full-prompt','skip-held') or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or [g['name'] for g in parent.get('groups',[])]!=['prefix','stage','entry']:raise ValueError('Detached selected-game entry observation')
+    expected=manifest if accepted is None else accepted
+    if parent.get('version')!=1 or parent.get('inputCase') not in ('full-prompt','skip-held') or any(parent[k]!=expected[k] for k in ('romSha256','controlMemorySha256','inputCase')) or [g['name'] for g in parent.get('groups',[])]!=['prefix','stage','entry']:raise ValueError('Detached selected-game entry observation')
     from air_following_entry_reference import analyze as analyze_entry
     analyze_entry(parent['groups'][-1]);begin=parent['groups'][-1]['points'][-1]['cycles']
     if type(begin) is not int or begin<=0:raise ValueError('Invalid selected-game entry boundary')
@@ -26,9 +32,15 @@ def capture(args):
     manifest=json.loads((args.capture/'capture-summary.json').read_text())
     if manifest['controlDifferences'] or hashlib.sha256(read_rom(args.rom)).hexdigest()!=manifest['romSha256']:raise ValueError('Changed original control')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
-    selected_entry=getattr(args,'selected_entry',None);attached=None;begin_cycle=None
+    selected_entry=getattr(args,'selected_entry',None);attached=None;begin_cycle=None;accepted=None;accepted_events=None
     if selected_entry:
-        attached=json.loads(Path(selected_entry).read_text(encoding='utf-8'));begin_cycle=selected_entry_boundary(attached,manifest)
+        attached=json.loads(Path(selected_entry).read_text(encoding='utf-8'))
+        accepted_folder=getattr(args,'selected_parent_control',None)
+        if accepted_folder:
+            folder=Path(accepted_folder);accepted=json.loads((folder/'capture-summary.json').read_text());accepted_events=json.loads((folder/'events.json').read_text())
+            selected_extension(accepted,manifest,accepted_events,json.loads((args.capture/'events.json').read_text()),hashlib.sha256((args.capture/'setup.state').read_bytes()).hexdigest())
+            if (args.capture/'setup.state').read_bytes()!=(folder/'setup.state').read_bytes():raise ValueError('Changed selected gameplay setup')
+        begin_cycle=selected_entry_boundary(attached,manifest,accepted)
     extent=getattr(args,'updates',1)
     scope=retry_capture_scope(args)
     outro=getattr(args,'outro',False)
@@ -87,10 +99,11 @@ def capture(args):
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
         for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476,0x0462}:p.hook_register(0,pc,hook,pc)
-        for event in json.loads((args.capture/'events.json').read_text()):
+        for index,event in enumerate(json.loads((args.capture/'events.json').read_text())):
             if event[0]=='tick':p.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
             else:raise ValueError('Unknown original control event')
+            if accepted_events is not None and index==len(accepted_events)-1 and hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()!=accepted['controlMemorySha256']:raise ValueError('Observed selected gameplay extension changed its accepted prefix')
         digest=hashlib.sha256(bytes(p.memory[0x8000:0x10000])).hexdigest()
     finally:p.stop(save=False)
     if not complete or opened or digest!=manifest['controlMemorySha256']:
@@ -100,7 +113,7 @@ def capture(args):
         raise ValueError(f'Incomplete following gameplay extent or changed control: requested={extent}, completed={updates}, controlMatches={digest==manifest["controlMemorySha256"]}')
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
     if attached:
-        prefix=(Path(selected_entry).parent/'buttons.txt').read_text();data.update(selectedEntryCycle=begin_cycle,parentInputCase=attached['parentInputCase'],inputCase=attached['inputCase'],players=attached['players'],precedingDisplays=len(prefix.splitlines()))
+        prefix=(Path(selected_entry).parent/'buttons.txt').read_text();data.update(selectedEntryCycle=begin_cycle,parentControlMemorySha256=attached['controlMemorySha256'],parentInputCase=attached['parentInputCase'],inputCase=attached['inputCase'],players=attached['players'],precedingDisplays=len(prefix.splitlines()))
     if scope.following:data['nextRetry']=True
     if scope.retry!=1:data['afterRetry']=scope.retry
     if getattr(args,'partial_rows',False):data['partialRows']=True

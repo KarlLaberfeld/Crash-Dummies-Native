@@ -128,7 +128,9 @@ instruction music/picture, full or skipped text, prompt/fade and the first Air
 game-entry displays. The [five-page title carousel](docs/TITLE_CYCLE.md) also
 matches credits, initial high-score formatting, page durations and wrap.
 The first 32 selected Air gameplay updates also match actor/work/input and sprite
-position publication. [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
+position publication; two single-player histories extend through 320 updates,
+including resource requests, display uploads and completion.
+[Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
 match the revealed instructions, complete text/prompt and title pages pixel for
 pixel in 28 frames. The broader
 [game/menu comparisons](docs/ORIGINAL_COMPARISON_SCOPE.md) remain in progress.

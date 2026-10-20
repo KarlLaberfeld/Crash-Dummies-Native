@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 20 initial-resource follow-up: both one-player/full-prompt histories
+match 320 initial Air updates with A+Right, including two requests/eight uploads/
+two completions per case and exact preservation of earlier source/native
+streams. Optimized diagnostic and 1,705 Python tests pass. See
+[scope](SELECTED_INSTRUCTION.md). This extent has no interrupted bodies or
+map-deferred uploads. Other required families and final acceptance remain
+incomplete; no release/automation change.
+
 October 20 gameplay/pixel follow-up: eight further original comparisons match
 the first 32 initial Air gameplay updates after selected one/two-player Start.
 Twenty-eight complete stable instruction/prompt/title frames match the production

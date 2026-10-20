@@ -1,5 +1,27 @@
 # Selected-player instruction and initial-game comparisons
 
+Resource follow-up: the one-player/full-prompt case in both retained histories
+now reaches update 320 with held A+Right input after the accepted control ends.
+Both original/native comparisons match: 640 updates, 6,400 boundaries, 102,400
+actor slots, 640 displays, 1,280 vectors and 25,600 sprite slots. Each case
+includes two resource requests, eight wait-owned uploads and two completions;
+there are no map-deferred uploads or interrupted-body services in this extent.
+The original intro/rise/224-update wait completes before active play; neutral
+or steering-only controls did not exercise resource coverage and were rejected.
+
+The accepted original first 32 updates/interrupts are exact prefixes of the
+extension, and five complete early native CSV streams remain exact prefixes.
+All earlier 485 / 489 complete native CSVs are separately preserved. Two
+unobserved prefix/full repetitions and the observed extended replay agree.
+Use `selected_gameplay_reference.py prepare` on the accepted full-prompt control,
+then `capture --updates 320 --accepted-control OLD_CONTROL` and native
+`--players-gameplay --players-gameplay-updates 320`. Comparator arguments add
+`play_control`, `early_gameplay_out`, `early_gameplay_base`. The decoded resource
+descriptors constrain requests and maximum four-chunk display uploads; observed
+queue contents/timings never initialize native execution. Validation now includes
+1,705 Python tests. Two-player/skip extensions, partial-row bytes, later map
+deferral and interrupted bodies remain unqualified by this new extent.
+
 Follow-up: eight cases now also match the first 32 Air gameplay updates after
 this entry: 256 updates, 2,560 boundaries, 40,960 actor slots, 256 display/music
 services, 512 vectors and 10,240 published sprite slots. Actor animation/timer

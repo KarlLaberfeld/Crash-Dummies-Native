@@ -5,7 +5,7 @@
 #include "air_following_gameplay.h"
 #include <memory>
 namespace ticd {
-inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false){
+inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false,int updates=32){
     AirNextInstructionCsv prefix(base+".title-game-prefix","boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests","cycle,address,value","ly");
     auto setup=airFollowingSetupPrefix(instruction,1,0,sound,[&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& c=s.instruction.map.campaign;prefix.points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<s.stage<<','<<s.difficulty<<','<<c.lives[c.player]<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<'\n';},[&](auto... args){prefix.poll(args...);},[&](auto... args){prefix.write(args...);});
     const auto& p=setup.instruction.map.campaign.timing;prefix.summary<<"end,tick,countdown,displays,stats,pollReads,lcdDisabled,pendingRequests\n"<<p.end<<','<<p.tick<<','<<p.countdown<<','<<p.displays<<','<<p.stats<<','<<setup.pollReads<<','<<setup.lcdDisabled<<','<<setup.pendingRequests<<'\n';
@@ -24,7 +24,7 @@ inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructi
         AirNextInstructionCsv play(base+".title-gameplay","boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result");
         std::ofstream actors(base+".title-gameplay.entities.csv"),sprites(base+".title-gameplay.sprites.csv");
         actors<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)actors<<",param"<<i;actors<<'\n';sprites<<"service,slot,present,x,y,flags\n";
-        for(int update=0;update<32;++update)entered=airFollowingAirQuietUpdate(entered,*game,sound,
+        for(int update=0;update<updates;++update)entered=airFollowingAirQuietUpdate(entered,*game,sound,
             [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
                 play.points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<','<<g.result<<'\n';
                 for(int i=0;i<16;++i){const auto& a=g.entities[i];actors<<name<<','<<i<<','<<a.alive<<','<<(a.alive?a.frame:255)<<','<<((a.flags&~2)|(a.offscreen?2:0))<<','<<int(a.handler)<<','<<a.x<<','<<a.y<<','<<a.animDone<<','<<a.frameWaiting<<','<<a.delay<<','<<a.period;for(int value:a.params)actors<<','<<value;actors<<'\n';}},
