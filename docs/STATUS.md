@@ -1,5 +1,35 @@
 # Crash Dummies Native - project status
 
+## Later Select/player continuations and complete instruction text - October 21, 2026
+
+224 additional bounded comparisons match: 64 later-page Select/cursor cases,
+64 complete selection exits (including 16 A/B title returns), 48 selected Start
+transitions through instruction music/picture, and 48 complete full/skip text,
+prompt and outgoing-fade cases. All four later pages and both retained histories
+are covered under the accepted first-page A ancestry. Complete native ancestors
+remain byte-identical. See [players](LATER_TITLE_PLAYERS.md) and
+[text](LATER_INSTRUCTION_TEXT.md) for counts, reproduction and evidence limits.
+
+The native owners retain their actual completed-carousel origin/page/timer,
+chosen players and independent deadlines. Page zero is stored only at the actual
+A/B reset operation; it is not fabricated at selection entry. First-page guards
+remain intact. Source controls and observations are hash-attached to actual
+parents; no original clock, interrupt, queue or snapshot drives native playback.
+
+Validation: optimized diagnostic, 23,795 native selection/continuation/instruction
+assertions, 1,863 Python tests and full native Windows game/campaign/playthrough/
+audio/sprite regression pass. Original transition pixels and PCM remain separate
+from map/tile/voice-state parity. The clean Windows EXE is rebuilt from the saved
+revision; no new release is claimed. Automatic continuation was reactivated with
+explicit user authorization and remains active because the task is incomplete.
+
+Next: terminal initial gameplay and two-player turn changes, further retained
+menu/password use, other required stunt/difficulty/outcome families, modified
+scores/name entry and remaining frame/PCM comparisons. The broader comparison
+request and final acceptance remain incomplete; production Windows scheduling,
+physical/independent-Windows tests and distribution gates remain separate.
+
+
 ## Instruction music/picture from later title pages - October 21, 2026
 
 Eight further complete Start-to-instruction comparisons now match after pages

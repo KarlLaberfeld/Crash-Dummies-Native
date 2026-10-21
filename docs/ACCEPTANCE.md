@@ -1,5 +1,18 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 later-player/text follow-up: 224 further bounded original/native
+comparisons match, covering 64 complete later Select/cursor cases, 64 complete
+exits/A-B returns, 48 selected Start/music/picture transitions and 48 complete
+full/skip text/prompt/fade cases. Optimized diagnostic, 23,795 native selection/
+continuation/instruction assertions, 1,863 Python tests and full native Windows
+regression pass. See [players](LATER_TITLE_PLAYERS.md) and
+[text](LATER_INSTRUCTION_TEXT.md). Exact accepted parents and complete native
+prefixes are retained. Broader game/menu comparison, PCM/pixels, scheduler,
+device/independent-Windows and final distribution gates remain open. No final
+release; the user-authorized continuation remains active. Entries below retain
+historical scopes and counts.
+
+
 October 21 later-instruction follow-up: eight complete later-page Start/header/
 instruction music/picture comparisons match. Optimized affected native owners
 and 1,823 Python tests pass; the preceding password checkpoint passed the full

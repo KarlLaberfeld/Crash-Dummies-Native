@@ -7,7 +7,7 @@ from air_title_campaign_reference import POINTS as CAMPAIGN,STORES as CAMPAIGN_S
 from air_title_resume_reference import POINTS as RESUME,STORES as RESUME_STORES
 from air_instruction_header_reference import POINTS as HEADER
 from air_title_picture_reference import POINTS as PICTURE,voice_states,compare_voices
-from air_title_players_reference import CASES as PLAYER_CASES
+from air_title_players_reference import CASES as PLAYER_CASES,continuation_observation_start
 from password_feedback_reference import logical_voice_projection
 from air_timing import IRQ_PHASES,vblank_work
 from reference_backend import reference_class,require_matching_backend,require_capture_reference
@@ -97,12 +97,17 @@ def capture(args):
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
         pcs={pc for table in TABLES for pc in table}|{pc for table in STORES for pc in table}|set(IRQ_PHASES)|{0x0040,0x0048,0x2484,0x2555,0x2598,0x2123,0x2128,0x2363,0x2368,0x24a1,0x2559}
-        for pc in pcs:p.hook_register(0,pc,hook,pc)
-        replay(p,read(args.capture/'events.json'));digest=memory_sha(p)
+        events=read(args.capture/'events.json');watch_at=continuation_observation_start(events,parent['inputCase'],[['tick',100,True]]) if parent.get('origin')=='later-title-select' else 0
+        for i,event in enumerate(events):
+            if i==watch_at:
+                for pc in pcs:p.hook_register(0,pc,hook,pc)
+            replay(p,[event])
+        digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete selected instruction or changed control')
     data=dict(version=1,reference=metadata,inputCase=manifest['inputCase'],romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=parent['controlMemorySha256'],setupSha256=sha((args.capture/'setup.state').read_bytes()),storageReadOwner='direct-vram-title-v1',instructionReadOwner='direct-vram-instruction-v1',groups=groups,restartEpoch=restart,players=parent['points'][-1]['players'])
     if later:data.update(origin='later-title-start',targetPage=parent['targetPage'],parentCycleSha256=sha((later/'cycle.json').read_bytes()))
+    elif parent.get('origin')=='later-title-select':data.update(origin='later-title-selected-start',targetPage=parent['targetPage'],parentExitSha256=sha((args.parent_out/'exit.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'instruction.rejected.json',data);raise
@@ -110,7 +115,9 @@ def capture(args):
 
 def analyze(data,parent):
     later=data.get('origin')=='later-title-start'
-    if data.get('origin') not in (None,'later-title-start'):raise ValueError('Unowned instruction origin')
+    if data.get('origin')=='later-title-selected-start' and (parent.get('origin')!='later-title-select' or data.get('targetPage')!=parent.get('targetPage') or not 1<=parent.get('targetPage',0)<=4):raise ValueError('Detached later selected instruction')
+    if parent.get('origin')=='later-title-select' and data.get('origin')!='later-title-selected-start':raise ValueError('Missing later selected instruction origin')
+    if data.get('origin') not in (None,'later-title-start','later-title-selected-start'):raise ValueError('Unowned instruction origin')
     if later:parent=later_start_parent(parent)
     groups=data['groups'];first=groups[0]['points'][0];end=parent['points'][-1]
     if data.get('version')!=1 or (data['inputCase'] not in CASES and not later) or data['inputCase']!=parent['inputCase'] or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or data['controlMemorySha256']!=parent['controlMemorySha256'] or end['route']!=2 or data['players']!=end['players'] or [g['name'] for g in groups]!=list(GROUPS) or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','stat','lcdc','scrollY','lyc')) or (first['inputHeld'],first['inputPressed'])!=(end['held'],end['pressed']):raise ValueError('Detached selected-instruction ancestry')
@@ -169,10 +176,23 @@ def compare_later_many(cases):
     with contextlib.redirect_stdout(io.StringIO()):qualify([later_arguments(case) for case in cases])
     for case in cases:compare(case,_parent_qualified=True)
 
+def selected_later_arguments(args):
+    return argparse.Namespace(**dict({k:v for k,v in vars(args).items() if k not in ('selected_out','exit_base','later_players_out')},native_base=args.exit_base))
+
+def compare_later_selected_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later selected instruction batch')
+    from air_title_players_exit_reference import compare_later_many as qualify
+    with contextlib.redirect_stdout(io.StringIO()):qualify([selected_later_arguments(case) for case in cases])
+    for case in cases:compare(case,_parent_qualified=True)
+
 def compare(args,_parent_qualified=False):
-    later=getattr(args,'later_out',None)
+    selected_later=getattr(args,'later_players_out',None)
+    later=getattr(args,'later_out',None) if not selected_later else None
     if not _parent_qualified:
-        if later:
+        if selected_later:
+            from air_title_players_exit_reference import compare as qualify
+            with contextlib.redirect_stdout(io.StringIO()):qualify(selected_later_arguments(args))
+        elif later:
             from title_cycle_reference import compare as qualify
             with contextlib.redirect_stdout(io.StringIO()):qualify(later_arguments(args))
         else:
@@ -182,13 +202,14 @@ def compare(args,_parent_qualified=False):
     from air_startup_reference import analyze as startup_epoch
     retained=preserved_native_prefix(args.native_base,args.exit_base);data=read(args.selected_out/'instruction.json');parent=read((later/'cycle.json') if later else args.exit_out/'exit.json');manifest=read(args.exit_control/'capture-summary.json')
     if later and (data.get('origin')!='later-title-start' or data.get('targetPage')!=parent['targetPage'] or data.get('parentCycleSha256')!=sha((later/'cycle.json').read_bytes())):raise ValueError('Detached later instruction recording')
+    if selected_later and (selected_later!=args.exit_out or data.get('origin')!='later-title-selected-start' or data.get('parentExitSha256')!=sha((args.exit_out/'exit.json').read_bytes())):raise ValueError('Detached later selected instruction file')
     require_capture_reference(manifest,data)
     if any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or data['setupSha256']!=sha((args.exit_control/'setup.state').read_bytes()):raise ValueError('Changed selected-instruction control/setup')
     services=analyze(data,parent)
     if later:parent=later_start_parent(parent)
     if (args.selected_out/'buttons.txt').read_text()!=(args.exit_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached selected-instruction raw inputs')
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
-    previous=str(args.exit_base)+'.fifth.title-cycle.'+str(parent['targetPage']-1)+'.idle.summary.csv' if later else str(args.exit_base)+'.fifth.players-exit.summary.csv'
+    previous=str(args.exit_base)+'.fifth.title-cycle.'+str(parent['targetPage']-1)+'.idle.summary.csv' if later else str(args.exit_base)+('.fifth.later.players-exit.summary.csv' if selected_later else '.fifth.players-exit.summary.csv')
     with Path(previous).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);stats=int(before['stats']);lcd=int(before['lcdEpoch']);differences=[];totals=dict(boundaries=0,services=0,vectors=0,polls=0,writes=0,rasterBoundaries=0,mapBytes=0,tileBytes=0,voiceRows=0)
     def check(kind,index,wanted,q):
@@ -198,7 +219,7 @@ def compare(args,_parent_qualified=False):
         with Path(stem+suffix).open(newline='') as f:return list(csv.DictReader(f))
     carried=list(parent['maps'])
     for index,group in enumerate(data['groups']):
-        name=group['name'];stem=str(args.native_base)+('.fifth.later.title-' if later else '.fifth.selected.title-')+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
+        name=group['name'];stem=str(args.native_base)+('.fifth.later.selected.title-' if selected_later else '.fifth.later.title-' if later else '.fifth.selected.title-')+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
         native=rows(stem,'.csv');ns=rows(stem,'.services.csv');ni=rows(stem,'.interrupts.csv');np=rows(stem,'.polls.csv');nw=rows(stem,'.writes.csv');summary=rows(stem,'.summary.csv')
         if [len(native),len(ns),len(ni),len(np),len(nw),len(summary)]!=[len(points),len(displays),len(irqs),len(group['polls']),len(group['writes']),1]:raise ValueError('Incomplete selected '+name+' outputs')
         for n,(p,q) in enumerate(zip(points,native)):
@@ -275,7 +296,8 @@ def main():
     p=sub.add_parser('capture');p.add_argument('rom',type=Path);p.add_argument('--later-parent',type=Path)
     for k in ('capture','parent-out','out'):p.add_argument('--'+k,type=Path,required=True)
     p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path)
-    p=sub.add_parser('compare-later-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
+    p=sub.add_parser('compare-later-batch');p.add_argument('manifest',type=Path)
+    p=sub.add_parser('compare-later-selected-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
     if args.mode=='capture':capture(args)
-    else:(compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+    else:(compare_later_selected_many if args.mode=='compare-later-selected-batch' else compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
 if __name__=='__main__':main()

@@ -13,6 +13,24 @@ POINTS={0x2749:'begin',0x27e6:'closeWait',0x27e9:'closeReady',0x27f5:'centerStor
 MOTION={0x27ec:0xff4a,0x27f2:0xc09c,0x27da:0xff4a,0x27e0:0xc09c}
 RAM_STORES={0x27b1:0xc100,0x27b6:0xc101,0x27c2:0xc102,0x27c7:0xc103,0x27d0:0xc081}
 
+def later_select_parent(data):
+    target=data.get('targetPage',0);groups=data.get('groups',[])
+    if data.get('version')!=1 or data.get('inputCase')!='carousel' or data.get('laterAction')!='select' or type(target) is not int or not 1<=target<=4 or len(groups)!=2*target or groups[-1]['name']!=str(target-1)+'.idle':raise ValueError('Players lack their later-title Select parent')
+    group=groups[-1];end=group['points'][-1]
+    if end['name']!='end' or end['route']!=3 or end['index']!=target or end['pattern'] or end['inputPressed']!=4 or group['objects']!=[0]*256 or len(group['maps'])!=2048:raise ValueError('Unowned later Select decision/storage')
+    return dict(data,origin='later-title-select',points=[end],maps=group['maps'],objects=group['objects'])
+
+
+def observation_start(events,later=False):
+    # The accepted later decision is inside this exact fresh-Select suffix.
+    # Delay only installing read-only hooks; replay every input event unchanged.
+    # The exact begin cycle, endpoint hash and all outputs remain mandatory.
+    if not later:return 0
+    suffix=[['press','select'],['tick',4,True],['release','select'],['tick',2,True],['tick',100,True]]
+    if events[-5:]!=suffix:raise ValueError('Unknown later Select observation suffix')
+    return len(events)-5
+
+
 def tail(case):
     if case not in CASES:raise ValueError('Unknown player-selection case')
     events=[['release',key] for key in KEYS]+[['tick',100,True]]
@@ -27,15 +45,26 @@ def tail(case):
         press(['start'])
     events.append(['tick',10,True]);return events
 
+def continuation_observation_start(events,case,extension=()):
+    suffix=tail(case)+list(extension)
+    if events[-len(suffix):]!=suffix:raise ValueError('Detached later player continuation observation suffix')
+    return len(events)-len(suffix)
+
+
 def attachment(parent,child,events,changed,setup):
-    if child['inputCase'] not in CASES or parent['inputCase']!='select' or changed!=events+tail(child['inputCase']) or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256']:raise ValueError('Detached player-selection controls')
+    if child['inputCase'] not in CASES or (parent['inputCase']!='select' and not (parent['inputCase']=='carousel' and parent.get('laterAction')=='select' and child.get('origin')=='later-title-select')) or changed!=events+tail(child['inputCase']) or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256']:raise ValueError('Detached player-selection controls')
     if child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Player-selection controls lack repeated hashes')
 
 def prepare(args):
     parent=read(args.capture/'capture-summary.json');events=read(args.capture/'events.json');setup=sha((args.capture/'setup.state').read_bytes())
-    if parent['controlDifferences'] or parent['inputCase']!='select' or sha(args.rom.read_bytes())!=parent['romSha256']:raise ValueError('Changed select control/ROM')
+    later=getattr(args,'later_parent',None)
+    if later:
+        source=later_select_parent(read(later/'cycle.json'))
+        require_capture_reference(parent,source)
+        if any(source[k]!=parent[k] for k in ('romSha256','controlMemorySha256','inputCase')) or parent.get('laterAction')!='select':raise ValueError('Detached later Select controls')
+    if parent['controlDifferences'] or (parent['inputCase']!='select' and not later) or sha(args.rom.read_bytes())!=parent['romSha256']:raise ValueError('Changed select control/ROM')
     Reference,metadata=reference_class('sameboy');require_matching_backend(parent,metadata)
-    for case in CASES:
+    for case in ([args.case] if getattr(args,'case',None) else CASES):
         prefixes=[];hashes=[]
         for _ in range(2):
             p=Reference(str(args.rom),window='null',sound_volume=0)
@@ -44,10 +73,14 @@ def prepare(args):
                 replay(p,events);prefixes.append(memory_sha(p));replay(p,tail(case));hashes.append(memory_sha(p))
             finally:p.stop(save=False)
         child=dict(**metadata,inputCase=case,romSha256=parent['romSha256'],parentControlMemorySha256=parent['controlMemorySha256'],parentEventsSha256=event_sha(events),setupSha256=setup,controlMemorySha256=hashes[0],controlDifferences=[],prefixControlHashes=prefixes,unhookedControlHashes=hashes,referenceOnly=True)
+        if later:child.update(origin='later-title-select',targetPage=source['targetPage'],parentCycleSha256=sha((later/'cycle.json').read_bytes()))
         attachment(parent,child,events,events+tail(case),setup);folder=args.out/case;folder.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',folder/'setup.state');write_json(folder/'capture-summary.json',child);write_json(folder/'events.json',events+tail(case));print(case,'two select controls match',flush=True)
 
 def capture(args):
-    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'actions.json');require_capture_reference(accepted,parent)
+    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');later=getattr(args,'later_parent',None);parent=read(args.parent_out/('cycle.json' if later else 'actions.json'));require_capture_reference(accepted,parent)
+    if later:
+        if args.parent_out!=later or manifest.get('origin')!='later-title-select' or manifest.get('parentCycleSha256')!=sha((later/'cycle.json').read_bytes()) or manifest.get('targetPage')!=parent.get('targetPage'):raise ValueError('Detached later Select capture')
+        parent=later_select_parent(parent)
     old=read(args.capture/'events.json');events=read(args.control/'events.json');attachment(accepted,manifest,old,events,sha((args.control/'setup.state').read_bytes()))
     if parent['points'][-1]['route']!=3 or parent['controlMemorySha256']!=accepted['controlMemorySha256'] or (args.capture/'setup.state').read_bytes()!=(args.control/'setup.state').read_bytes() or sha(args.rom.read_bytes())!=manifest['romSha256']:raise ValueError('Changed select ancestry')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata);p=Reference(str(args.rom),window='null',sound_volume=0)
@@ -90,22 +123,30 @@ def capture(args):
         if pc in (0x2805,0x2128):writes.append(dict(cycle=now,address=p.register_file.HL if pc==0x2805 else p.register_file.D*256+p.register_file.E,value=p.register_file.A))
     try:
         with (args.control/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*POINTS,*STORES,*MOTION,*RAM_STORES,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2801,0x2805,0x2123,0x2128}:p.hook_register(0,pc,hook,pc)
+        watch_at=observation_start(old,bool(later))
         for i,e in enumerate(events):
+            if i==watch_at:
+                for pc in {*POINTS,*STORES,*MOTION,*RAM_STORES,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2801,0x2805,0x2123,0x2128}:p.hook_register(0,pc,hook,pc)
             replay(p,[e])
             if i==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Player-selection observer changed prefix')
         digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete player selection or changed full control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=accepted['controlMemorySha256'],inputCase=manifest['inputCase'],storageReadOwner='direct-vram-title-v1',points=points,interrupts=irqs,writes=writes,polls=polls,rasters=rasters,beforeMaps=before,maps=maps,beforeObjects=before_objects,objects=objects)
+    if later:data.update(origin='later-title-select',targetPage=parent['targetPage'],parentCycleSha256=sha((later/'cycle.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'players.rejected.json',data);raise
     write_json(args.out/'players.json',data);(args.out/'buttons.txt').write_text((args.parent_out/'buttons.txt').read_text()+''.join(str(b)+'\n' for b in buttons));print(dict(case=manifest['inputCase'],boundaries=len(points),services=len(buttons)),flush=True)
 
 def analyze(data,parent):
+    later=data.get('origin')=='later-title-select'
+    if 'groups' in parent and not later:raise ValueError('Missing later Select origin')
+    if later:
+        parent=later_select_parent(parent) if 'groups' in parent else parent
+        if parent.get('origin')!='later-title-select' or data.get('targetPage')!=parent['targetPage']:raise ValueError('Mixed later Select page')
     points=data['points'];first=points[0];end=parent['points'][-1];irqs=data['interrupts'];services=[p for p in irqs if p['kind']=='vblank'];case=data['inputCase']
-    if data.get('version')!=1 or case not in CASES or parent['inputCase']!='select' or end['route']!=3 or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','stat','lcdc','scrollY','lyc')) or (first['held'],first['pressed'])!=(end['inputHeld'],end['inputPressed']):raise ValueError('Detached player-selection entry')
+    if data.get('version')!=1 or case not in CASES or (parent['inputCase']!='select' and not later) or end['route']!=3 or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','stat','lcdc','scrollY','lyc')) or (first['held'],first['pressed'])!=(end['inputHeld'],end['inputPressed']):raise ValueError('Detached player-selection entry')
     if data.get('storageReadOwner')!='direct-vram-title-v1' or data['reference'].get('titleStorageObserver')!='direct-vram-title-v1' or data['beforeMaps']!=parent['maps'] or len(data['maps'])!=2048 or data['beforeObjects']!=[0]*256 or len(data['objects'])!=256:raise ValueError('Detached player-selection maps/objects')
     names=['begin']+['closeWait','closeReady','centerStored']*40+['clearEntry','closeReturned','clearEntry','clearReturned','textReturned']+['openWait','openReady','openStored']*40
     loop_start=len(names);groups=[];i=loop_start
@@ -154,23 +195,39 @@ def analyze(data,parent):
     if [(w['address'],w['value']) for w in cursor]!=expected or len(data['rasters'])!=2*sum(p['kind']=='stat' for p in irqs):raise ValueError('Incomplete player cursor/blink/raster')
     return services
 
+def later_arguments(args):
+    return argparse.Namespace(**dict({k:v for k,v in vars(args).items() if k not in ('players_out','players_control','later_out','later_base','later_control')},native_base=args.later_base,cycle_out=args.later_out,cycle_control=args.later_control))
+
+def compare_later_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later player batch')
+    from title_cycle_reference import compare_many as qualify
+    unique={tuple(sorted((k,str(v)) for k,v in vars(later_arguments(c)).items())):later_arguments(c) for c in cases}
+    with contextlib.redirect_stdout(io.StringIO()):qualify(list(unique.values()))
+    for case in cases:compare(case,_parent_qualified=True)
+
 def compare(args,_parent_qualified=False):
-    if not _parent_qualified:
+    later=getattr(args,'later_out',None)
+    if not _parent_qualified and later:
+        from title_cycle_reference import compare as qualify
+        with contextlib.redirect_stdout(io.StringIO()):qualify(later_arguments(args))
+    elif not _parent_qualified:
         from air_title_actions_reference import compare as prior_compare
         with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
     from air_fourth_entry_reference import preserved_native_prefix
-    retained=preserved_native_prefix(args.native_base,args.actions_base);data=read(args.players_out/'players.json');parent=read(args.actions_out/'actions.json');accepted=read(args.case_control/'capture-summary.json');child=read(args.players_control/'capture-summary.json')
-    attachment(accepted,child,read(args.case_control/'events.json'),read(args.players_control/'events.json'),sha((args.players_control/'setup.state').read_bytes()));require_capture_reference(child,data)
+    retained=preserved_native_prefix(args.native_base,args.later_base if later else args.actions_base);data=read(args.players_out/'players.json');parent=read((later/'cycle.json') if later else args.actions_out/'actions.json');accepted=read((args.later_control if later else args.case_control)/'capture-summary.json');child=read(args.players_control/'capture-summary.json')
+    if later and (data.get('origin')!='later-title-select' or data.get('targetPage')!=parent['targetPage'] or data.get('parentCycleSha256')!=sha((later/'cycle.json').read_bytes()) or any(data.get(k)!=child.get(k) for k in ('origin','targetPage','parentCycleSha256'))):raise ValueError('Detached later player recording/control')
+    attachment(accepted,child,read((args.later_control if later else args.case_control)/'events.json'),read(args.players_control/'events.json'),sha((args.players_control/'setup.state').read_bytes()));require_capture_reference(child,data)
     if any(data[k]!=child[k] for k in ('romSha256','controlMemorySha256','inputCase')):raise ValueError('Mixed player-selection controls')
     services=analyze(data,parent)
-    if (args.players_out/'buttons.txt').read_text()!=(args.actions_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached player-selection buttons')
+    if (args.players_out/'buttons.txt').read_text()!=((later if later else args.actions_out)/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached player-selection buttons')
     from air_startup_reference import analyze as startup_epoch
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
     def rows(suffix):
-        with Path(str(args.native_base)+'.fifth.title-players'+suffix).open(newline='') as f:return list(csv.DictReader(f))
+        with Path(str(args.native_base)+('.fifth.later.title-players' if later else '.fifth.title-players')+suffix).open(newline='') as f:return list(csv.DictReader(f))
     native=rows('.csv');ns=rows('.services.csv');ni=rows('.interrupts.csv');nr=rows('.raster.csv');np=rows('.polls.csv');nw=rows('.writes.csv');maps=rows('.maps.csv');objects=rows('.objects.csv');summary=rows('.summary.csv');voices=rows('.voices.csv')
     if [len(native),len(ns),len(ni),len(nr),len(np),len(nw),len(maps),len(objects),len(summary)]!=[len(data['points']),len(services),len(irqs:=data['interrupts']),len(data['rasters']),len(data['polls']),len(data['writes']),2048,256,1]:raise ValueError('Incomplete native player-selection outputs')
-    with Path(str(args.actions_base)+'.fifth.title-actions.summary.csv').open(newline='') as f:before=next(csv.DictReader(f))
+    prior=str(args.later_base)+'.fifth.title-cycle.'+str(parent['targetPage']-1)+'.idle.summary.csv' if later else str(args.actions_base)+'.fifth.title-actions.summary.csv'
+    with Path(prior).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);differences=compare_voices(services,voices,preceding)
     def check(kind,i,wanted,q):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if int(q[k])!=v}
@@ -195,6 +252,7 @@ def compare(args,_parent_qualified=False):
         return value+70224 if value<=end else value
     check('summary',0,dict(end=end,tick=last['tick'],countdown=54,displays=preceding+len(services),stats=int(before['stats'])+sum(p['kind']=='stat' for p in irqs),lcdEpoch=lcd,nextStat=deadline(23),nextVBlank=deadline(144),**{k:last[k] for k in ('center','closed','cleared','opened','waits','players','route','song','musicEnabled')}),summary[0])
     report=dict(inputCase=data['inputCase'],comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedPolls=len(np),comparedWrites=len(nw),comparedMapBytes=2048,comparedObjectBytes=256,comparedVoiceRows=len(voices),preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Select page close/clear/text/open, cursor blinking, fresh toggles and Start/A/B outgoing clear entry. Subsequent clear/menu or campaign continuation, other game paths, frames/PCM and production scheduler remain unqualified.')
+    if data.get('origin'):report.update(origin=data['origin'],targetPage=data['targetPage'])
     write_json(Path(str(args.native_base)+'.title-players.comparison.json'),report);print(report)
     if differences:raise ValueError('Native player selection differs')
 
@@ -212,7 +270,11 @@ def main():
     for mode in ('prepare','capture'):
         p=sub.add_parser(mode);p.add_argument('rom',type=Path)
         for name in ('capture','out')+(('control','parent-out') if mode=='capture' else ()):p.add_argument('--'+name,type=Path,required=True)
-    p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
-    if args.mode=='compare-batch':compare_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+        p.add_argument('--later-parent',type=Path)
+        if mode=='prepare':p.add_argument('--case',choices=CASES)
+    for mode in ('compare-batch','compare-later-batch'):
+        p=sub.add_parser(mode);p.add_argument('manifest',type=Path)
+    args=parser.parse_args()
+    if args.mode in ('compare-batch','compare-later-batch'):(compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
     else:dict(prepare=prepare,capture=capture)[args.mode](args)
 if __name__=='__main__':main()

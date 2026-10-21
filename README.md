@@ -131,7 +131,9 @@ advances on later pages and wrap. Separate [later-page decisions](docs/LATER_TIT
 also match Start, Select and password entry on pages 1..4. Their complete
 [password presentations](docs/LATER_TITLE_PASSWORD.md) now match as well;
 [Start/instruction music and picture](docs/LATER_TITLE_INSTRUCTION.md) also match;
-player-screen transitions remain separate. All eight selected one/two-player, full/skip
+[later player selections/returns and selected instruction starts](docs/LATER_TITLE_PLAYERS.md)
+now match in 176 further cases; [complete later full/skip instruction text](docs/LATER_INSTRUCTION_TEXT.md)
+also matches in 48 cases. All eight selected one/two-player, full/skip
 Air/easy cases now match through 1,216 initial updates, including resource
 transfers, map deferral and interrupted scene work with mandatory
 [partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md).

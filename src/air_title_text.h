@@ -9,7 +9,7 @@ AirTitleText airTitleText(AirTitlePicture picture,NativeAudio& sound,const UiAss
     const auto& f=picture.title.fresh.instruction.start.menu.page.close.fade;const auto& r=f.layout.reset;const auto& t=r.timing;const auto& c=picture.title.fresh.campaign;
     if(picture.title.result||r.alternate!=1||r.servicesMasked||r.pendingRequests||r.display!=5||r.stat!=5||r.lcdc!=0xd1||r.scrollX||r.scrollY||f.layout.lyc!=95||
        f.bgp!=0xe4||f.obp0!=0xc4||f.obp1!=0xe0||!c.active||c.current||c.players[0].day!=1||c.players[0].difficulty||c.players[0].lives!=5||t.lives!=5||
-       (!picture.title.fresh.instruction.start.menu.selectedPlayers&&(t.displays!=739||t.stats!=968))||t.countdown!=54||!sound.enabled||sound.song!=2||sound.paused||sound.pendingEffect!=-1)
+       (!picture.title.fresh.instruction.start.menu.selectedPlayers&&!picture.title.fresh.instruction.start.menu.carouselOwned&&(t.displays!=739||t.stats!=968))||t.countdown!=54||!sound.enabled||sound.song!=2||sound.paused||sound.pendingEffect!=-1)
         throw std::runtime_error("Unowned first-instruction text entry");
     AirTitleText state{std::move(picture),{}};auto& out=state.picture.title.fresh.instruction.start.menu.page.close.fade.layout.reset;
     const auto& campaign=state.picture.title.fresh.campaign;

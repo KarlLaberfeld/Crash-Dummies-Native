@@ -3,6 +3,7 @@ import argparse,contextlib,csv,io
 from pathlib import Path
 from air_title_start_reference import read,sha,replay,memory_sha
 from air_title_text_controls import attachment
+from air_title_players_reference import continuation_observation_start
 from air_title_entrance_reference import POINTS as ENTRANCE,STORES as FADE_STORES,analyze as entrance_analyze
 from air_instruction_text_reference import POINTS as TEXT,analyze as text_analyze,compare_text
 from air_title_instruction_exit_reference import POINTS as EXIT,STORES as EXIT_STORES
@@ -14,6 +15,12 @@ from reference_backend import reference_class,require_matching_backend,require_c
 from air_reference import write_json
 GROUPS=('entrance','text','instruction-exit')
 TABLES=(ENTRANCE,{k:v for k,v in TEXT.items() if k!=0x0c7a},EXIT)
+
+def instruction_observation_start(events):
+    suffix=[['press','start'],['tick',4,True],['release','start'],['tick',2,True],['tick',100,True]]
+    if events[-5:]!=suffix:raise ValueError('Unknown later Start observation suffix')
+    return len(events)-5
+
 
 def picture_parent(parent):
     group=parent['groups'][-1]
@@ -76,14 +83,17 @@ def capture(args):
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
         pcs={pc for table in TABLES for pc in table}|set(FADE_STORES)|set(EXIT_STORES)|set(IRQ_PHASES)|{0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x222c}
-        for pc in pcs:p.hook_register(0,pc,hook,pc)
+        origin=parent.get('origin');watch_at=continuation_observation_start(old,parent['inputCase'],[['tick',100,True]]) if origin=='later-title-selected-start' else instruction_observation_start(old) if origin=='later-title-start' else 0
         for n,event in enumerate(events):
+            if n==watch_at:
+                for pc in pcs:p.hook_register(0,pc,hook,pc)
             replay(p,[event])
             if n==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Observed selected text changed its accepted prefix')
         digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete selected text or changed original control')
     data=dict(version=1,reference=metadata,storageReadOwner='direct-vram-instruction-v1',romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=accepted['controlMemorySha256'],inputCase=manifest['inputCase'],parentInputCase=parent['inputCase'],players=parent['players'],setupSha256=setup,campaign=campaign,groups=groups)
+    if parent.get('origin') in ('later-title-start','later-title-selected-start'):data.update(origin=parent['origin'],targetPage=parent['targetPage'],parentInstructionSha256=sha((args.parent_out/'instruction.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent,len((args.parent_out/'buttons.txt').read_text().splitlines()))
     except ValueError:write_json(args.out/'text.rejected.json',data);raise
@@ -93,6 +103,9 @@ def projection(data,group):
     return dict(group,version=1,precedingDisplays=group['precedingInputSamples'],reference=data['reference'],campaign=data['campaign'],storageReadOwner=data['storageReadOwner'],objectsUnchanged=group['beforeObjects']==group['objects'],writes=group['scrollWrites'] if group['name']=='entrance' else group['writes'])
 
 def analyze(data,parent,preceding):
+    if data.get('origin') not in (None,'later-title-start','later-title-selected-start'):raise ValueError('Unowned instruction text origin')
+    if data.get('origin')!=parent.get('origin'):raise ValueError('Mixed instruction text origin')
+    if parent.get('origin') in ('later-title-start','later-title-selected-start') and (data.get('origin')!=parent['origin'] or data.get('targetPage')!=parent.get('targetPage')):raise ValueError('Detached later instruction text origin/page')
     if data.get('version')!=1 or data['inputCase'] not in ('full-prompt','skip-held') or data['parentInputCase']!=parent['inputCase'] or data['players']!=parent['players'] or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or data['campaign']!=dict(player=0,stage=1,difficulty=0) or [g['name'] for g in data['groups']]!=list(GROUPS):raise ValueError('Detached selected text ancestry/campaign')
     if data.get('storageReadOwner')!='direct-vram-instruction-v1' or data['reference'].get('instructionStorageObserver')!='direct-vram-instruction-v1':raise ValueError('Unqualified selected text storage observer')
     before=picture_parent(parent);all_services=[];previous=before['points'][-1]
@@ -133,12 +146,14 @@ def compare(args,_parent_qualified=False):
     parent=read(args.selected_out/'instruction.json');data=read(args.selected_text_out/'text.json');accepted=read(args.exit_control/'capture-summary.json');manifest=read(args.text_control/'capture-summary.json')
     attachment(accepted,manifest,read(args.exit_control/'events.json'),read(args.text_control/'events.json'),sha((args.text_control/'setup.state').read_bytes()));require_capture_reference(manifest,data)
     if any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase','parentControlMemorySha256','setupSha256')):raise ValueError('Mixed selected text controls/recording')
+    if parent.get('origin') in ('later-title-start','later-title-selected-start') and data.get('parentInstructionSha256')!=sha((args.selected_out/'instruction.json').read_bytes()):raise ValueError('Detached later instruction text file')
     preceding=len((args.selected_out/'buttons.txt').read_text().splitlines());services=analyze(data,parent,preceding)
     if (args.selected_text_out/'buttons.txt').read_text()!=(args.selected_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached selected text raw inputs')
     retained=preserved_native_prefix(args.native_base,args.selected_base);epoch=startup_epoch(read(args.startup/'startup.json'))['epoch'];differences=[];totals=dict(boundaries=0,services=0,vectors=0,polls=0,glyphStores=0,otherStores=0,mapBytes=0,tileBytes=0,voiceRows=0)
     def rows(stem,suffix):
         with Path(stem+suffix).open(newline='') as f:return list(csv.DictReader(f))
-    prior=rows(str(args.selected_base)+'.fifth.selected.title-picture','.summary.csv')[0];stats=int(prior['stats']);lcd=int(prior['lcdEpoch'])
+    native_stem='.fifth.later.selected.title-' if parent.get('origin')=='later-title-selected-start' else '.fifth.later.title-' if parent.get('origin')=='later-title-start' else '.fifth.selected.title-'
+    prior=rows(str(args.selected_base)+native_stem+'picture','.summary.csv')[0];stats=int(prior['stats']);lcd=int(prior['lcdEpoch'])
     # Raw input files start before the native timing owner's display index was
     # reset. The parent's independently qualified summary owns that index;
     # absolute original cycles/ticks, service counts and prefix bytes remain
@@ -148,7 +163,7 @@ def compare(args,_parent_qualified=False):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if int(q[k])!=v}
         if delta:differences.append(dict(category=kind,index=index,fields=delta))
     for index,group in enumerate(data['groups']):
-        name=group['name'];stem=str(args.native_base)+'.fifth.selected.title-'+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
+        name=group['name'];stem=str(args.native_base)+native_stem+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
         native,ns,ni,np,nw,summary,maps,tiles,voices=[rows(stem,s) for s in ('.csv','.services.csv','.interrupts.csv','.polls.csv','.writes.csv','.summary.csv','.maps.csv','.tiles.csv','.voices.csv')]
         glyphs=[p for p in nw if 0x9800<=int(p['address'])<0x9c00];other=[p for p in nw if p not in glyphs]
         if [len(native),len(ns),len(ni),len(np),len(glyphs),len(other),len(summary),len(maps),len(tiles),len(voices)]!=[len(points),len(displays),len(irqs),len(group['polls']),len(group['writes']),len(group['scrollWrites']),1,2048,1024,6*len(displays)]:raise ValueError('Incomplete selected '+name+' native outputs')
@@ -185,6 +200,19 @@ def compare(args,_parent_qualified=False):
     write_json(Path(str(args.native_base)+'.selected-text.comparison.json'),report);print(report)
     if differences:raise ValueError('Selected instruction text/exit differs from the original')
 
+def compare_later_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later instruction text batch')
+    direct=[];selected=[];seen=set()
+    for case in cases:
+        parent=argparse.Namespace(**{k:v for k,v in vars(case).items() if k not in ('selected_base','text_control','selected_text_out')});parent.native_base=case.selected_base
+        identity=tuple(sorted((k,str(v)) for k,v in vars(parent).items()))
+        if identity not in seen:(selected if getattr(parent,'later_players_out',None) else direct).append(parent);seen.add(identity)
+    from selected_instruction_reference import compare_later_many as qualify_direct,compare_later_selected_many as qualify_selected
+    with contextlib.redirect_stdout(io.StringIO()):
+        if direct:qualify_direct(direct)
+        if selected:qualify_selected(selected)
+    for case in cases:compare(case,_parent_qualified=True)
+
 def compare_many(cases):
     if not cases or len(cases)>128:raise ValueError('Invalid selected text batch')
     ignored={'native_base','selected_base','text_control','selected_text_out','exit_base','players_base','players_out','players_control','exit_out','exit_control','selected_out'};common={k:v for k,v in vars(cases[0]).items() if k not in ignored}
@@ -202,7 +230,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     p=sub.add_parser('capture');p.add_argument('rom',type=Path)
     for key in ('capture','accepted-control','parent-out','out'):p.add_argument('--'+key,type=Path,required=True)
-    p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
+    for mode in ('compare-batch','compare-later-batch'):
+        p=sub.add_parser(mode);p.add_argument('manifest',type=Path)
+    args=parser.parse_args()
     if args.mode=='capture':capture(args)
-    else:compare_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+    else:(compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
 if __name__=='__main__':main()

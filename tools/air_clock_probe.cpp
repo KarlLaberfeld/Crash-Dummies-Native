@@ -59,7 +59,7 @@ int main(int argc,char** argv){
         int nextInstructionExtent=0,nextUpdates=1,thirdInstructionExtent=0,fourthUpdates=1,fifthInstructionExtent=0,fifthUpdates=1;bool nextRetry=false,nextTerminal=false,nextResult=false,fourthEntry=false,fourthResult=false,fifthEntry=false,fifthTerminal=false,fifthResult=false,fifthReturn=false,titleReset=false,titleLayout=false,titleFade=false,titleClose=false,titlePage=false,titleMenu=false,titleActions=false,titleStart=false,titleInstruction=false,titleCampaign=false,titleResume=false,titleHeader=false,titlePicture=false,titleUnlock=false,titleEntrance=false,titleText=false,titleInstructionExit=false,titlePassword=false,passwordEdit=false,passwordFeedback=false,passwordReturn=false,musicTest=false,musicExit=false,playersPage=false,playersExit=false,playersPicture=false,titleCycle=false,playersEntry=false,playersPlay=false;
         bool instructionExit=false,followingSetupPrefix=false,followingStageSetup=false,followingEntry=false,followingGameplay=false,followingEntryPause=false,followingPauseReached=false,followingTerminal=false,followingOutro=false,followingResult=false,followingResultHold=false;
         int difficulty=1,positional=0,celebrationServices=0,followingUpdates=1;std::string spritePath,displayInputPath,resultInputPath,mapPath,entityPath,pauseEntryPath,audioPath,framesPath,frameSelection,interruptPath;bool finalWait=false,outroFade=false,resultPrefix=false,resultIncoming=false,resultHold=false,resultAccounting=false,resultHandoff=false,instructionHeader=false,instructionPicture=false,instructionMap=false,instructionText=false,pauseEntryReached=false,pauseReplay=false,paused=false;
-        int playersUpdates=32,titleActionPage=0;bool laterPassword=false,laterInstruction=false;
+        int playersUpdates=32,titleActionPage=0;bool laterPassword=false,laterInstruction=false,laterPlayers=false,laterPlayersExit=false,laterPlayersPicture=false;
         for(int i=3;i<argc;++i){std::string option=argv[i];
             if(option=="--display-inputs"&&i+1<argc)displayInputPath=argv[++i];
             else if(option=="--perfect-celebration"&&i+1<argc){celebrationServices=std::stoi(argv[++i]);
@@ -107,6 +107,11 @@ int main(int argc,char** argv){
             else if(option=="--title-password")titlePassword=titleUnlock=titleActions=titleMenu=titlePage=titleClose=titleFade=titleLayout=titleReset=fifthReturn=fifthResult=fifthTerminal=true;
             else if(option=="--title-players")playersPage=titleActions=titleMenu=titlePage=titleClose=titleFade=titleLayout=titleReset=fifthReturn=fifthResult=fifthTerminal=true;
             else if(option=="--title-cycle-action-page"){if(i+1>=argc)throw std::runtime_error("Missing later title action page");titleActionPage=std::stoi(argv[++i]);if(titleActionPage<1||titleActionPage>4)throw std::runtime_error("Invalid later title action page");titleCycle=titleActions=titleMenu=titlePage=titleClose=titleFade=titleLayout=titleReset=fifthReturn=fifthResult=fifthTerminal=true;}
+            else if(option=="--title-cycle-players-text-exit"){laterPlayers=laterPlayersExit=laterPlayersPicture=true;titleEntrance=titleText=titleInstructionExit=true;}
+            else if(option=="--title-cycle-text-exit"){laterInstruction=true;titleEntrance=titleText=titleInstructionExit=true;}
+            else if(option=="--title-cycle-players")laterPlayers=true;
+            else if(option=="--title-cycle-players-exit")laterPlayers=laterPlayersExit=true;
+            else if(option=="--title-cycle-players-picture")laterPlayers=laterPlayersExit=laterPlayersPicture=true;
             else if(option=="--title-cycle-instruction")laterInstruction=true;
             else if(option=="--title-cycle-password")laterPassword=true;
             else if(option=="--title-cycle")titleCycle=titleActions=titleMenu=titlePage=titleClose=titleFade=titleLayout=titleReset=fifthReturn=fifthResult=fifthTerminal=true;
@@ -149,6 +154,9 @@ int main(int argc,char** argv){
             else if(positional==2)spritePath=option;
             else throw std::runtime_error("Too many clock probe arguments");
         }
+        if((laterPlayers&&(!titleActionPage||laterPassword||laterInstruction)))throw std::runtime_error("Later players requires its own target page");
+        if(laterInstruction&&(!titleActionPage||laterPassword))throw std::runtime_error("Later instruction requires its own target page");
+        if(laterPassword&&!titleActionPage)throw std::runtime_error("Later password requires a target title page");
         if(!pauseEntryPath.empty()&&(displayInputPath.empty()||finalWait))throw std::runtime_error("Pause entry requires display inputs and cannot include an outro");
         if(celebrationServices<0||celebrationServices>2000||(celebrationServices&&resultIncoming))throw std::runtime_error("Invalid isolated perfect celebration scope");
         if(pauseReplay&&(displayInputPath.empty()||!pauseEntryPath.empty()))throw std::runtime_error("Pause replay requires display inputs and cannot stop at pause entry");
@@ -169,8 +177,6 @@ int main(int argc,char** argv){
             if(value.empty()||value.find_first_not_of("0123456789")!=std::string::npos)throw std::runtime_error("Invalid frame service selection");
             frameServices.insert(static_cast<unsigned>(std::stoul(value)));if(end==std::string::npos)break;begin=end+1;
         }
-        if(laterInstruction&&(!titleActionPage||laterPassword))throw std::runtime_error("Later instruction requires its own target page");
-        if(laterPassword&&!titleActionPage)throw std::runtime_error("Later password requires a target title page");
         std::unique_ptr<UiAssets> frameUi;if(!framesPath.empty())frameUi=std::make_unique<UiAssets>(UiAssets::load(L"build/ui.dat"));
         auto assets=std::make_unique<AirAssets>(AirAssets::load(L"build/air.dat"));
         auto shared=std::make_unique<Assets>(Assets::load(L"build/crash.dat"));
@@ -763,7 +769,7 @@ int main(int argc,char** argv){
                                                                 if(followingResultHold)incoming=airResultFailureHold(incoming,next->result,incoming.input.held,sound,*ui,incomingPoint,incomingService,incomingIrq,nextResultInput);
                                                                 incomingSummary<<"end,lcdEpoch,tick,countdown,displays,stats,nextStat,nextVBlank,player,lives\n"<<incoming.end<<','<<incoming.lcdEpoch<<','<<incoming.tick<<','<<incoming.countdown<<','<<incoming.displays<<','<<incoming.stats<<','<<incoming.nextStat<<','<<incoming.nextVBlank<<','<<player<<','<<incoming.lives<<'\n';
                                                                 if(nextInstructionExtent){auto typed=airProbeNextInstruction(argv[2],campaign,incoming,next->result,restarted.stage,restarted.difficulty,restarted.instruction.map.scroll,sound,*ui,nextInstructionExtent,nextResultInput);
-                                                                    if(nextRetry)airProbeNextRetry(argv[2],typed,*next,*assets,*shared,restarted.stage,restarted.difficulty,sound,*ui,nextResultInput,nextUpdates,nextTerminal,nextResult,thirdInstructionExtent,fourthEntry,fourthUpdates,fourthResult,fifthInstructionExtent,fifthEntry,fifthUpdates,fifthTerminal,fifthResult,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions,titleStart,titleInstruction,titleCampaign,titleResume,titleHeader,titlePicture,titleUnlock,titleEntrance,titleText,titleInstructionExit,titlePassword,passwordEdit,passwordFeedback,passwordReturn,musicTest,musicExit,playersPage,playersExit,playersPicture,titleCycle,playersEntry,playersPlay,playersUpdates,titleActionPage,laterPassword,laterInstruction);}
+                                                                    if(nextRetry)airProbeNextRetry(argv[2],typed,*next,*assets,*shared,restarted.stage,restarted.difficulty,sound,*ui,nextResultInput,nextUpdates,nextTerminal,nextResult,thirdInstructionExtent,fourthEntry,fourthUpdates,fourthResult,fifthInstructionExtent,fifthEntry,fifthUpdates,fifthTerminal,fifthResult,fifthReturn,titleReset,titleLayout,titleFade,titleClose,titlePage,titleMenu,titleActions,titleStart,titleInstruction,titleCampaign,titleResume,titleHeader,titlePicture,titleUnlock,titleEntrance,titleText,titleInstructionExit,titlePassword,passwordEdit,passwordFeedback,passwordReturn,musicTest,musicExit,playersPage,playersExit,playersPicture,titleCycle,playersEntry,playersPlay,playersUpdates,titleActionPage,laterPassword,laterInstruction,laterPlayers,laterPlayersExit,laterPlayersPicture);}
                                                             }
                                                         }
                                                     }

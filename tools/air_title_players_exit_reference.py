@@ -3,7 +3,7 @@ import argparse,contextlib,csv,io
 from pathlib import Path
 from air_title_start_reference import read,sha,replay,memory_sha
 from password_return_reference import prepare,attachment
-from air_title_players_reference import CASES,MOTION
+from air_title_players_reference import CASES,MOTION,continuation_observation_start
 from air_title_menu_reference import STORES
 from air_title_picture_reference import voice_states,compare_voices
 from air_timing import IRQ_PHASES,vblank_work,elapsed_work
@@ -56,14 +56,17 @@ def capture(args):
         if pc in (0x2805,0x2128):writes.append(dict(cycle=now,address=p.register_file.HL if pc==0x2805 else p.register_file.D*256+p.register_file.E,value=p.register_file.A))
     try:
         with (args.control/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*POINTS,*STORES,*MOTION,*RAM_STORES,*IRQ_PHASES,*range(0x1b33,0x1bd3),0x0040,0x0048,0x2484,0x2555,0x2801,0x2805,0x2123,0x2128}:p.hook_register(0,pc,hook,pc)
+        watch_at=continuation_observation_start(old,parent['inputCase']) if parent.get('origin')=='later-title-select' else 0
         for i,e in enumerate(events):
+            if i==watch_at:
+                for pc in {*POINTS,*STORES,*MOTION,*RAM_STORES,*IRQ_PHASES,*range(0x1b33,0x1bd3),0x0040,0x0048,0x2484,0x2555,0x2801,0x2805,0x2123,0x2128}:p.hook_register(0,pc,hook,pc)
             replay(p,[e])
             if i==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Player-selection observer changed prefix')
         digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete player selection or changed full control')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=accepted['controlMemorySha256'],inputCase=manifest['inputCase'],storageReadOwner='direct-vram-title-v1',points=points,interrupts=irqs,writes=writes,polls=polls,rasters=rasters,beforeMaps=before,maps=maps,beforeObjects=before_objects,objects=objects)
+    if parent.get('origin')=='later-title-select':data.update(origin='later-title-select',targetPage=parent['targetPage'],parentPlayersSha256=sha((args.parent_out/'players.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'exit.rejected.json',data);raise
@@ -71,6 +74,7 @@ def capture(args):
 
 def analyze(data,parent):
     points=data['points'];first=points[0];end=parent['points'][-1];irqs=data['interrupts'];services=[p for p in irqs if p['kind']=='vblank'];route=end['route']
+    if parent.get('origin')=='later-title-select' and (data.get('origin')!='later-title-select' or data.get('targetPage')!=parent['targetPage']):raise ValueError('Detached retained player page')
     if data.get('version')!=1 or data['inputCase'] not in CASES or data['inputCase']!=parent['inputCase'] or route not in (1,2) or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','center','windowY','players','route','song','musicEnabled','held','pressed','stat','lcdc','scrollY','lyc')):raise ValueError('Detached selected-player continuation')
     names=['begin','objectsCleared']
     if route==1:names+=['objectsReturned','pageStored','closeCall']+['closeWait','closeReady','centerStored']*40+['clearEntry','closeReturned','clearEntry','clearReturned','pageCall','pageEntry','rectangleEntry']+['rowReady']*10+['copyReturned','pageReturn','pageReturned']+['openWait','openReady','openStored']*40
@@ -89,12 +93,13 @@ def analyze(data,parent):
         if p['tick']!=(first['tick']+i)&65535 or p['countdown']!=54 or p['pressed']!=p['held']&~previous or w['display']!=116 or p['musicEnabled']!=1 or len(p.get('voiceStates',[]))!=6:raise ValueError('Unowned player continuation service')
         previous=p['held']
     closed=cleared=opened=rows=0
-    for p in points:
+    for point_index,p in enumerate(points):
         if p['name']=='centerStored':closed+=1
         if p['name'] in ('closeReturned','clearReturned'):cleared+=1
         if p['name']=='openStored':opened+=1
         if p['name']=='rowReady':rows+=1
-        wanted=dict(closed=closed,cleared=cleared,opened=opened,rows=rows,page=0,players=end['players'],route=route,countdown=54,song=1,musicEnabled=1,tick=(first['tick']+sum(r['end']+16<=p['cycles'] for r in services))&65535)
+        retained_page=parent.get('targetPage',0) if parent.get('origin')=='later-title-select' and (route==2 or point_index<3) else 0
+        wanted=dict(closed=closed,cleared=cleared,opened=opened,rows=rows,page=retained_page,players=end['players'],route=route,countdown=54,song=1,musicEnabled=1,tick=(first['tick']+sum(r['end']+16<=p['cycles'] for r in services))&65535)
         completed=[r for r in services if r['end']+16<=p['cycles']];input_owner=completed[-1] if completed else first;wanted.update(held=input_owner['held'],pressed=input_owner['pressed'])
         if any(p[k]!=v for k,v in wanted.items()):raise ValueError('Player continuation state escaped its owner')
     if route==1:
@@ -114,6 +119,7 @@ def compare(args,_parent_qualified=False):
         with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
     from air_fourth_entry_reference import preserved_native_prefix
     retained=preserved_native_prefix(args.native_base,args.players_base);data=read(args.exit_out/'exit.json');parent=read(args.players_out/'players.json');accepted=read(args.players_control/'capture-summary.json');child=read(args.exit_control/'capture-summary.json')
+    if parent.get('origin')=='later-title-select' and data.get('parentPlayersSha256')!=sha((args.players_out/'players.json').read_bytes()):raise ValueError('Detached later player continuation file')
     attachment(accepted,child,read(args.players_control/'events.json'),read(args.exit_control/'events.json'),sha((args.exit_control/'setup.state').read_bytes()));require_capture_reference(child,data)
     if any(data[k]!=child[k] for k in ('romSha256','controlMemorySha256','inputCase')):raise ValueError('Mixed player-selection controls')
     services=analyze(data,parent)
@@ -121,10 +127,10 @@ def compare(args,_parent_qualified=False):
     from air_startup_reference import analyze as startup_epoch
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
     def rows(suffix):
-        with Path(str(args.native_base)+'.fifth.players-exit'+suffix).open(newline='') as f:return list(csv.DictReader(f))
+        with Path(str(args.native_base)+('.fifth.later.players-exit' if getattr(args,'later_out',None) else '.fifth.players-exit')+suffix).open(newline='') as f:return list(csv.DictReader(f))
     native=rows('.csv');ns=rows('.services.csv');ni=rows('.interrupts.csv');nr=rows('.raster.csv');np=rows('.polls.csv');nw=rows('.writes.csv');maps=rows('.maps.csv');objects=rows('.objects.csv');summary=rows('.summary.csv');voices=rows('.voices.csv')
     if [len(native),len(ns),len(ni),len(nr),len(np),len(nw),len(maps),len(objects),len(summary)]!=[len(data['points']),len(services),len(irqs:=data['interrupts']),len(data['rasters']),len(data['polls']),len(data['writes']),2048,256,1]:raise ValueError('Incomplete native player-selection outputs')
-    with Path(str(args.players_base)+'.fifth.title-players.summary.csv').open(newline='') as f:before=next(csv.DictReader(f))
+    with Path(str(args.players_base)+('.fifth.later.title-players.summary.csv' if getattr(args,'later_out',None) else '.fifth.title-players.summary.csv')).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);differences=compare_voices(services,voices,preceding)
     def check(kind,i,wanted,q):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if int(q[k])!=v}
@@ -149,8 +155,18 @@ def compare(args,_parent_qualified=False):
         return value+70224 if value<=end else value
     check('summary',0,dict(end=end,tick=last['tick'],countdown=54,displays=preceding+len(services),stats=int(before['stats'])+sum(p['kind']=='stat' for p in irqs),lcdEpoch=lcd,nextStat=deadline(23),nextVBlank=deadline(144),**{k:last[k] for k in ('center','closed','cleared','opened','rows','page','players','route','song','musicEnabled')},titleReturned=int(last['route']==1)),summary[0])
     report=dict(inputCase=data['inputCase'],comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedPolls=len(np),comparedWrites=len(nw),comparedMapBytes=2048,comparedObjectBytes=256,comparedVoiceRows=len(voices),preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Complete selected-player object clear and Start return or A/B page-zero menu return. Selected campaign continuation, other game paths, frames/PCM and production scheduler remain unqualified.')
+    if data.get('origin'):report.update(origin=data['origin'],targetPage=data['targetPage'])
     write_json(Path(str(args.native_base)+'.players-exit.comparison.json'),report);print(report)
     if differences:raise ValueError('Native player selection differs')
+
+def compare_later_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later continuation batch')
+    parents=[]
+    for case in cases:
+        values={k:v for k,v in vars(case).items() if k not in ('players_base','exit_out','exit_control')};values['native_base']=case.players_base;parents.append(argparse.Namespace(**values))
+    from air_title_players_reference import compare_later_many as qualify
+    with contextlib.redirect_stdout(io.StringIO()):qualify(parents)
+    for case in cases:compare(case,_parent_qualified=True)
 
 def compare_many(cases):
     if not cases or len(cases)>128:raise ValueError('Invalid player continuation batch')
@@ -168,7 +184,9 @@ def main():
     for mode in ('prepare','capture'):
         p=sub.add_parser(mode);p.add_argument('rom',type=Path)
         for name in ('capture','out')+(('control','parent-out') if mode=='capture' else ()):p.add_argument('--'+name,type=Path,required=True)
-    p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
-    if args.mode=='compare-batch':compare_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+    for mode in ('compare-batch','compare-later-batch'):
+        p=sub.add_parser(mode);p.add_argument('manifest',type=Path)
+    args=parser.parse_args()
+    if args.mode in ('compare-batch','compare-later-batch'):(compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
     else:dict(prepare=prepare,capture=capture)[args.mode](args)
 if __name__=='__main__':main()
