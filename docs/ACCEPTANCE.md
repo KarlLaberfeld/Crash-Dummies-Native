@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 extended active-control follow-up: sixteen actual subsequent-
+player Air/easy active controls match through 320 updates, extending twelve further
+full/skip cases while preserving accepted entry/first-32
+streams. A late-skip public-entry check qualifies its full ancestry and a fresh
+optimized replay preserves 589 complete case CSVs. Source/test code is unchanged;
+prior passing Python/CLI/Windows checks remain applicable without static reruns.
+Two scroll-held controls reject active coverage because no resource activity
+occurs in their first 320 updates; their separate qualification remains open.
+See [scope](SELECTED_TURN_ACTIVE.md). Later deferred/interrupted/pause/terminal/
+outcome work, other required path families and final production/output/device/
+distribution gates remain open. No final release; continuation active.
+
 October 21 actual-turn active follow-up: four representative one/two-player,
 full-instruction cases match 320 subsequent-player updates in both histories,
 including active resource request/upload/completion ownership and all accepted

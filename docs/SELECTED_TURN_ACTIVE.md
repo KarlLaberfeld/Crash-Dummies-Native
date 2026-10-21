@@ -1,26 +1,29 @@
 # Actual subsequent-player Air active/resource comparison
 
-October 21, 2026: all four representative cases match, zero differences:
-1,280 updates, 12,800 boundaries, 204,800 actor slots
-(38,855 occupied), 1,280 displays, 2,560 vectors,
-51,200 sprite slots, 8 requests, 32 uploads and
-8 completions. No map-deferred upload is claimed. Totals include
-the shared accepted first 32 updates. Each case preserves 580/584 complete
-earlier native CSVs plus the five first-32 gameplay byte prefixes.
+October 21, 2026: sixteen actual-turn active instruction-control variants now
+match through 320 updates, zero differences. Twelve new cases extend the
+previous four representative controls. Totals: 5,120 updates,
+51,200 boundaries, 819,200 actor slots (155,608 occupied),
+5,120 displays, 10,240 vectors, 204,800 sprite slots,
+32 resource requests, 128 uploads and 32 completions.
+Shared first-32 ancestors overlap. No map-deferred upload is claimed.
 
-Validation: 1,969 Python tests and four native CLI ownership guards pass. A fresh
-optimized second-player replay preserves all 589 complete case CSVs; unchanged
-default-32 replays preserve all 589/593 CSVs. One public-entry integration check
-requalifies its complete accepted ancestry; other parent graphs reuse previously
-qualified unchanged records. Production source/build/native test code is
-unchanged, so the full Windows regression remains the passing preceding entry
-milestone. The Windows EXE is rebuilt from the saved clean source revision.
+The scope includes one/two-player initial full/skip instructions and following
+full confirmation or deliberate late skip/held exit in both histories. Two
+ignored-Start-during-scroll controls correctly reject active-resource coverage:
+all 3,200 observed boundaries retain an empty queue. Their earlier 32-update
+qualification stands; a separately owned coast scope or later active extent is
+still required. Neither rejected recording is counted as accepted. Every accepted case keeps
+its actual player/lives, native animation/timer/side-push/map cursor, unchanged
+entry and accepted first 32 original/native updates. Each preserves 580/584
+complete earlier native CSVs plus five early gameplay byte prefixes.
 
-This extends four representative [actual-turn entry controls](SELECTED_TURN.md)
-through 320 updates: one/two players in the ordinary and earlier-pause histories,
-with full initial and following instructions. Player one retains four lives;
-the actual second player has five while player one retains four. The remaining
-fourteen entry-control variants retain their earlier 32-update qualification.
+A new late-skip public-entry integration check qualifies its complete ancestry;
+a fresh optimized late-skip replay preserves all 589 complete case CSVs. The
+four previously accepted cases are reused unchanged. Diagnostic/production/
+test source is unchanged, so the passing 1,969 Python tests, CLI guards and
+preceding full Windows regression are not repeated without a new hypothesis.
+The Windows EXE is rebuilt from the saved clean source revision.
 
 Each accepted control receives A+Right held for 300 frames, then release and
 four idle frames. Two independent unobserved prefix/full replays must agree.
@@ -65,6 +68,6 @@ ROM, extracted assets, controls, recordings and reference binaries stay local.
 This scope does not qualify deferred uploads, interrupted sprite/map/placement
 work, partial-row bytes, pause, terminal/outcome handling or later campaign
 turns. Sprite tile bytes, rendered frames/PCM and production scheduling remain
-unqualified. Remaining instruction-control variants, other stunts/difficulties,
+unqualified. Other stunts/difficulties,
 retained menu/password/score paths and final Windows/device/distribution gates
 remain open. This is not a final release or completion of the broad request.

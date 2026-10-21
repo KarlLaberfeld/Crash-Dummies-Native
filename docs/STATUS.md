@@ -1,5 +1,31 @@
 # Crash Dummies Native - project status
 
+## Further actual-turn instruction-control variants through active work - October 21, 2026
+
+Sixteen actual subsequent-player Air/easy active control variants now match
+through 320 updates. Twelve new full/skip continuations
+extend the four representative cases, retaining both initial instruction
+choices, one/two players and both histories. Active resources, actor/scalar
+timing, sprites, actual campaign identity and all entry/first-32 prefixes match.
+See [scope and totals](SELECTED_TURN_ACTIVE.md).
+
+A new late-skip public-entry integration qualifies its full accepted ancestry;
+a fresh optimized replay preserves 589 complete case CSVs. Unchanged four-case
+evidence is reused. Source/test code is unchanged, so the passing 1,969 Python
+tests, CLI guards and preceding full Windows regression are retained without
+unnecessary reruns. The Windows EXE is rebuilt from the saved clean revision.
+
+Two scroll-held controls reject active qualification: their first 320 updates
+have no resource queue activity. Preserve that evidence and qualify a separate
+coast scope or later active extent; do not weaken the active coverage guard.
+
+Next: those two controls and actual subsequent-attempt deferred/interrupted row/pause/terminal/outcome
+work. Other required original path families, rendered frames/PCM, production
+scheduler and final Windows/device/distribution acceptance remain open. Broad
+request incomplete; continuation active. No final release. Older entries retain
+their historical scopes and counts.
+
+
 ## Actual subsequent-player active/resource work - October 21, 2026
 
 Four representative one/two-player cases with full initial/following
