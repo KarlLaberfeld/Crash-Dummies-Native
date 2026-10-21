@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 later-menu follow-up: 24 further comparisons match Start/Select/
+password-sequence decisions on pages 1..4 in both histories, including every
+accepted preceding page group. Optimized diagnostic, 1,795 Python tests and all
+four byte-identical automatic-carousel regressions pass. See
+[decision boundaries](LATER_TITLE_ACTIONS.md). Following screen transitions,
+other matrix families and all final scheduler/output/device gates remain open.
+No release/automation change; final acceptance incomplete.
+
 October 21: all eight selected initial Air/easy cases match through update 1,216,
 including map-deferred uploads, interrupted sprites/map/placements and mandatory
 partial-row byte comparison. Eight later-page fresh A/B carousels also match.

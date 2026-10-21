@@ -4,7 +4,8 @@
 #include "air_instruction_voice_probe.h"
 #include "native_ui_frame_probe.h"
 namespace ticd {
-inline void airProbeTitleCycle(const std::string& base,AirTitleMenu menu,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
+inline void airProbeTitleCycle(const std::string& base,AirTitleMenu menu,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int actionPage=0){
+    if(actionPage<0||actionPage>4)throw std::runtime_error("Invalid later title action page");
     auto texts=AirResultTextAssets::load("build/title-text.dat");
     for(int pass=0;pass<5;++pass){
         std::string stem=base+".title-cycle."+std::to_string(pass);
@@ -28,6 +29,7 @@ inline void airProbeTitleCycle(const std::string& base,AirTitleMenu menu,NativeA
         menu=airTitleMenuIdle(menu.page,sound,[&](const char* name,int64_t cycle,const AirTitleMenu& s){const auto& l=s.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
             idle.points<<name<<','<<cycle<<','<<s.remaining<<','<<s.waits<<','<<s.index<<','<<t.tick<<','<<t.countdown<<','<<r.stat<<','<<r.lcdc<<','<<r.scrollY<<','<<l.lyc<<','<<t.input.held<<','<<t.input.pressed<<','<<s.route<<','<<s.unlockProgress<<'\n';},
             [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& input){idle.service(index,cycle,tick,countdown,display,effects,music,input);airInstructionVoiceRows(idleVoices,index,sound,music);},[&](auto... args){idle.irq(args...);},[&](const char* name,auto... values){idleRaster<<name;((idleRaster<<','<<values),...);idleRaster<<'\n';},[&](auto... args){idle.write(args...);},sample,true,true,&inherited);
+        if(actionPage==pass+1){if(menu.route<2||menu.route>4)throw std::runtime_error("Missing later title Start/Select/unlock route");finish(idle,stem+".idle");break;}
         if(menu.route!=1)throw std::runtime_error("Title cycle left the bounded automatic/action page route");finish(idle,stem+".idle");
     }
 }

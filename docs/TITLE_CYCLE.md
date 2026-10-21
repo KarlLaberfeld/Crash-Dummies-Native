@@ -1,5 +1,11 @@
 # Complete title-page carousel comparison
 
+Later-decision follow-up: 24 Start/Select/password-sequence decisions on pages
+1..4 now also match, preserving complete preceding automatic-carousel groups.
+Their [explicit boundary and reproduction scope](LATER_TITLE_ACTIONS.md) ends
+before the following screen; those transitions and modified score records remain
+open. Four complete default native carousel regressions remain byte-identical.
+
 October 21 fresh-action extension: eight additional complete carousels match
 fresh A and B on each later page (1..4), starting from both initial A/B parents
 in both retained histories. Each action requires its actual fresh edge, the

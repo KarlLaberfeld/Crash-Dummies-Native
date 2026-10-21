@@ -1,5 +1,29 @@
 # Crash Dummies Native - project status
 
+## Later-title Start/Select/password decisions - October 21, 2026
+
+Twenty-four additional original/native comparisons now match Start, Select and
+the complete password-direction sequence on each later title page (1..4),
+after the accepted first-page A action in both histories. All preceding original
+carousel groups and complete native CSVs remain unchanged. The new cases cover
+231,034 boundaries, 28,838 displays, 91,194 vectors, 124,712 raster boundaries,
+156,306 polls, 322,230 stores, 245,760 map bytes and 173,028 voice rows, zero
+differences. Counts include overlapping preceding page histories. See
+[later decisions](LATER_TITLE_ACTIONS.md).
+
+These extents end at the actual Start/Select/password decision, before its
+following screen. They do not qualify those transitions. The optimized diagnostic,
+1,795 Python tests and invalid-target CLI checks pass. All four complete default
+automatic native carousels retain their 455 / 459 CSVs byte for byte. Production
+sources are unchanged. The Windows EXE is rebuilt from the saved source revision.
+No release/automation change; broad comparison/final acceptance remain incomplete.
+
+Next concrete work: complete the following Start/instruction, Select/player-page
+and unlock/password presentation transitions on those later pages; then terminal
+initial gameplay, two-player campaign switching, other required stunt/difficulty/
+outcome paths, modified scores/name entry and further frames/PCM. Timing into the
+Windows scheduler and final device/distribution checks remain separate.
+
 ## Initial map/interruption and later-page A/B comparisons - October 21, 2026
 
 All eight selected one/two-player, full/skip instruction cases now match active
