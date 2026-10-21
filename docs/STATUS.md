@@ -1,5 +1,25 @@
 # Crash Dummies Native - project status
 
+## Selected initial result, player handoff and next music/picture - October 21, 2026
+
+Eight attached original/native one/two-player full/skip cases in both retained
+histories match through outgoing fade/audio stop, failure presentation and full
+hold, actual life consumption, live-player handoff, next header and instruction
+music/picture stores. Player one retains four lives; player two takes its real
+turn with five lives. Six logical music voices and complete native ancestors
+are checked. See [scope and reproduction](SELECTED_OUTCOME.md).
+
+Validation: 1,897 Python tests and the optimized native diagnostic pass. This
+adds diagnostic continuation/observation only; native production behavior is
+unchanged from the full native Windows regression at the menu/text checkpoint.
+The Windows EXE is rebuilt from the saved revision. No final release.
+
+Next: following instruction transition/text and actual subsequent-player game
+entry/gameplay. Other stunts/difficulties/outcomes, retained menu/password use,
+changed scores/name entry, pixels/PCM and production/final Windows/device gates
+remain open. The broader request is incomplete; continuation remains active.
+
+
 ## Initial Air terminal gameplay - October 21, 2026
 
 All eight selected one/two-player, full/skip Air/easy attempts now match through

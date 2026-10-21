@@ -1,5 +1,14 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 selected-outcome follow-up: eight original/native cases match the
+initial selected failure, full result hold, actual one/two-player lives/turn
+handoff and next instruction header/music/picture stores. Complete native
+ancestors remain unchanged; 1,897 Python tests and optimized replay pass. See
+[scope](SELECTED_OUTCOME.md). Subsequent instruction text/transition and actual
+second-player gameplay, other required families and final output/scheduler/
+Windows/device/distribution gates remain open. No final release; continuation
+remains active. Older entries retain their historical scopes.
+
 October 21 initial-terminal follow-up: all eight selected Air/easy attempts
 match their distinct terminal updates/waits (2,328..2,378), including full actor/
 resource/sprite-position and 39,937,920-byte row/map comparisons. Earlier extents

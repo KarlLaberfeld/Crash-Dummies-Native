@@ -5,7 +5,7 @@
 #include "air_following_gameplay.h"
 #include <memory>
 namespace ticd {
-inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false,int updates=32,bool terminal=false){
+inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false,int updates=32,bool terminal=false,std::function<void(AirFollowingSetup,AirGame&)> continuation={}){
     AirNextInstructionCsv prefix(base+".title-game-prefix","boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests","cycle,address,value","ly");
     auto setup=airFollowingSetupPrefix(instruction,1,0,sound,[&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& c=s.instruction.map.campaign;prefix.points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<s.stage<<','<<s.difficulty<<','<<c.lives[c.player]<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<'\n';},[&](auto... args){prefix.poll(args...);},[&](auto... args){prefix.write(args...);});
     const auto& p=setup.instruction.map.campaign.timing;prefix.summary<<"end,tick,countdown,displays,stats,pollReads,lcdDisabled,pendingRequests\n"<<p.end<<','<<p.tick<<','<<p.countdown<<','<<p.displays<<','<<p.stats<<','<<setup.pollReads<<','<<setup.lcdDisabled<<','<<setup.pendingRequests<<'\n';
@@ -38,6 +38,7 @@ inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructi
             [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];sprites<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},[&](auto... args){play.irq(args...);},sample,terminal&&update==updates-1,mapSnapshot);
         mapSnapshot("end",entered.instruction.map.campaign.timing.displays,entered.instruction.map.campaign.timing.end,entered,*game);
         play.finish(entered.instruction.map.campaign,1,0,entered.instruction.map.scroll);
+        if(continuation){if(!terminal)throw std::runtime_error("Initial outcome requires terminal gameplay");continuation(entered,*game);}
     }
 }
 }
