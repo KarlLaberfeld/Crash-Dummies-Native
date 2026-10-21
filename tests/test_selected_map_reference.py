@@ -12,6 +12,9 @@ class SelectedRowOwners(unittest.TestCase):
  def reject(self):
   with self.assertRaises(ValueError):owners(self.data,self.game)
  def test_complete(self):self.assertEqual(len(owners(self.data,self.game)),4)
+ def test_terminal_row_owner_is_explicit(self):self.data['terminalWait']=self.game['terminalWait']=True;self.assertEqual(len(owners(self.data,self.game)),4)
+ def test_terminal_row_cannot_borrow_nonterminal_owner(self):self.data['terminalWait']=True;self.reject()
+ def test_integer_terminal_owner_rejected(self):self.data['terminalWait']=self.game['terminalWait']=1;self.reject()
  def test_rom(self):self.data['romSha256']='other';self.reject()
  def test_control(self):self.data['controlMemorySha256']='other';self.reject()
  def test_players(self):self.data['players']=0;self.reject()

@@ -53,8 +53,10 @@ class SavedCounterCompletion(unittest.TestCase):
         self.irq=dict(start=904,kind='stat',ready=1,returnAddress=0x261c)
     def test_first_halt_stat_edge(self):self.assertEqual(scene_owner(self.block,self.irq),2)
     def test_halt_return_requires_exact_prefix(self):
-        self.irq['start']-=4
+        self.irq['start']-=1
         with self.assertRaises(ValueError):scene_owner(self.block,self.irq)
+    def test_completed_ld_b_before_halt_has_atomic_ownership(self):
+        self.irq['start']-=4;self.assertEqual(scene_owner(self.block,self.irq),1)
     def test_display_halt_edge_needs_another_owner(self):
         self.irq['kind']='vblank'
         with self.assertRaises(ValueError):scene_owner(self.block,self.irq)

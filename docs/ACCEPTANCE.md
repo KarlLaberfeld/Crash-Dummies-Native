@@ -1,5 +1,16 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 initial-terminal follow-up: all eight selected Air/easy attempts
+match their distinct terminal updates/waits (2,328..2,378), including full actor/
+resource/sprite-position and 39,937,920-byte row/map comparisons. Earlier extents
+and row snapshots remain unchanged. 1,877 Python tests, 593 native clock/access
+checks and fresh byte-identical optimized replays pass; the full native Windows
+regression passed at the preceding menu/text checkpoint. See
+[scope](SELECTED_TERMINAL.md). Subsequent result/player handoff, other required
+families and final scheduler/pixel/PCM/device/distribution gates remain open.
+No final release; continuation remains active. Older entries are historical.
+
+
 October 21 later-player/text follow-up: 224 further bounded original/native
 comparisons match, covering 64 complete later Select/cursor cases, 64 complete
 exits/A-B returns, 48 selected Start/music/picture transitions and 48 complete

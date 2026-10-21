@@ -64,6 +64,24 @@ class FollowingSceneIntegrity(unittest.TestCase):
         block=self.data['points'][10:20];irq=dict(self.data['interrupts'][4],returnAddress=0x2618,start=block[8]['cycles']+80,ready=1)
         self.assertEqual(scene_owner(block,irq),1);irq['start']+=4
         with self.assertRaises(ValueError):scene_owner(block,irq)
+    def test_ld_b_and_halt_have_separate_exact_completion_owners(self):
+        block=self.data['points'][10:20];irq=dict(self.data['interrupts'][4],kind='stat',returnAddress=0x261c,start=block[8]['cycles']+100,ready=1)
+        self.assertEqual(scene_owner(block,irq),1)
+        irq['start']+=4;self.assertEqual(scene_owner(block,irq),2)
+    def test_comparison_keeps_ld_b_completion_distinct_from_halt_wait(self):
+        block=self.data['points'][10:20];r=self.data['interrupts'][4];r['returnAddress']=0x261c
+        block[8]['cycles']=r['start']-100;block[7]['cycles']=block[8]['cycles']-32
+        for i in (7,8):self.values[1][10+i]['cycle']=block[i]['cycles']-1000
+        self.values[4][4]['owner']=1
+        self.assertEqual(self.compare()[0],[])
+    def test_ld_b_completion_cannot_hide_timing_drift(self):
+        block=self.data['points'][10:20]
+        for delta in (99,101,108):
+            irq=dict(self.data['interrupts'][4],kind='stat',returnAddress=0x261c,start=block[8]['cycles']+delta,ready=1)
+            with self.assertRaises(ValueError):scene_owner(block,irq)
+    def test_ld_b_completion_does_not_qualify_a_display_snapshot(self):
+        block=self.data['points'][10:20];irq=dict(self.data['interrupts'][4],kind='vblank',returnAddress=0x261c,start=block[8]['cycles']+100,ready=1)
+        with self.assertRaises(ValueError):scene_owner(block,irq)
     def test_sprite_unsigned_helper_requires_actual_caller(self):
         block=[dict(name='end' if i==9 else 'point',cycles=1000+100*i) for i in range(10)];irq=dict(kind='stat',start=1350,returnAddress=0x30,ready=0,callerAddress=0x1cce)
         self.assertEqual(scene_owner(block,irq),1);irq['callerAddress']=0x19a2

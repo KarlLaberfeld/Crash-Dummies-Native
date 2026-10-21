@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Initial Air terminal gameplay - October 21, 2026
+
+All eight selected one/two-player, full/skip Air/easy attempts now match through
+their actual failed-attempt completion and closed terminal counter wait in both
+histories. Individual endpoints range from 2,328 to 2,378 updates. Totals:
+18,841 updates, 188,410 boundaries, 3,014,560 actor snapshots, 18,902 displays,
+37,804 vectors, 756,080 sprite slots and 39,937,920 row/map bytes, zero differences.
+All earlier 32/320/640/1,216 source/native streams and row snapshots are retained.
+See [terminal scope](SELECTED_TERMINAL.md) for actual per-case counts and exclusions.
+
+A measured before-HALT STAT completion and the existing HALT completion share
+one return address but have distinct exact timing/ownership. Source qualification
+and comparison now distinguish those semantic boundaries. Native gameplay/clock
+code needed no correction and received no original state or timing inputs.
+
+Validation: eight original/native terminal and byte-level row comparisons,
+1,877 Python tests, 593 native clock/access checks; fresh optimized replays retain
+all 494 complete CSVs of both terminal and previous bounded gameplay cases.
+The full native Windows regression passed at the preceding menu/text checkpoint;
+this diagnostic-only follow-up preserves that production implementation. The
+clean Windows EXE is rebuilt from the saved revision. No final release.
+
+Next: first selected attempt's outgoing fade/audio stop, result/life consumption,
+one/two-player handoff and following instructions/gameplay. Other required
+stunts/difficulties/outcomes, retained menu/password use, changed scores/name
+entry, pixels/PCM and production/final Windows/device gates remain open.
+The broader request remains incomplete; automatic continuation remains active.
+
+
 ## Later Select/player continuations and complete instruction text - October 21, 2026
 
 224 additional bounded comparisons match: 64 later-page Select/cursor cases,

@@ -53,10 +53,13 @@ def compare_quiet(data,points,entities,services,irqs,summary,entry,epoch,resourc
     for i,(p,q) in enumerate(zip(expected,services)):
         work=vblank_work(p);check('service',i,dict(service=data['precedingDisplays']+i,cycle=p['start']-epoch,tick=p['tick'],display=work['display'],effects=work['effects'],music=work['music'],inputHeld=p['held'],inputPressed=p['pressed']),q)
     vectorCounts={'stat':0,'vblank':0}
+    if scene_analysis:
+        from air_following_scene_reference import vector_owners
+        owners=vector_owners(data)
     for i,(p,q) in enumerate(zip(data['interrupts'],irqs)):
-        # The scene analyzer separately validates the precise first-HALT STAT
-        # edge before accepting its 261c return as a counter-wait owner.
-        owner=2 if not scene_analysis or p['returnAddress'] in (0x261c,0x261d) else 1
+        # The same 261c return can precede HALT or follow its completion.
+        # Use the exact qualified source boundary, not the address alone.
+        owner=owners[i] if scene_analysis else 2
         if q['kind']!=p['kind'] or int(q['owner'])!=owner:raise ValueError('Unknown native following quiet vector owner')
         check('interrupt',i,dict(vectorCycle=p['start']-epoch),q)
         key='nextStat' if p['kind']=='stat' else 'nextVBlank'

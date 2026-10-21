@@ -16,9 +16,10 @@ FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','m
 
 def selected_extension(parent,child,events,changed,setup):
     from air_title_actions_reference import event_sha
-    updates=child.get('gameplayUpdates');duration={320:300,640:620,1216:1196}.get(updates)
+    updates=child.get('gameplayUpdates');terminal=child.get('gameplayTerminal',False)
+    duration=updates-20 if type(updates) is int and terminal is True and 1216<updates<=100000 else {320:300,640:620,1216:1196}.get(updates)
     tail=[['press','a'],['press','right'],['tick',duration,True],['release','a'],['release','right'],['tick',4,True]]
-    if duration is None or child.get('gameplayInput')!='a-right-held' or child['inputCase']!=parent['inputCase'] or child['inputCase'] not in ('full-prompt','skip-held') or changed!=events+tail or child['romSha256']!=parent['romSha256'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached selected gameplay extension')
+    if duration is None or type(terminal) is not bool or (terminal and (type(updates) is not int or not 1216<updates<=100000)) or child.get('gameplayInput')!='a-right-held' or child['inputCase']!=parent['inputCase'] or child['inputCase'] not in ('full-prompt','skip-held') or changed!=events+tail or child['romSha256']!=parent['romSha256'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached selected gameplay extension')
 
 def selected_entry_boundary(parent,manifest,accepted=None):
     require_capture_reference(manifest,parent)
@@ -70,7 +71,9 @@ def capture(args):
         now=p._cycles()
         if terminal and not outgoing and pc==0x0403:
             updates+=1
-            if updates!=extent:raise ValueError('Terminal update does not match requested extent')
+            if updates!=extent:
+                args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'gameplay.incomplete.json',dict(accepted=False,requestedUpdates=extent,completedUpdates=updates,reason='actual terminal differs from requested extent',terminalCycle=now))
+                raise ValueError(f'Terminal update does not match requested extent: requested={extent}, actual={updates}')
             complete=not outro
         if pc in observed_points and not outgoing:
             seconds=p.memory[0xc084]

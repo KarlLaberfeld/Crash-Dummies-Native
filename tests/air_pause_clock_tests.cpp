@@ -180,6 +180,19 @@ int main(){
         observed.objectDisable=[&](int64_t time,AirIrqOwner owner){disable=time;waited=owner==AirIrqOwner::CounterWait;};
         observed.wait(display);
         require(waited&&disable==AirClock::Frame+AirClock::StatLine+254,"Counter-wait STAT observer exposes the identified LCD write without adding source work");
+        // A measured initial Air case reaches STAT on the completed counter
+        // copy, four cycles before the first HALT completion. These are two
+        // distinct semantic owners, even though the original returns to the
+        // same location in both cases.
+        for(int edge:{80,84}){
+            AirClock counterEdge;counterEdge.now=20;counterEdge.nextStat=edge;counterEdge.nextVBlank=1000;
+            std::vector<int64_t> vectors;std::vector<AirIrqOwner> owners;
+            counterEdge.interrupt=[&](const char*,int64_t cycle,AirIrqOwner owner){vectors.push_back(cycle);owners.push_back(owner);};
+            counterEdge.wait([](bool){return 0;});
+            require(vectors==std::vector<int64_t>({edge+20,1020}),"Counter-copy and first-HALT completions retain their exact independent deadlines");
+            require(owners==std::vector<AirIrqOwner>({edge==80?AirIrqOwner::SourceBoundary:AirIrqOwner::CounterWait,AirIrqOwner::CounterWait}),"Counter-copy completion is distinct from an actual halted wait");
+            require(counterEdge.displays==1&&counterEdge.statServices==1&&counterEdge.now==1092,"Both STAT completions retain one actual display and the complete wait return");
+        }
         for(int protectedCost:{192,140})for(int offset:{4,128,protectedCost-4,protectedCost,protectedCost+8}){
             int follower=protectedCost==192?12:16;
             AirClock protectedClock;protectedClock.now=0;

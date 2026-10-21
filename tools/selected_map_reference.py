@@ -14,6 +14,7 @@ from reference_backend import reference_class,require_matching_backend,require_c
 def owners(data,gameplay):
     for key in ('romSha256','controlMemorySha256','inputCase','parentInputCase','players','selectedEntryCycle','updates'):
         if data.get(key)!=gameplay.get(key):raise ValueError('Detached selected row gameplay owner')
+    if any(type(item.get('terminalWait',False)) is not bool for item in (data,gameplay)) or data.get('terminalWait',False)!=gameplay.get('terminalWait',False):raise ValueError('Detached terminal selected row owner')
     points=row_analyze(data,direct_storage=True);services=[r for r in gameplay['interrupts'] if r['kind']=='vblank']
     if len(points)!=2+2*len(services) or points[0]['cycles']!=gameplay['points'][0]['cycles'] or points[-1]['cycles']!=gameplay['points'][-1]['cycles']:
         raise ValueError('Incomplete selected row extent')
@@ -30,7 +31,7 @@ def capture(args):
     if manifest['controlDifferences'] or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or sha(args.rom.read_bytes())!=manifest['romSha256']:
         raise ValueError('Changed selected row input/ROM')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata)
-    first=parent['points'][0]['cycles'];last=parent['points'][-1]['cycles'];points=[];active=False;complete=False;service=-1
+    first=parent['points'][0]['cycles'];last=parent['points'][-1]['cycles'];end_pc=0x0403 if parent.get('terminalWait') else 0x03d8;points=[];active=False;complete=False;service=-1
     p=Reference(str(args.rom),window='null',sound_volume=0)
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def snapshot(name):
@@ -41,18 +42,19 @@ def capture(args):
         now=p._cycles()
         if complete:return
         if pc==0x03d8 and now==first:active=True;snapshot('startup')
-        elif pc==0x03d8 and now==last:snapshot('end');active=False;complete=True
+        elif pc==end_pc and now==last:snapshot('end');active=False;complete=True
         elif active:
             if pc==0x2436:service+=1
             elif pc==0x0c3f:snapshot('before')
             elif pc==0x0c42:snapshot('after')
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in (0x03d8,0x2436,0x0c3f,0x0c42):p.hook_register(0,pc,hook,pc)
+        for pc in {0x03d8,end_pc,0x2436,0x0c3f,0x0c42}:p.hook_register(0,pc,hook,pc)
         replay(p,read(args.capture/'events.json'));digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or digest!=manifest['controlMemorySha256']:raise ValueError('Changed selected row control or missing endpoint')
     data={k:parent[k] for k in ('romSha256','controlMemorySha256','inputCase','parentInputCase','players','selectedEntryCycle','updates')}
+    if parent.get('terminalWait'):data['terminalWait']=True
     data.update(version=1,reference=metadata,gameplaySha256=sha((args.gameplay_out/'gameplay.json').read_bytes()),points=points)
     owners(data,parent);args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'map.json',data)
     print('Selected original row storage captured',len(points),flush=True)

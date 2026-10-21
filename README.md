@@ -136,7 +136,9 @@ now match in 176 further cases; [complete later full/skip instruction text](docs
 also matches in 48 cases. All eight selected one/two-player, full/skip
 Air/easy cases now match through 1,216 initial updates, including resource
 transfers, map deferral and interrupted scene work with mandatory
-[partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md).
+[partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md). These eight
+[first Air attempts](docs/SELECTED_TERMINAL.md) also match through their distinct
+terminal waits (2,328..2,378 updates), preserving all earlier extents.
 [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
 match the revealed instructions, complete text/prompt and title pages pixel for
 pixel in 28 frames. The broader

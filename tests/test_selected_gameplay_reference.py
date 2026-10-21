@@ -100,6 +100,18 @@ class ExtendedControls(unittest.TestCase):
     def test_interrupted_control_has_its_own_duration(self):
         self.child['gameplayUpdates']=1216;self.changed[-4]=['tick',1196,True];self.check()
     def test_interrupted_cannot_borrow_short_control(self):self.child['gameplayUpdates']=1216;self.reject()
+    def test_terminal_has_its_own_explicit_control(self):
+        self.child.update(gameplayUpdates=2355,gameplayTerminal=True);self.changed[-4]=['tick',2335,True];self.check()
+    def test_terminal_count_is_per_history_not_a_shared_constant(self):
+        for count in (2328,2354,2355,2358,2378):
+            self.child.update(gameplayUpdates=count,gameplayTerminal=True);self.changed[-4]=['tick',count-20,True];self.check()
+    def test_terminal_cannot_use_earlier_bounded_extent(self):
+        self.child.update(gameplayUpdates=1216,gameplayTerminal=True);self.changed[-4]=['tick',1196,True];self.reject()
+    def test_terminal_cannot_borrow_nonterminal_marker(self):
+        self.child.update(gameplayUpdates=2355);self.changed[-4]=['tick',2335,True];self.reject()
+    def test_short_extent_cannot_claim_terminal(self):self.child['gameplayTerminal']=True;self.reject()
+    def test_integer_terminal_marker_rejected(self):
+        self.child.update(gameplayUpdates=2355,gameplayTerminal=1);self.changed[-4]=['tick',2335,True];self.reject()
     def test_wrong_extent(self):self.child['gameplayUpdates']=256;self.reject()
     def test_wrong_case(self):self.child['inputCase']='skip-held';self.reject()
     def test_wrong_input_marker(self):self.child['gameplayInput']='neutral';self.reject()

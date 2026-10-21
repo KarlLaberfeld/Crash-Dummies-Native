@@ -18,6 +18,11 @@ def scene_owner(block,irq,row_publication=False):
             if pc==0x2617 and ready==0:return 1
             raise ValueError('Unknown terminal counter-wait completion')
         if pc==0x261d and ready==1:return 2
+        # LD B,A commits before the first HALT. A STAT accepted at that
+        # completion returns to 261c without executing HALT; the native
+        # atomic prefix already owns it. Keep this distinct from the HALT
+        # completion below, four cycles later (counter-wait ownership).
+        if pc==0x261c and ready==1 and irq['kind']=='stat' and irq['start']==block[8]['cycles']+8+12+24+16+16+4+20:return 1
         # First HALT at the exact STAT edge: ready LD/store, CALL/PUSH,
         # counter read, LD B and HALT completion precede the vector entry.
         # Observed return is to 261c itself, without the 261d test tail.
@@ -56,6 +61,17 @@ def scene_owner(block,irq,row_publication=False):
     if irq['kind']=='vblank' and phase==5 and pc!=0x1f16 and not row_publication:
         raise ValueError('Display during partial row preparation needs a row-storage owner')
     return 1
+
+
+def vector_owners(data):
+    """Classify every already-validated vector by its exact semantic boundary."""
+    owners=[];cursor=0
+    for update in range(data['updates']):
+        block=data['points'][10*update:10*(update+1)]
+        while cursor<len(data['interrupts']) and data['interrupts'][cursor]['start']<block[-1]['cycles']:
+            owners.append(scene_owner(block,data['interrupts'][cursor],data.get('partialRows') is True));cursor+=1
+    if cursor!=len(data['interrupts']):raise ValueError('Detached following scene vector classification')
+    return owners
 
 
 def analyze(data):
