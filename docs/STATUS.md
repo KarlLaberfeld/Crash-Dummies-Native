@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Instruction music/picture from later title pages - October 21, 2026
+
+Eight further complete Start-to-instruction comparisons now match after pages
+1..4 in both histories, through outgoing fade/audio stop, masked LCD setup,
+fresh one-player Air/easy campaign, pending services, header and instruction
+music/picture at 268b. Totals: 992 boundaries, 336 displays, 944 vectors, 94,032
+polls, 28,528 stores, 1,072 raster boundaries, 98,304 map bytes, 8,192 picture
+tile bytes and 1,776 voice rows, zero differences. Every complete native parent
+CSV remains unchanged. See [later instruction scope](LATER_TITLE_INSTRUCTION.md).
+
+The native Start/header/picture owners retain the actual completed-carousel
+origin, timer and deadlines. First-page and selected-player guards remain
+separate; later pages are not relabelled as player selection. Original controls,
+clocks and snapshots do not initialize native state.
+
+Validation: optimized diagnostic, 5,983 Start/setup, 82,670 campaign, 1,613 header
+and 14,902 picture native assertions; all eight original comparisons and 1,823
+Python tests pass. The full game/campaign/playthrough/audio/sprite regression
+passed at the immediately preceding password checkpoint. This follow-up changes
+retained Start guards and observation adapters; the affected native owners were
+rebuilt and tested. The Windows EXE is rebuilt from the saved source revision.
+No release/automation change; broader comparison/final acceptance incomplete.
+
+Next concrete work: complete Select/player presentation/continuation after later
+pages, then subsequent password/Start paths, terminal initial gameplay and player
+switching, other required stunt/difficulty/outcome families, modified score/name
+entry and further frames/PCM. Windows scheduling and final device/distribution
+gates remain separate. Resume checkpoint: `local/comparison-next-work.json`.
+
 ## Password presentation from later title pages - October 21, 2026
 
 All eight later-page password presentations now match through 2ba7, after the

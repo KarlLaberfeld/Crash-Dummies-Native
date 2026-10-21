@@ -130,7 +130,8 @@ matches credits, initial high-score formatting, automatic durations, fresh A/B
 advances on later pages and wrap. Separate [later-page decisions](docs/LATER_TITLE_ACTIONS.md)
 also match Start, Select and password entry on pages 1..4. Their complete
 [password presentations](docs/LATER_TITLE_PASSWORD.md) now match as well;
-Start/instruction and player-screen transitions remain separate. All eight selected one/two-player, full/skip
+[Start/instruction music and picture](docs/LATER_TITLE_INSTRUCTION.md) also match;
+player-screen transitions remain separate. All eight selected one/two-player, full/skip
 Air/easy cases now match through 1,216 initial updates, including resource
 transfers, map deferral and interrupted scene work with mandatory
 [partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md).

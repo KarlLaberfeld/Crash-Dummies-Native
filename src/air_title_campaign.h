@@ -12,7 +12,7 @@ AirTitleCampaign airTitleCampaign(AirTitleInstruction instruction,const Campaign
     const auto& l=instruction.start.menu.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
     if(!r.servicesMasked||r.pendingRequests!=3||r.lcdc!=0x51||r.display!=5||r.stat!=5||l.lyc!=95||r.scrollX||r.scrollY||
        (instruction.start.menu.selectedPlayers&&choices.twoPlayers!=(instruction.start.menu.playerChoice!=0))||
-       (!instruction.start.menu.selectedPlayers&&(t.displays!=698||t.stats!=927))||t.countdown!=54||sound.enabled||sound.song!=-1||previous.current||previous.active||
+       (!instruction.start.menu.selectedPlayers&&!instruction.start.menu.carouselOwned&&(t.displays!=698||t.stats!=927))||t.countdown!=54||sound.enabled||sound.song!=-1||previous.current||previous.active||
        previous.players[0].lives||previous.players[1].lives||previous.players[0].savings||previous.players[1].savings||
        previous.players[0].completed||previous.players[1].completed)throw std::runtime_error("Unowned title campaign setup entry");
     Campaign desired;desired.start(choices.twoPlayers,choices.day,choices.difficulty);

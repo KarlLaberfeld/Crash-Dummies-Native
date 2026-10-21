@@ -11,7 +11,7 @@ AirTitlePicture airTitlePicture(AirTitleResume title,NativeAudio& sound,const Ui
     const auto& l=title.fresh.instruction.start.menu.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;const auto& c=title.fresh.campaign;
     if(title.result||r.servicesMasked||r.pendingRequests||r.display!=5||r.stat!=5||r.lcdc!=0xd1||r.scrollX||r.scrollY||l.lyc!=95||!l.bootShown||
        title.fresh.instruction.start.menu.page.close.center||!c.active||c.current||c.players[0].lives!=5||t.lives!=5||
-       c.players[0].day<1||c.players[0].day>2||(!title.fresh.instruction.start.menu.selectedPlayers&&(t.displays!=703||t.stats!=932))||t.countdown!=54||t.perfect||
+       c.players[0].day<1||c.players[0].day>2||(!title.fresh.instruction.start.menu.selectedPlayers&&!title.fresh.instruction.start.menu.carouselOwned&&(t.displays!=703||t.stats!=932))||t.countdown!=54||t.perfect||
        sound.enabled||sound.paused||sound.song!=-1||sound.pendingEffect!=-1||std::min(t.nextStat,t.nextVBlank)<=t.end||
        std::any_of(r.window.begin(),r.window.end(),[](int v){return v!=0;})||
        std::any_of(r.objects.begin(),r.objects.end(),[](int v){return v!=0;}))throw std::runtime_error("Unowned post-title instruction picture entry");

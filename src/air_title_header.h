@@ -11,7 +11,7 @@ AirTitleResume airTitleHeader(AirTitleResume state,NativeAudio& sound,const AirI
     const auto& c=state.fresh.campaign;
     if(state.result||r.servicesMasked||r.pendingRequests||r.display!=5||r.stat!=5||r.lcdc!=0xd1||r.scrollX||r.scrollY||l.lyc!=95||!l.bootShown||
        state.fresh.instruction.start.menu.page.close.center||sound.enabled||sound.paused||sound.pendingEffect!=-1||sound.song!=-1||
-       !c.active||c.current!=0||c.players[0].lives!=5||t.lives!=5||(!state.fresh.instruction.start.menu.selectedPlayers&&(t.displays!=702||t.stats!=931))||t.countdown!=54||t.perfect||
+       !c.active||c.current!=0||c.players[0].lives!=5||t.lives!=5||(!state.fresh.instruction.start.menu.selectedPlayers&&!state.fresh.instruction.start.menu.carouselOwned&&(t.displays!=702||t.stats!=931))||t.countdown!=54||t.perfect||
        t.end-t.lcdEpoch<AirClock::Frame||std::min(t.nextStat,t.nextVBlank)<=t.end||
        std::any_of(r.background.begin(),r.background.end(),[](int v){return v!=0;})||
        std::any_of(r.window.begin(),r.window.end(),[](int v){return v!=0;})||

@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 later-instruction follow-up: eight complete later-page Start/header/
+instruction music/picture comparisons match. Optimized affected native owners
+and 1,823 Python tests pass; the preceding password checkpoint passed the full
+native game/campaign/playthrough/audio regression. See
+[scope](LATER_TITLE_INSTRUCTION.md). Later Select/player paths, subsequent
+instruction/password paths, other matrix families and final scheduler/output/
+device gates remain open. No release/automation change.
+
 October 21 later-password follow-up: all eight complete password presentations
 after later title-page unlock match through cursor/digit reset, including maps,
 access/raster timing and music replacement. Optimized diagnostic, 3,243 native

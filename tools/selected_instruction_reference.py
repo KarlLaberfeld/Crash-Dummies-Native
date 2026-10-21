@@ -17,9 +17,22 @@ GROUPS=('start','instruction','campaign','resume','header','picture')
 TABLES=(START,INSTRUCTION,CAMPAIGN,RESUME,HEADER,PICTURE)
 STORES=(START_STORES,INSTRUCTION_STORES,CAMPAIGN_STORES,RESUME_STORES,{}, {})
 
+def later_start_parent(data):
+    target=data.get('targetPage',0);groups=data.get('groups',[])
+    if data.get('version')!=1 or data.get('inputCase')!='carousel' or data.get('laterAction')!='start' or type(target) is not int or not 1<=target<=4 or len(groups)!=2*target or groups[-1]['name']!=str(target-1)+'.idle':raise ValueError('Instruction lacks its later-title Start parent')
+    group=groups[-1];end=group['points'][-1]
+    if end['name']!='end' or end['route']!=2 or end['index']!=target or end['pattern'] or end['inputPressed']!=8 or group['objects']!=[0]*256 or len(group['maps'])!=2048:raise ValueError('Unowned later Start decision/storage')
+    # This ancestry retains one-player title choices. Fresh campaign lives are
+    # independently checked below; these aliases normalize observation field
+    # names only and are never native initialization data.
+    return dict(data,points=[dict(end,held=end['inputHeld'],pressed=end['inputPressed'],players=0)],maps=group['maps'],objects=group['objects'])
+
 def capture(args):
-    manifest=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'exit.json');require_capture_reference(manifest,parent)
-    if parent['inputCase'] not in CASES or parent['points'][-1]['route']!=2 or manifest['controlDifferences'] or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')) or sha(args.rom.read_bytes())!=manifest['romSha256']:raise ValueError('Detached selected Start control/ROM')
+    later=getattr(args,'later_parent',None);manifest=read(args.capture/'capture-summary.json');parent=read((later/'cycle.json') if later else args.parent_out/'exit.json');require_capture_reference(manifest,parent)
+    if later:
+        if args.parent_out!=later:raise ValueError('Detached later Start input prefix')
+        parent=later_start_parent(parent)
+    if (parent['inputCase'] not in CASES and not later) or parent['points'][-1]['route']!=2 or manifest['controlDifferences'] or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256')) or sha(args.rom.read_bytes())!=manifest['romSha256']:raise ValueError('Detached selected Start control/ROM')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata);p=Reference(str(args.rom),window='null',sound_volume=0)
     groups=[dict(name=name,points=[],rawSongs=[],interrupts=[],polls=[],writes=[],rasters=[]) for name in GROUPS];active=complete=False;group_index=0;irq=None;palettes=waits=0;buttons=[];restart=None
     def word(a):return p.memory[a]+256*p.memory[a+1]
@@ -89,14 +102,18 @@ def capture(args):
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete selected instruction or changed control')
     data=dict(version=1,reference=metadata,inputCase=manifest['inputCase'],romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=parent['controlMemorySha256'],setupSha256=sha((args.capture/'setup.state').read_bytes()),storageReadOwner='direct-vram-title-v1',instructionReadOwner='direct-vram-instruction-v1',groups=groups,restartEpoch=restart,players=parent['points'][-1]['players'])
+    if later:data.update(origin='later-title-start',targetPage=parent['targetPage'],parentCycleSha256=sha((later/'cycle.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'instruction.rejected.json',data);raise
     write_json(args.out/'instruction.json',data);(args.out/'buttons.txt').write_text((args.parent_out/'buttons.txt').read_text()+''.join(str(b)+'\n' for b in buttons));print(dict(case=data['inputCase'],boundaries=sum(len(g['points']) for g in groups),services=len(buttons)),flush=True)
 
 def analyze(data,parent):
+    later=data.get('origin')=='later-title-start'
+    if data.get('origin') not in (None,'later-title-start'):raise ValueError('Unowned instruction origin')
+    if later:parent=later_start_parent(parent)
     groups=data['groups'];first=groups[0]['points'][0];end=parent['points'][-1]
-    if data.get('version')!=1 or data['inputCase'] not in CASES or data['inputCase']!=parent['inputCase'] or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or data['controlMemorySha256']!=parent['controlMemorySha256'] or end['route']!=2 or data['players']!=end['players'] or [g['name'] for g in groups]!=list(GROUPS) or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','stat','lcdc','scrollY','lyc')) or (first['inputHeld'],first['inputPressed'])!=(end['held'],end['pressed']):raise ValueError('Detached selected-instruction ancestry')
+    if data.get('version')!=1 or (data['inputCase'] not in CASES and not later) or data['inputCase']!=parent['inputCase'] or data['parentControlMemorySha256']!=parent['controlMemorySha256'] or data['controlMemorySha256']!=parent['controlMemorySha256'] or end['route']!=2 or data['players']!=end['players'] or [g['name'] for g in groups]!=list(GROUPS) or first['cycles']!=end['cycles'] or any(first[k]!=end[k] for k in ('tick','countdown','stat','lcdc','scrollY','lyc')) or (first['inputHeld'],first['inputPressed'])!=(end['held'],end['pressed']):raise ValueError('Detached selected-instruction ancestry')
     if data.get('storageReadOwner')!='direct-vram-title-v1' or data.get('instructionReadOwner')!='direct-vram-instruction-v1' or data['reference'].get('titleStorageObserver')!='direct-vram-title-v1' or data['reference'].get('instructionStorageObserver')!='direct-vram-instruction-v1':raise ValueError('Unqualified selected-instruction storage observer')
     previous_end=end['cycles'];maps=parent['maps'];objects=parent['objects'];tick=end['tick'];held=end['held'];pressed=end['pressed'];all_services=[]
     for index,group in enumerate(groups):
@@ -143,19 +160,36 @@ def analyze(data,parent):
         tick=(tick+len(services))&65535;previous_end=points[-1]['cycles'];all_services+=services
     return all_services
 
+def later_arguments(args):
+    return argparse.Namespace(**dict({k:v for k,v in vars(args).items() if k not in ('selected_out','exit_base','exit_control','exit_out','later_out','later_base')},native_base=args.later_base,cycle_out=args.later_out,cycle_control=args.exit_control))
+
+def compare_later_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later instruction batch')
+    from title_cycle_reference import compare_many as qualify
+    with contextlib.redirect_stdout(io.StringIO()):qualify([later_arguments(case) for case in cases])
+    for case in cases:compare(case,_parent_qualified=True)
+
 def compare(args,_parent_qualified=False):
+    later=getattr(args,'later_out',None)
     if not _parent_qualified:
-        from air_title_players_exit_reference import compare as qualify
-        with contextlib.redirect_stdout(io.StringIO()):qualify(args)
+        if later:
+            from title_cycle_reference import compare as qualify
+            with contextlib.redirect_stdout(io.StringIO()):qualify(later_arguments(args))
+        else:
+            from air_title_players_exit_reference import compare as qualify
+            with contextlib.redirect_stdout(io.StringIO()):qualify(args)
     from air_fourth_entry_reference import preserved_native_prefix
     from air_startup_reference import analyze as startup_epoch
-    retained=preserved_native_prefix(args.native_base,args.exit_base);data=read(args.selected_out/'instruction.json');parent=read(args.exit_out/'exit.json');manifest=read(args.exit_control/'capture-summary.json')
+    retained=preserved_native_prefix(args.native_base,args.exit_base);data=read(args.selected_out/'instruction.json');parent=read((later/'cycle.json') if later else args.exit_out/'exit.json');manifest=read(args.exit_control/'capture-summary.json')
+    if later and (data.get('origin')!='later-title-start' or data.get('targetPage')!=parent['targetPage'] or data.get('parentCycleSha256')!=sha((later/'cycle.json').read_bytes())):raise ValueError('Detached later instruction recording')
     require_capture_reference(manifest,data)
     if any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or data['setupSha256']!=sha((args.exit_control/'setup.state').read_bytes()):raise ValueError('Changed selected-instruction control/setup')
     services=analyze(data,parent)
+    if later:parent=later_start_parent(parent)
     if (args.selected_out/'buttons.txt').read_text()!=(args.exit_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached selected-instruction raw inputs')
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
-    with Path(str(args.exit_base)+'.fifth.players-exit.summary.csv').open(newline='') as f:before=next(csv.DictReader(f))
+    previous=str(args.exit_base)+'.fifth.title-cycle.'+str(parent['targetPage']-1)+'.idle.summary.csv' if later else str(args.exit_base)+'.fifth.players-exit.summary.csv'
+    with Path(previous).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);stats=int(before['stats']);lcd=int(before['lcdEpoch']);differences=[];totals=dict(boundaries=0,services=0,vectors=0,polls=0,writes=0,rasterBoundaries=0,mapBytes=0,tileBytes=0,voiceRows=0)
     def check(kind,index,wanted,q):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if v!=int(q[k])}
@@ -164,7 +198,7 @@ def compare(args,_parent_qualified=False):
         with Path(stem+suffix).open(newline='') as f:return list(csv.DictReader(f))
     carried=list(parent['maps'])
     for index,group in enumerate(data['groups']):
-        name=group['name'];stem=str(args.native_base)+'.fifth.selected.title-'+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
+        name=group['name'];stem=str(args.native_base)+('.fifth.later.title-' if later else '.fifth.selected.title-')+name;points=group['points'];irqs=group['interrupts'];displays=[p for p in irqs if p['kind']=='vblank']
         native=rows(stem,'.csv');ns=rows(stem,'.services.csv');ni=rows(stem,'.interrupts.csv');np=rows(stem,'.polls.csv');nw=rows(stem,'.writes.csv');summary=rows(stem,'.summary.csv')
         if [len(native),len(ns),len(ni),len(np),len(nw),len(summary)]!=[len(points),len(displays),len(irqs),len(group['polls']),len(group['writes']),1]:raise ValueError('Incomplete selected '+name+' outputs')
         for n,(p,q) in enumerate(zip(points,native)):
@@ -221,7 +255,7 @@ def compare(args,_parent_qualified=False):
         if set(wanted)!=set(summary[0]):raise ValueError('Unqualified selected '+name+' summary fields')
         check(name+' summary',0,wanted,summary[0])
         for key,number in [('boundaries',len(points)),('services',len(ns)),('vectors',len(ni)),('polls',len(np)),('writes',len(nw))]:totals[key]+=number
-    report=dict(inputCase=data['inputCase'],players=data['players'],**{'compared'+k[0].upper()+k[1:]:v for k,v in totals.items()},preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],stoppedDriverPayloadCompared=False,productionSchedulerAccepted=False,evidenceLimit='Selected one/two-player Start fade/stop, masked setup, actual fresh lives, pending services, complete first header and instruction music/picture. Disabled driver payloads are explicit logical silence. Later reveal/text/gameplay, frames/PCM, other choices and production scheduling remain unqualified.')
+    report=dict(inputCase=data['inputCase'],origin=data.get('origin','selected-players'),targetPage=data.get('targetPage',0),players=data['players'],**{'compared'+k[0].upper()+k[1:]:v for k,v in totals.items()},preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],stoppedDriverPayloadCompared=False,productionSchedulerAccepted=False,evidenceLimit='Start fade/stop, masked setup, actual fresh lives, pending services, complete first header and instruction music/picture after the separately qualified parent. Disabled driver payloads are explicit logical silence. Later reveal/text/gameplay, frames/PCM, other choices and production scheduling remain separate.')
     write_json(Path(str(args.native_base)+'.selected-instruction.comparison.json'),report);print(report)
     if differences:raise ValueError('Selected instruction differs from the original')
 
@@ -238,9 +272,10 @@ def compare_many(cases):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
-    p=sub.add_parser('capture');p.add_argument('rom',type=Path)
+    p=sub.add_parser('capture');p.add_argument('rom',type=Path);p.add_argument('--later-parent',type=Path)
     for k in ('capture','parent-out','out'):p.add_argument('--'+k,type=Path,required=True)
-    p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
+    p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path)
+    p=sub.add_parser('compare-later-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
     if args.mode=='capture':capture(args)
-    else:compare_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+    else:(compare_later_many if args.mode=='compare-later-batch' else compare_many)([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
 if __name__=='__main__':main()

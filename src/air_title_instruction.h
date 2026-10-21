@@ -8,7 +8,7 @@ template<class Boundary,class Poll,class Write>
 AirTitleInstruction airTitleInstruction(AirTitleStart start,const NativeAudio& sound,Boundary&& boundary,Poll&& poll,Write&& write){
     const auto& l=start.menu.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;
     if(start.menu.route!=2||start.palettes!=8||start.waits!=32||r.servicesMasked||r.pendingRequests||r.display||r.stat!=2||r.lcdc!=0xfb||
-       r.scrollX||r.scrollY!=88||l.lyc!=103||(!start.menu.selectedPlayers&&(t.displays!=698||t.stats!=927))||t.countdown!=54||sound.enabled||sound.song!=-1||
+       r.scrollX||r.scrollY!=88||l.lyc!=103||(!start.menu.selectedPlayers&&!start.menu.carouselOwned&&(t.displays!=698||t.stats!=927))||t.countdown!=54||sound.enabled||sound.song!=-1||
        std::min(t.nextStat,t.nextVBlank)<=t.end)throw std::runtime_error("Unowned masked instruction setup entry");
     AirTitleInstruction state;state.start=std::move(start);auto& title=state.start.menu.page.close.fade.layout;auto& out=title.reset;auto& timing=out.timing;
     int64_t now=timing.end;auto point=[&](const char* name){boundary(name,now,state);};

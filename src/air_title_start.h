@@ -10,10 +10,10 @@ template<class Boundary,class Service,class Interrupt,class Raster,class Write>
 AirTitleStart airTitleStart(AirTitleMenu menu,NativeAudio& sound,const UiAssets& ui,
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,Raster&& raster,Write&& write,std::function<int()> sample={}){
     const auto& l=menu.page.close.fade.layout;const auto& r=l.reset;const auto& t=r.timing;const auto& f=menu.page.close.fade;
-    if(menu.route!=2||menu.waits!=3||menu.remaining!=478||menu.index||menu.page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
+    if(menu.route!=2||(!menu.carouselOwned&&(menu.waits!=3||menu.remaining!=478||menu.index))||(menu.carouselOwned&&!airLaterTitleBranch(menu,2,1))||menu.page.close.center||l.windowY!=112||l.windowX!=166||l.lyc!=23||
        r.stat!=1||r.lcdc!=0xc3||r.scrollX||r.scrollY||r.servicesMasked||r.pendingRequests||t.countdown!=54||
-       (!menu.selectedPlayers&&(t.displays!=665||t.stats!=860||t.input.held!=8||t.input.pressed!=8||menu.playerChoice))||
-       (menu.selectedPlayers&&(t.displays<665||t.stats<860||menu.playerChoice<0||menu.playerChoice>1||!(t.input.pressed&8)||t.nextStat<=t.end||t.nextVBlank<=t.end))||
+       (!menu.selectedPlayers&&!menu.carouselOwned&&(t.displays!=665||t.stats!=860||t.input.held!=8||t.input.pressed!=8||menu.playerChoice))||
+       ((menu.selectedPlayers||menu.carouselOwned)&&(t.displays<665||t.stats<860||menu.playerChoice<0||menu.playerChoice>1||!(t.input.pressed&8)||t.nextStat<=t.end||t.nextVBlank<=t.end))||
        f.bgp!=0xe4||f.obp0!=0xc4||f.obp1!=0xe0||!sound.enabled||sound.song!=1||
        std::any_of(r.objects.begin(),r.objects.end(),[](int value){return value!=0;}))throw std::runtime_error("Unowned title Start transition entry");
     AirTitleStart state;state.menu=std::move(menu);auto& fade=state.menu.page.close.fade;auto& title=fade.layout;auto& timing=title.reset.timing;
