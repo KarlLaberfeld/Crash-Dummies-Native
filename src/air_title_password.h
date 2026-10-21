@@ -10,9 +10,9 @@ template<class Boundary,class Service,class Interrupt,class Raster,class Poll,cl
 AirTitlePassword airTitlePassword(AirTitleMenu menu,NativeAudio& sound,const UiAssets& ui,
     Boundary&& boundary,Service&& service,Interrupt&& interrupt,Raster&& raster,Poll&& poll,Write&& write,std::function<int()> sample={}){
     const auto& initial=menu.page.close.fade.layout;const auto& before=initial.reset;const auto& t0=before.timing;
-    if(menu.route!=4||menu.index||menu.unlockProgress||menu.waits<4||menu.remaining!=481-menu.waits||menu.page.close.center||
+    if(menu.route!=4||menu.unlockProgress||(!menu.carouselOwned&&(menu.index||menu.waits<4||menu.remaining!=481-menu.waits))||(menu.carouselOwned&&!airLaterTitleBranch(menu,4,4))||menu.page.close.center||
        initial.windowY!=112||initial.windowX!=166||initial.lyc!=23||before.display!=0||before.stat!=1||before.lcdc!=0xc3||before.scrollX||before.scrollY||before.servicesMasked||before.pendingRequests||
-       t0.countdown!=54||t0.displays!=(662+menu.waits)||t0.stats!=(854+2*menu.waits)||t0.input.pressed!=16||!sound.enabled||sound.song!=1||sound.paused||sound.pendingEffect!=-1||
+       t0.countdown!=54||(!menu.carouselOwned&&(t0.displays!=(662+menu.waits)||t0.stats!=(854+2*menu.waits)))||t0.input.pressed!=16||!sound.enabled||sound.song!=1||sound.paused||sound.pendingEffect!=-1||
        std::any_of(before.objects.begin(),before.objects.end(),[](int value){return value!=0;}))throw std::runtime_error("Unowned password presentation entry");
     AirTitlePassword state;state.menu=std::move(menu);auto& title=state.menu.page.close.fade.layout;auto& r=title.reset;auto& t=r.timing;
     AirClock clock;clock.now=t.end;clock.nextStat=t.nextStat;clock.nextVBlank=t.nextVBlank;clock.displays=t.displays;clock.statServices=t.stats;

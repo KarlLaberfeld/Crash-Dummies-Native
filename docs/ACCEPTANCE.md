@@ -1,5 +1,13 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 later-password follow-up: all eight complete password presentations
+after later title-page unlock match through cursor/digit reset, including maps,
+access/raster timing and music replacement. Optimized diagnostic, 3,243 native
+password checks, 1,809 Python tests and full native game/campaign/playthrough/
+audio/sprite regressions pass. See [scope](LATER_TITLE_PASSWORD.md). Later Start/
+player transitions, subsequent password return, other matrix families and final
+scheduler/output/device acceptance remain open. No release/automation change.
+
 October 21 later-menu follow-up: 24 further comparisons match Start/Select/
 password-sequence decisions on pages 1..4 in both histories, including every
 accepted preceding page group. Optimized diagnostic, 1,795 Python tests and all

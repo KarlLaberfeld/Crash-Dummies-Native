@@ -23,6 +23,6 @@ AirTitleMenu airTitleCycle(AirTitleMenu menu,NativeAudio& sound,const UiAssets& 
     t.end=clock.now;t.displays=clock.displays;t.stats=clock.statServices;t.nextStat=clock.nextStat;t.nextVBlank=clock.nextVBlank;
     auto closed=menu.page.close;closed.center=center;closed.steps=steps;
     auto page=airTitlePage(closed,sound,ui,[&](const char* name,int64_t cycle,const AirTitlePage& s){if(std::string(name)=="begin")return;menu.page=s;boundary(std::string(name)=="centerStored"?"openStored":name,cycle,menu,s.close.center,40,s.cleared,s.opened,s.rows);},service,interrupt,raster,poll,write,sample,true,menu.index,&texts);
-    menu.page=std::move(page);menu.route=0;menu.waits=0;menu.remaining=std::array<int,5>{480,480,960,480,960}.at(menu.index);return menu;
+    menu.page=std::move(page);menu.route=0;menu.waits=0;menu.remaining=std::array<int,5>{480,480,960,480,960}.at(menu.index);menu.carouselOwned=true;return menu;
 }
 }

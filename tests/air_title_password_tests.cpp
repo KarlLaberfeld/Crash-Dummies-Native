@@ -23,6 +23,19 @@ int main(){int checks=0;auto require=[&](bool ok,const char* why){++checks;if(!o
     require(after.reset.window==expected&&after.reset.background==r.background&&after.reset.objects==r.objects,"All final map bytes derive from native clear/glyph writes; background and objects stay unchanged");
     require(after.windowY==112&&after.windowX==166&&after.lyc==23&&after.reset.stat==1&&after.reset.lcdc==0xc3&&!after.reset.scrollY&&a.tick==((65520+services)&65535)&&a.displays==683+services,"Restored title geometry retains independently advanced tick and service count");
     require(sound.enabled&&sound.song==7&&!sound.paused,"Password music replaces title song at its native reset completion");
+    for(int page=1;page<=4;++page){
+        auto later=seed;later.carouselOwned=true;later.index=page;later.remaining=(page==2||page==4?960:480)-later.waits+1;
+        auto& before=later.page.close.fade.layout.reset.timing;before.displays+=1000*page;before.stats+=2000*page;
+        const unsigned origin=before.displays;NativeAudio live(audio);live.measureWork=true;live.playMusic(1);int sampled=0;
+        auto completed=airTitlePassword(later,live,*ui,[](auto...){},[&](unsigned index,int64_t,int,int,int,int,int,const DisplayInput&){require(index==origin+sampled++,"Later password retains actual carousel service indices");},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[]{return 0;});
+        const auto& out=completed.menu.page.close.fade.layout;
+        require(completed.menu.index==page&&completed.menu.carouselOwned&&completed.digits==std::array<uint8_t,8>{}&&!completed.cursor,"Later password resets digits without fabricating first-page ownership");
+        require(out.reset.window==expected&&out.reset.background==r.background&&out.reset.objects==r.objects&&out.windowY==112,"Every later-page password completes the same independently expected window storage");
+        require(live.enabled&&live.song==7&&out.reset.timing.displays==int(origin)+sampled&&out.reset.timing.nextVBlank>out.reset.timing.end,"Later password owns music replacement and actual future deadlines");
+        later.carouselOwned=false;NativeAudio invalid(audio);invalid.measureWork=true;invalid.playMusic(1);bool rejected=false;
+        try{airTitlePassword(later,invalid,*ui,[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[]{return 0;});}catch(const std::runtime_error&){rejected=true;}
+        require(rejected,"Arbitrary non-first-page counters cannot borrow retained-carousel ownership");
+    }
     auto reject=[&](auto alter){auto bad=seed;alter(bad);NativeAudio test(audio);test.measureWork=true;test.playMusic(1);bool rejected=false;try{airTitlePassword(bad,test,*ui,[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[](auto...){},[]{return 0;});}catch(const std::runtime_error&){rejected=true;}require(rejected,"Unowned entry must be rejected before borrowing password timing");};
     reject([](auto& s){s.route=2;});reject([](auto& s){s.unlockProgress=1;});reject([](auto& s){s.waits=3;});reject([](auto& s){s.remaining=459;});reject([](auto& s){s.page.close.fade.layout.reset.objects[0]=1;});reject([](auto& s){s.page.close.fade.layout.windowX=7;});reject([](auto& s){s.page.close.fade.layout.reset.timing.displays--;});reject([](auto& s){s.page.close.fade.layout.reset.timing.countdown=53;});reject([](auto& s){s.page.close.fade.layout.reset.timing.input.pressed=0;});
     printf("PASS: %d native password-presentation assertions.\n",checks);return 0;

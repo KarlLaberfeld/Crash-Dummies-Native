@@ -1,5 +1,34 @@
 # Crash Dummies Native - project status
 
+## Password presentation from later title pages - October 21, 2026
+
+All eight later-page password presentations now match through 2ba7, after the
+accepted unlock decisions on pages 1..4 in both histories. Totals: 2,008 semantic
+boundaries, 656 display/music services, 2,592 vectors, 3,872 raster boundaries,
+18,130 access polls, 13,784 stores, 16,384 map bytes and 3,936 voice rows, zero
+differences. Complete preceding native CSVs remain byte-identical in every case.
+See [later password scope](LATER_TITLE_PASSWORD.md).
+
+The native carousel now explicitly owns the retained page origin. Password
+entry validates its actual page timer and future deadlines while retaining all
+geometry/input/music/storage guards; first-page absolute checks remain intact.
+The existing password work/graphics/audio owners execute the continuation.
+No original clock or snapshot supplies native execution state.
+
+Validation: optimized diagnostic, 3,243 native password-presentation assertions,
+1,809 Python tests and the full native game/campaign/playthrough/audio/sprite
+regression pass. One rejected observer attempt read the shared complete control
+fingerprint twice at the same bus boundary. An isolated uninstrumented replay
+confirmed non-idempotent unmapped cartridge-RAM reads without advancing CPU
+time; the same-control endpoint is now fingerprinted once against its previously
+repeated unobserved hashes. All eight accepted recordings match those hashes.
+No timing allowance, memory exclusion or original state injection was added.
+
+The Windows EXE is rebuilt from the saved source revision. No release/automation
+change; broader comparison and final acceptance remain incomplete. Next: later
+Start/instruction and Select/player transitions, subsequent password editing/
+return, terminal initial play/two-player switching and the other matrix families.
+
 ## Later-title Start/Select/password decisions - October 21, 2026
 
 Twenty-four additional original/native comparisons now match Start, Select and

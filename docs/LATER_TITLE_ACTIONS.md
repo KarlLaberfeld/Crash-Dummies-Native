@@ -1,5 +1,10 @@
 # Later-title-page decision comparisons
 
+The eight subsequent [password presentations](LATER_TITLE_PASSWORD.md) are now
+also qualified through the initial cursor/digit reset. Later Start/instruction,
+Select/player and subsequent password editing/return remain separate scopes.
+The decision evidence below retains its original endpoint.
+
 October 21, 2026: all 24 cases match, zero differences. The matrix is four
 later pages, three decisions and two retained histories, using the accepted
 first-page A parent. Totals: 231,034 boundaries, 28,838 display/music services,

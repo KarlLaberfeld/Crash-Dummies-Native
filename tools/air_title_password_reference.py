@@ -12,6 +12,13 @@ POINTS={0x2b4f:'begin',0x2b50:'closeCall',0x27e6:'closeWait',0x27e9:'closeReady'
 STORES={**RASTER_STORES,0x27ec:0xff4a,0x27f2:0xc09c,0x27da:0xff4a,0x27e0:0xc09c}
 TAIL=[['tick',100,True]]
 
+def later_parent(data):
+    target=data.get('targetPage',0);groups=data.get('groups',[])
+    if data.get('version')!=1 or data.get('inputCase')!='carousel' or data.get('laterAction')!='unlock' or type(target) is not int or not 1<=target<=4 or len(groups)!=2*target or groups[-1]['name']!=str(target-1)+'.idle':raise ValueError('Password lacks its later-title unlock parent')
+    group=groups[-1];end=group['points'][-1]
+    if end['name']!='end' or end['route']!=4 or end['index']!=target or end['pattern'] or end['inputPressed']!=16 or group['objects']!=[0]*256 or len(group['maps'])!=2048:raise ValueError('Unowned later password decision/storage')
+    return dict(data,points=group['points'],maps=group['maps'])
+
 def attachment(parent,child,events,changed,setup):
     if child.get('inputCase')!='first-password' or changed!=events+TAIL or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256']:raise ValueError('Detached password controls')
     if child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Password controls lack repeated unobserved prefix/full hashes')
@@ -30,8 +37,13 @@ def prepare(args):
     attachment(parent,child,events,events+TAIL,setup);args.out.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',args.out/'setup.state');write_json(args.out/'capture-summary.json',child);write_json(args.out/'events.json',events+TAIL);print('Two password controls match',flush=True)
 
 def capture(args):
-    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'unlock.json');require_capture_reference(accepted,parent)
-    events=read(args.control/'events.json');old=read(args.capture/'events.json');attachment(accepted,manifest,old,events,sha((args.control/'setup.state').read_bytes()))
+    manifest=read(args.control/'capture-summary.json');accepted=read(args.capture/'capture-summary.json');later=getattr(args,'later_parent',None)
+    parent=read((later/'cycle.json') if later else args.parent_out/'unlock.json');require_capture_reference(accepted,parent)
+    events=read(args.control/'events.json');old=read(args.capture/'events.json')
+    if later:
+        if manifest!=accepted or events!=old or args.parent_out!=later or parent['controlMemorySha256']!=manifest['controlMemorySha256']:raise ValueError('Changed later password control')
+        parent=later_parent(parent)
+    else:attachment(accepted,manifest,old,events,sha((args.control/'setup.state').read_bytes()))
     if (args.capture/'setup.state').read_bytes()!=(args.control/'setup.state').read_bytes() or sha(args.rom.read_bytes())!=manifest['romSha256'] or parent['controlMemorySha256']!=accepted['controlMemorySha256']:raise ValueError('Changed password entry ancestry')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata);p=Reference(str(args.rom),window='null',sound_volume=0)
     points=[];irqs=[];writes=[];polls=[];glyphs=[];rasters=[];buttons=[];irq=None;active=complete=False;before=maps=objects=None;objects_unchanged=False;digits=cursor=None
@@ -72,11 +84,18 @@ def capture(args):
         for pc in {*POINTS,*STORES,*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x2801,0x2805}:p.hook_register(0,pc,hook,pc)
         for i,e in enumerate(events):
             replay(p,[e])
-            if i==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Password observer changed accepted prefix')
+            # Later presentations reuse the identical complete input control:
+            # its parent endpoint is the final endpoint. Read that full memory
+            # fingerprint once below. The unmapped cartridge-RAM part of the
+            # CPU-style debugger view need not repeat at one bus boundary.
+            if not later and i==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Password observer changed accepted prefix')
         digest=memory_sha(p)
     finally:p.stop(save=False)
-    if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete password presentation or changed full control')
+    if not complete or irq or digest!=manifest['controlMemorySha256']:
+        args.out.mkdir(parents=True,exist_ok=True);write_json(args.out/'password.incomplete.json',dict(accepted=False,complete=complete,openInterrupt=irq,controlMatches=digest==manifest['controlMemorySha256'],controlMemorySha256=digest,points=points))
+        raise ValueError(f'Incomplete password presentation or changed full control: complete={complete}, controlMatches={digest==manifest["controlMemorySha256"]}, boundaries={len(points)}')
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=accepted['controlMemorySha256'],storageReadOwner='direct-vram-title-v1',points=points,interrupts=irqs,writes=writes,polls=polls,glyphs=glyphs,rasters=rasters,beforeMaps=before,maps=maps,objectsUnchanged=objects_unchanged,digits=digits,cursor=cursor)
+    if later:data.update(origin='later-title-password',targetPage=parent['targetPage'],parentCycleSha256=sha((later/'cycle.json').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'password.rejected.json',data);raise
@@ -124,23 +143,44 @@ def analyze(data,parent):
         if a['boundary']!='begin' or b['boundary']!='end' or a['cycle']!=p['start'] or b['cycle']!=p['end']:raise ValueError('Detached password raster boundaries')
     return services
 
-def compare(args):
-    from air_title_unlock_reference import compare as prior_compare
-    with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
+def later_arguments(args):
+    return argparse.Namespace(**dict({k:v for k,v in vars(args).items() if k not in ('password_out','password_control','later_out','later_base')},native_base=args.later_base,cycle_out=args.later_out,cycle_control=args.password_control))
+
+def compare_later_many(cases):
+    if not cases or len(cases)>128:raise ValueError('Invalid later password batch')
+    from title_cycle_reference import compare_many as qualify
+    with contextlib.redirect_stdout(io.StringIO()):qualify([later_arguments(case) for case in cases])
+    for case in cases:compare(case,_parent_qualified=True)
+
+def compare(args,_parent_qualified=False):
+    later=getattr(args,'later_out',None)
+    if not _parent_qualified:
+        if later:
+            from title_cycle_reference import compare as prior_compare
+            with contextlib.redirect_stdout(io.StringIO()):prior_compare(later_arguments(args))
+        else:
+            from air_title_unlock_reference import compare as prior_compare
+            with contextlib.redirect_stdout(io.StringIO()):prior_compare(args)
     from air_fourth_entry_reference import preserved_native_prefix
-    retained=preserved_native_prefix(args.native_base,args.unlock_base);parent=read(args.unlock_out/'unlock.json');data=read(args.password_out/'password.json');child=read(args.password_control/'capture-summary.json');accepted=read(args.case_control/'capture-summary.json')
-    attachment(accepted,child,read(args.case_control/'events.json'),read(args.password_control/'events.json'),sha((args.password_control/'setup.state').read_bytes()));require_capture_reference(child,data)
+    retained=preserved_native_prefix(args.native_base,args.later_base if later else args.unlock_base);parent=read((later/'cycle.json') if later else args.unlock_out/'unlock.json');data=read(args.password_out/'password.json');child=read(args.password_control/'capture-summary.json')
+    if later:
+        parent=later_parent(parent)
+        if data.get('origin')!='later-title-password' or data.get('targetPage')!=parent['targetPage'] or data.get('parentCycleSha256')!=sha((later/'cycle.json').read_bytes()) or child['controlDifferences'] or any(parent[k]!=child[k] for k in ('romSha256','controlMemorySha256')):raise ValueError('Detached later password recording/control')
+    else:
+        accepted=read(args.case_control/'capture-summary.json');attachment(accepted,child,read(args.case_control/'events.json'),read(args.password_control/'events.json'),sha((args.password_control/'setup.state').read_bytes()))
+    require_capture_reference(child,data)
     if data['controlMemorySha256']!=child['controlMemorySha256'] or data['romSha256']!=child['romSha256']:raise ValueError('Mixed password control/recording')
     services=analyze(data,parent)
-    if (args.password_out/'buttons.txt').read_text()!=(args.unlock_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached password raw inputs')
+    if (args.password_out/'buttons.txt').read_text()!=((later if later else args.unlock_out)/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached password raw inputs')
     from air_startup_reference import analyze as startup_epoch
     epoch=startup_epoch(read(args.startup/'startup.json'))['epoch']
     def rows(suffix):
-        with Path(str(args.native_base)+'.fifth.title-password'+suffix).open(newline='') as f:return list(csv.DictReader(f))
+        with Path(str(args.native_base)+('.fifth.later.title-password' if later else '.fifth.title-password')+suffix).open(newline='') as f:return list(csv.DictReader(f))
     native=rows('.csv');ns=rows('.services.csv');ni=rows('.interrupts.csv');nr=rows('.raster.csv');np=rows('.polls.csv');nw=rows('.writes.csv');maps=rows('.maps.csv');summary=rows('.summary.csv');voices=rows('.voices.csv')
     source_writes=sorted(data['glyphs']+data['writes'],key=lambda w:w['cycle'])
     if [len(native),len(ns),len(ni),len(nr),len(np),len(nw),len(maps),len(summary)]!=[len(data['points']),len(services),len(data['interrupts']),len(data['rasters']),len(data['polls']),len(source_writes),2048,1]:raise ValueError('Incomplete native password outputs')
-    with Path(str(args.unlock_base)+'.fifth.title-unlock.summary.csv').open(newline='') as f:before=next(csv.DictReader(f))
+    prior=str(args.later_base)+'.fifth.title-cycle.'+str(parent['targetPage']-1)+'.idle.summary.csv' if later else str(args.unlock_base)+'.fifth.title-unlock.summary.csv'
+    with Path(prior).open(newline='') as f:before=next(csv.DictReader(f))
     preceding=int(before['displays']);differences=compare_voices(services,voices,preceding)
     def check(kind,i,wanted,q):
         delta={k:[v,int(q[k])] for k,v in wanted.items() if int(q[k])!=v}
@@ -163,18 +203,21 @@ def compare(args):
         value=lcd+(end-lcd)//70224*70224+line*456
         return value+70224 if value<=end else value
     check('summary',0,dict(end=end,tick=data['points'][-1]['tick'],countdown=54,displays=preceding+len(services),stats=int(before['stats'])+sum(p['kind']=='stat' for p in data['interrupts']),lcdEpoch=lcd,nextStat=deadline(23),nextVBlank=deadline(144),center=0,closed=40,cleared=2,opened=40,cursor=0,song=7),summary[0])
-    report=dict(comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedPolls=len(np),comparedWrites=len(nw),comparedMapBytes=len(maps),comparedVoiceRows=len(voices),preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='First password presentation through initial cursor/digit clear at 2ba7. Editing, validation, return, rendered frames/PCM and production scheduling remain unqualified. Active voice projection exclusions match instruction music scope.')
+    report=dict(origin='later-title-password' if later else 'first-password',targetPage=parent.get('targetPage',0),comparedBoundaries=len(native),comparedServices=len(ns),comparedVectors=len(ni),comparedRasterBoundaries=len(nr),comparedPolls=len(np),comparedWrites=len(nw),comparedMapBytes=len(maps),comparedVoiceRows=len(voices),preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Password presentation through initial cursor/digit clear at 2ba7 from its separately qualified unlock decision. Subsequent editing/validation/return, rendered frames/PCM and production scheduling are separate scopes. Active voice projection exclusions match instruction music scope.')
     write_json(Path(str(args.native_base)+'.title-password.comparison.json'),report);print(report)
     if differences:raise ValueError('Native password presentation differs')
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     make=sub.add_parser('prepare');make.add_argument('rom',type=Path)
-    record=sub.add_parser('capture');record.add_argument('rom',type=Path)
+    record=sub.add_parser('capture');record.add_argument('rom',type=Path);record.add_argument('--later-parent',type=Path)
     for k in ('control','parent-out'):record.add_argument('--'+k,type=Path,required=True)
     verify=sub.add_parser('compare');verify.add_argument('native_base',type=Path)
     for k in ('startup','accepted-base','accepted-capture','accepted-out','accepted-startup','first-base','start-capture','start-out','start-startup','parent-capture','parent-out','parent-startup','parent-result-out','instruction-base','return-out','final-base','return-base','reset-out','reset-base','layout-out','layout-base','fade-out','fade-base','close-out','close-base','page-out','page-base','case-control','unlock-out','password-out','password-control','unlock-base'):verify.add_argument('--'+k,type=Path,required=True)
     for p in (make,record,verify):
         for k in ('capture','out'):p.add_argument('--'+k,type=Path,required=True)
-    args=parser.parse_args();dict(prepare=prepare,capture=capture,compare=compare)[args.mode](args)
+    batch=sub.add_parser('compare-later-batch');batch.add_argument('manifest',type=Path)
+    args=parser.parse_args()
+    if args.mode=='compare-later-batch':compare_later_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])
+    else:dict(prepare=prepare,capture=capture,compare=compare)[args.mode](args)
 if __name__=='__main__':main()

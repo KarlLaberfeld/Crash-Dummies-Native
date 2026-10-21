@@ -2,7 +2,15 @@
 #include "air_title_page.h"
 
 namespace ticd {
-struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0,unlockProgress=0,playerChoice=0;bool selectedPlayers=false;};
+struct AirTitleMenu {AirTitlePage page;int remaining=480,waits=0,index=0,route=0,unlockProgress=0,playerChoice=0;bool selectedPlayers=false,carouselOwned=false;};
+// A later page is materialized by airTitleCycle. Its actual timer and future
+// deadlines replace the first-page absolute counters; geometry/storage guards
+// remain the responsibility of the following native screen owner.
+inline bool airLaterTitleBranch(const AirTitleMenu& menu,int route,int minimumWaits){
+    if(!menu.carouselOwned||menu.index<1||menu.index>4||menu.route!=route||menu.unlockProgress)return false;
+    int duration=std::array<int,5>{480,480,960,480,960}.at(menu.index);const auto& t=menu.page.close.fade.layout.reset.timing;
+    return menu.waits>=minimumWaits&&menu.waits<duration&&menu.remaining==duration-menu.waits+1&&t.displays>=665&&t.stats>=860&&t.nextStat>t.end&&t.nextVBlank>t.end;
+}
 // 2707..26ea: page-zero's full idle duration and automatic page advance.
 // The title reset established an empty unlock sequence. Optional action
 // ownership ends at the Start/Select/page branch, before its next UI operation.
