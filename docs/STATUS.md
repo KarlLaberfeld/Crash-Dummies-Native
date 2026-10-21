@@ -1,5 +1,29 @@
 # Crash Dummies Native - project status
 
+## Actual subsequent-player active/resource work - October 21, 2026
+
+Four representative one/two-player cases with full initial/following
+instructions now match through 320 actual subsequent-player Air/easy updates
+in both retained histories. Active requests, uploads and completed frame/flag
+publication match, preserving each accepted entry and first 32 original/native
+updates. See [scope](SELECTED_TURN_ACTIVE.md). The remaining fourteen entry-control
+variants retain their earlier 32-update qualification.
+
+Validation: 1,969 Python tests, four native CLI guards and fresh optimized
+replays pass. Each case preserves 580/584 complete ancestor/entry CSVs and the
+five early gameplay byte prefixes. Fresh active replay preserves 589 complete
+CSVs; unchanged default replays preserve 589/593. One public-entry integration
+check requalifies the full accepted ancestry. No production/native test code
+changed; the full Windows regression remains the passing preceding milestone.
+The Windows EXE is rebuilt from the saved clean revision.
+
+Next: remaining turn-control variants, followed by actual subsequent-attempt
+deferred/interrupted row/pause/terminal/outcome work. Other required matrix
+families, rendered frames/PCM, production scheduler integration and final
+Windows/device/distribution acceptance remain open. Broad request incomplete;
+continuation active. No final release. Older entries retain historical scope.
+
+
 ## Actual subsequent-player setup, entry and first updates - October 21, 2026
 
 All eighteen accepted following-instruction controls now continue through the

@@ -15,6 +15,9 @@ TERMINAL_ORDER=ORDER[:8]+list(TERMINAL_POINTS.values())
 FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','mapScratch','cameraX','cameraY','hudCursor','fadeRemaining','held','pressed','lcdc','display','transfer','remaining','effect','reverse')
 
 def selected_extension(parent,child,events,changed,setup):
+    if child.get('gameplayScope')=='selected-turn-active':
+        from selected_turn_active_reference import extension
+        return extension(parent,child,events,changed,setup)
     from air_title_actions_reference import event_sha
     updates=child.get('gameplayUpdates');terminal=child.get('gameplayTerminal',False)
     duration=updates-20 if type(updates) is int and terminal is True and 1216<updates<=100000 else {320:300,640:620,1216:1196}.get(updates)
@@ -109,8 +112,9 @@ def capture(args):
         if attached and attached.get('origin')=='selected-turn-entry':
             from selected_turn_reference import observation_start
             from air_title_actions_reference import event_sha
-            if attached.get('captureEventsSha256')!=event_sha(events):raise ValueError('Changed attached turn gameplay input events')
-            watch=observation_start(events,attached['inputCase'])
+            entry_events=accepted_events if accepted_events is not None else events
+            if attached.get('captureEventsSha256')!=event_sha(entry_events):raise ValueError('Changed attached turn gameplay input events')
+            watch=observation_start(entry_events,attached['inputCase'])
         for index,event in enumerate(events):
             if index==watch:
                 for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476,0x0462}:p.hook_register(0,pc,hook,pc)

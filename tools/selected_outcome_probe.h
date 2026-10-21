@@ -9,8 +9,8 @@ namespace ticd {
 // Initial selected Air failure, from its actual native terminal state through
 // life consumption and the next live player's instruction music/picture.
 inline void airProbeSelectedOutcome(const std::string& base,AirFollowingSetup state,AirGame& game,
-    const Campaign& fresh,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int followingExtent=0){
-    if(followingExtent<0||followingExtent>3)throw std::runtime_error("Unowned selected next-turn extent");
+    const Campaign& fresh,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,int followingExtent=0,int turnUpdates=32){
+    if(followingExtent<0||followingExtent>3||(turnUpdates!=32&&(turnUpdates!=320||followingExtent!=3)))throw std::runtime_error("Unowned selected next-turn extent");
     auto& campaign=state.instruction.map.campaign;
     if(!fresh.active||fresh.current||campaign.player||game.playerNumber||game.result!=1||
        fresh.players[0].day!=1||fresh.players[0].difficulty||fresh.players[0].lives!=5||campaign.lives[0]!=5||
@@ -60,7 +60,7 @@ inline void airProbeSelectedOutcome(const std::string& base,AirFollowingSetup st
         [&](auto... args){picture.irq(args...);},[&](auto... args){picture.poll(args...);},[&](const char* kind,int64_t cycle,int address,int value){publish(cycle,address,value);picture.writes<<kind<<','<<cycle<<','<<address<<','<<value<<'\n';},sample);
     picture.finish(next,stage,difficulty,0);
     if(followingExtent){auto instruction=airProbeSelectedFollowingInstruction(base,next,background,stage,difficulty,sound,ui,sample,state.instruction.map.scroll);
-        if(followingExtent>=2)airProbeSelectedGameEntry(base+".turn",instruction,sound,sample,&game,followingExtent==3,32,false,{},
+        if(followingExtent>=2)airProbeSelectedGameEntry(base+".turn",instruction,sound,sample,&game,followingExtent==3,turnUpdates,false,{},
             next.player==game.playerNumber?AirFollowingAirRoute::SamePlayer:AirFollowingAirRoute::SelectedNextPlayer,true);}
 }
 }

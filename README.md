@@ -146,6 +146,9 @@ late-skip text, confirmation/held exit and Start ignored during scrolling.
 [Actual subsequent-player entry](docs/SELECTED_TURN.md) continues those controls
 through masked setup, LCD restart and the first 32 quiet Air/easy updates,
 retaining the actual next player, lives and preceding native global state.
+Four representative [active subsequent-player cases](docs/SELECTED_TURN_ACTIVE.md)
+also match through 320 updates, including resource requests, uploads and
+completed frame/flag publication while preserving their accepted entry.
 [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
 match the revealed instructions, complete text/prompt and title pages pixel for
 pixel in 28 frames. The broader

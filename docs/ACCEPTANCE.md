@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 actual-turn active follow-up: four representative one/two-player,
+full-instruction cases match 320 subsequent-player updates in both histories,
+including active resource request/upload/completion ownership and all accepted
+entry/early streams. 1,969 Python tests, four CLI guards, unchanged default
+replays and a fresh active optimized replay pass; one public-entry integration
+check qualifies its complete ancestry. Production code is unchanged and its
+full Windows regression remains the passing preceding milestone. See
+[scope](SELECTED_TURN_ACTIVE.md). Other fourteen turn-control variants, later
+deferred/interrupted/pause/terminal/outcome work, other matrix families and final
+production/output/device/distribution gates remain open. No final release;
+continuation active. Older entries retain historical scope.
+
 October 21 actual-turn follow-up: eighteen attached original/native cases
 match actual subsequent-player Air/easy setup, entry and first 32 quiet updates.
 Native player/lives and global animation/partial-second/side-push/map-cursor
