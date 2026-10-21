@@ -1,5 +1,30 @@
 # Crash Dummies Native - project status
 
+## Selected post-result instruction transition, text and exit - October 21, 2026
+
+Eighteen attached original/native comparisons cover the next live player's
+instruction after the initial selected Air/easy failure: eight complete texts
+with fresh Start confirmation, eight deliberate late skips with held exits,
+and two second-player Start-during-scroll cases. The latter preserve full text
+because the original ignores the fresh edge during scrolling, then bypass the
+prompt with held Start. Player names, both life counts, actual inherited scroll,
+all map selections, glyph/palette/raster writes, logical voices and owned
+background/tile storage are compared. See [scope](SELECTED_FOLLOWING_INSTRUCTION.md).
+
+Validation: 1,936 Python tests, 94 native continuation assertions and the full
+native Windows game/campaign/playthrough/audio/sprite regression pass. Fresh
+optimized replays preserve 560/564 complete CSVs byte for byte; every case also
+retains all preceding 533/537 native CSVs. The normal build runs the new tests.
+The native production implementation is unchanged; the clean Windows EXE is
+rebuilt from the saved revision. No final release.
+
+Next: actual subsequent-player stunt setup, entry and gameplay. Other required
+stunts/difficulties/outcomes, retained menu/password use, changed scores/name
+entry, pixels/PCM, production scheduler and final Windows/device/distribution
+acceptance remain open. The broad request remains incomplete; continuation is
+active. Entries below retain their historical extents and counts.
+
+
 ## Selected initial result, player handoff and next music/picture - October 21, 2026
 
 Eight attached original/native one/two-player full/skip cases in both retained

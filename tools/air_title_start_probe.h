@@ -15,7 +15,7 @@
 #include "selected_outcome_probe.h"
 namespace ticd {
 inline void airProbeTitleStart(const std::string& base,AirTitleMenu waited,const AirFollowingSetup& state,const AirGame& game,int resultLives,
-    NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool selectedEntry=false,bool selectedPlay=false,int selectedUpdates=32,bool selectedTerminal=false,bool selectedOutcome=false){
+    NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool selectedEntry=false,bool selectedPlay=false,int selectedUpdates=32,bool selectedTerminal=false,bool selectedOutcome=false,bool selectedFollowingInstruction=false){
     AirNextInstructionCsv out(base+".title-start","boundary,cycle,palettes,waits,tick,countdown,stat,lcdc,scrollY,lyc,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     std::ofstream raster(base+".title-start.raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
     std::ofstream voices(base+".title-start.voices.csv");airInstructionVoiceHeader(voices);
@@ -76,7 +76,7 @@ inline void airProbeTitleStart(const std::string& base,AirTitleMenu waited,const
                     if(titlePicture){auto pictured=airProbeTitlePicture(base,headed,sound,ui,sample);
                         if(titleEntrance){auto entered=airProbeTitleEntrance(base,pictured,sound,ui,sample);
                             if(titleText){auto typed=airProbeTitleText(base,entered,sound,ui,sample);
-                                if(titleInstructionExit){auto exited=airProbeTitleInstructionExit(base,typed,sound,ui,sample);if(selectedEntry){std::function<void(AirFollowingSetup,AirGame&)> following;if(selectedOutcome)following=[&](AirFollowingSetup current,AirGame& played){airProbeSelectedOutcome(base,current,played,exited.picture.title.fresh.campaign,sound,ui,sample);};airProbeSelectedGameEntry(base,exited.text,sound,sample,&game,selectedPlay,selectedUpdates,selectedTerminal,following);}}}}}
+                                if(titleInstructionExit){auto exited=airProbeTitleInstructionExit(base,typed,sound,ui,sample);if(selectedEntry){std::function<void(AirFollowingSetup,AirGame&)> following;if(selectedOutcome)following=[&](AirFollowingSetup current,AirGame& played){airProbeSelectedOutcome(base,current,played,exited.picture.title.fresh.campaign,sound,ui,sample,selectedFollowingInstruction);};airProbeSelectedGameEntry(base,exited.text,sound,sample,&game,selectedPlay,selectedUpdates,selectedTerminal,following);}}}}}
                 }
             }
         }

@@ -2,12 +2,13 @@
 #include "air_following_gameplay.h"
 #include "air_next_instruction_probe.h"
 #include "air_instruction_voice_probe.h"
+#include "selected_following_instruction_probe.h"
 
 namespace ticd {
 // Initial selected Air failure, from its actual native terminal state through
 // life consumption and the next live player's instruction music/picture.
 inline void airProbeSelectedOutcome(const std::string& base,AirFollowingSetup state,AirGame& game,
-    const Campaign& fresh,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample){
+    const Campaign& fresh,NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool followingInstruction=false){
     auto& campaign=state.instruction.map.campaign;
     if(!fresh.active||fresh.current||campaign.player||game.playerNumber||game.result!=1||
        fresh.players[0].day!=1||fresh.players[0].difficulty||fresh.players[0].lives!=5||campaign.lives[0]!=5||
@@ -56,5 +57,6 @@ inline void airProbeSelectedOutcome(const std::string& base,AirFollowingSetup st
         [&](unsigned index,int64_t cycle,int tick,int countdown,int display,int effects,int music,const DisplayInput& buttons){picture.service(index,cycle,tick,countdown,display,effects,music,buttons);airInstructionVoiceRows(pictureVoices,index,sound,music);},
         [&](auto... args){picture.irq(args...);},[&](auto... args){picture.poll(args...);},[&](const char* kind,int64_t cycle,int address,int value){publish(cycle,address,value);picture.writes<<kind<<','<<cycle<<','<<address<<','<<value<<'\n';},sample);
     picture.finish(next,stage,difficulty,0);
+    if(followingInstruction)airProbeSelectedFollowingInstruction(base,next,background,stage,difficulty,sound,ui,sample,state.instruction.map.scroll);
 }
 }

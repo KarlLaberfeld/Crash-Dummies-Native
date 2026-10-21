@@ -139,6 +139,10 @@ transfers, map deferral and interrupted scene work with mandatory
 [partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md). These eight
 [first Air attempts](docs/SELECTED_TERMINAL.md) also match through their distinct
 terminal waits (2,328..2,378 updates), preserving all earlier extents.
+Their [result/life/turn continuations](docs/SELECTED_OUTCOME.md) match through
+the next player's instruction picture; eighteen further [following-instruction
+comparisons](docs/SELECTED_FOLLOWING_INSTRUCTION.md) cover transition, complete/
+late-skip text, confirmation/held exit and Start ignored during scrolling.
 [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
 match the revealed instructions, complete text/prompt and title pages pixel for
 pixel in 28 frames. The broader

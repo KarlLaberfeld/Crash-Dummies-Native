@@ -122,6 +122,10 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Title instruction-exit test compilation failed.' }
     & ./build/air-title-instruction-exit-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title instruction-exit tests failed.' }
+    & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/selected_following_instruction_tests.cpp src/audio.cpp -o build/selected-following-instruction-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Selected following-instruction test compilation failed.' }
+    & ./build/selected-following-instruction-tests.exe
+    if ($LASTEXITCODE -ne 0) { throw 'Selected following-instruction tests failed.' }
     & $Compiler c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Isrc tests/air_title_password_tests.cpp src/audio.cpp -o build/air-title-password-tests.exe
     if ($LASTEXITCODE -ne 0) { throw 'Title password test compilation failed.' }
     & ./build/air-title-password-tests.exe

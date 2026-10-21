@@ -1,5 +1,15 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 following-instruction follow-up: eighteen original/native cases
+qualify the actual next live player's map transition, full/late-skip text and
+prompt/held exit, including two ignored Start-during-scroll cases. Owned
+background/tile bytes, logical voices, exact access/interrupt timing and actual
+campaign/scroll continuity match. 1,936 Python tests, 94 native assertions and
+the full native Windows regression pass. Fresh replays preserve 560/564 complete
+CSVs. See [scope](SELECTED_FOLLOWING_INSTRUCTION.md). Subsequent-player gameplay,
+other required matrix families and final production/output/device/distribution
+gates remain open. No final release; continuation remains active.
+
 October 21 selected-outcome follow-up: eight original/native cases match the
 initial selected failure, full result hold, actual one/two-player lives/turn
 handoff and next instruction header/music/picture stores. Complete native
