@@ -1,5 +1,14 @@
 # Selected-player instruction and initial-game comparisons
 
+October 21 extension: all eight one/two-player, full/skip variants now match
+through 320, 640 and 1,216 initial Air/easy updates. The 640 scope qualifies
+map-deferred uploads; the 1,216 scope adds interrupted sprites, map and placement
+work with mandatory partial-row storage comparison. All first 32/320/640 source
+and native streams remain exact prefixes and every complete earlier native CSV
+is independently retained. See [complete scope and reproduction](SELECTED_MAP_PUBLICATION.md).
+No later/terminal gameplay, player switching or other stunt/difficulty claim is
+made. The following October 20 entries retain their historical bounded scopes.
+
 Resource follow-up: the one-player/full-prompt case in both retained histories
 now reaches update 320 with held A+Right input after the accepted control ends.
 Both original/native comparisons match: 640 updates, 6,400 boundaries, 102,400

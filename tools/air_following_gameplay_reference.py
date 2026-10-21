@@ -16,8 +16,9 @@ FIELDS=('tick','secondTicks','seconds','random','ready','map','lastMapCamera','m
 
 def selected_extension(parent,child,events,changed,setup):
     from air_title_actions_reference import event_sha
-    tail=[['press','a'],['press','right'],['tick',300,True],['release','a'],['release','right'],['tick',4,True]]
-    if child.get('gameplayUpdates')!=320 or child.get('gameplayInput')!='a-right-held' or child['inputCase']!=parent['inputCase'] or child['inputCase'] not in ('full-prompt','skip-held') or changed!=events+tail or child['romSha256']!=parent['romSha256'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached selected gameplay extension')
+    updates=child.get('gameplayUpdates');duration={320:300,640:620,1216:1196}.get(updates)
+    tail=[['press','a'],['press','right'],['tick',duration,True],['release','a'],['release','right'],['tick',4,True]]
+    if duration is None or child.get('gameplayInput')!='a-right-held' or child['inputCase']!=parent['inputCase'] or child['inputCase'] not in ('full-prompt','skip-held') or changed!=events+tail or child['romSha256']!=parent['romSha256'] or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached selected gameplay extension')
 
 def selected_entry_boundary(parent,manifest,accepted=None):
     require_capture_reference(manifest,parent)
@@ -87,7 +88,7 @@ def capture(args):
         elif pc in (0x0040,0x0048):
             if opened:raise ValueError('Nested following gameplay IRQ')
             opened=dict(kind='vblank' if pc==0x0040 else 'stat',start=now,selector=p.memory[0xc099],display=p.memory[0xc098],returnAddress=word(p.register_file.SP),tick=word(0xc00a),ready=p.memory[0xffae],phases={})
-            if 0x20<=opened['returnAddress']<=0x24:opened['callerAddress']=word(p.register_file.SP+2)
+            if opened['returnAddress'] in (0x08,0x0a,0x0d,0x20,0x21,0x22,0x23,0x24,0x28,0x29,0x2a,0x2b,0x2c,0x30,0x31,0x32,0x33,0x34):opened['callerAddress']=word(p.register_file.SP+2)
             if pc==0x0040:opened['oam']=list(p.memory[0xc100:0xc1a0])
         elif pc in IRQ_PHASES and opened and opened['kind']=='vblank':
             name=IRQ_PHASES[pc];opened['phases'][name]=now

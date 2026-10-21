@@ -2,7 +2,7 @@
 import copy,sys,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from air_following_scene_reference import analyze,compare_publications
+from air_following_scene_reference import analyze,compare_publications,scene_owner
 from air_following_resource_reference import compare_resources
 from air_following_gameplay_reference import FIELDS
 from air_timing import vblank_work
@@ -53,6 +53,25 @@ class FollowingSceneIntegrity(unittest.TestCase):
         differences,occupied,extent=self.compare()
         self.assertEqual(differences,[]);self.assertEqual(occupied,120)
         self.assertEqual((extent['uploads'],extent['completions']),(4,1))
+    def test_callback_prefix_stat_has_existing_native_completion_owner(self):
+        self.data['interrupts'][2]['returnAddress']=0x03f1;self.assertEqual(len(analyze(self.data)),7)
+    def test_callback_prefix_does_not_borrow_display_gate(self):
+        block=self.data['points'][10:20];irq=dict(self.data['interrupts'][2],kind='vblank',returnAddress=0x03f1)
+        with self.assertRaises(ValueError):scene_owner(block,irq,row_publication=True)
+    def test_callback_operand_is_not_a_completion(self):
+        self.data['interrupts'][2]['returnAddress']=0x03f2;self.rejected()
+    def test_exact_counter_snapshot_prefix_is_source_owned(self):
+        block=self.data['points'][10:20];irq=dict(self.data['interrupts'][4],returnAddress=0x2618,start=block[8]['cycles']+80,ready=1)
+        self.assertEqual(scene_owner(block,irq),1);irq['start']+=4
+        with self.assertRaises(ValueError):scene_owner(block,irq)
+    def test_sprite_unsigned_helper_requires_actual_caller(self):
+        block=[dict(name='end' if i==9 else 'point',cycles=1000+100*i) for i in range(10)];irq=dict(kind='stat',start=1350,returnAddress=0x30,ready=0,callerAddress=0x1cce)
+        self.assertEqual(scene_owner(block,irq),1);irq['callerAddress']=0x19a2
+        with self.assertRaises(ValueError):scene_owner(block,irq)
+    def test_bank_helper_requires_clear_return(self):
+        block=[dict(name='end' if i==9 else 'point',cycles=1000+100*i) for i in range(10)];irq=dict(kind='stat',start=1450,returnAddress=0x08,ready=0,callerAddress=0x03ed)
+        self.assertEqual(scene_owner(block,irq),1);irq.pop('callerAddress')
+        with self.assertRaises(ValueError):scene_owner(block,irq)
     def test_scope_required(self):self.data.pop('busyScenes');self.rejected()
     def test_unknown_actor_interrupt_rejects(self):self.data['interrupts'][2]['returnAddress']=0x6000;self.rejected()
     def test_actor_body_cannot_borrow_map_owner(self):self.data['interrupts'][2]['start']=154000;self.rejected()

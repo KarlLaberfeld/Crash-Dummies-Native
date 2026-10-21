@@ -126,10 +126,11 @@ blinking and complete outgoing object clear/A-B return. [Selected instruction
 comparisons](docs/SELECTED_INSTRUCTION.md) extend one/two-player Start through
 instruction music/picture, full or skipped text, prompt/fade and the first Air
 game-entry displays. The [five-page title carousel](docs/TITLE_CYCLE.md) also
-matches credits, initial high-score formatting, page durations and wrap.
-The first 32 selected Air gameplay updates also match actor/work/input and sprite
-position publication; two single-player histories extend through 320 updates,
-including resource requests, display uploads and completion.
+matches credits, initial high-score formatting, automatic durations, fresh A/B
+advances on later pages and wrap. All eight selected one/two-player, full/skip
+Air/easy cases now match through 1,216 initial updates, including resource
+transfers, map deferral and interrupted scene work with mandatory
+[partial-row byte comparisons](docs/SELECTED_MAP_PUBLICATION.md).
 [Stable UI frame comparisons](docs/ORIGINAL_UI_FRAMES.md)
 match the revealed instructions, complete text/prompt and title pages pixel for
 pixel in 28 frames. The broader

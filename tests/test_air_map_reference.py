@@ -50,6 +50,17 @@ class RowEvidence(unittest.TestCase):
     def test_blocked_storage_read_rejects(self):
         self.data['points'][1]['lcd']['readBlocked']=1
         with self.assertRaises(ValueError):analyze(self.data)
+    def test_direct_marker_does_not_weaken_cpu_read_default(self):
+        self.data['reference']=dict(titleStorageObserver='direct-vram-title-v1')
+        for p in self.data['points']:p['tilesReadOwner']='direct-vram-title-v1'
+        self.data['points'][0]['lcd']['readBlocked']=1
+        with self.assertRaises(ValueError):analyze(self.data)
+        self.assertEqual(len(analyze(self.data,direct_storage=True)),4)
+    def test_direct_reader_requires_every_boundary_owner(self):
+        self.data['reference']=dict(titleStorageObserver='direct-vram-title-v1')
+        for p in self.data['points']:p['tilesReadOwner']='direct-vram-title-v1'
+        self.data['points'][1].pop('tilesReadOwner')
+        with self.assertRaises(ValueError):analyze(self.data,direct_storage=True)
     def test_incomplete_row_bytes_reject(self):
         self.data['points'][0]['buffer'].pop()
         with self.assertRaises(ValueError):analyze(self.data)

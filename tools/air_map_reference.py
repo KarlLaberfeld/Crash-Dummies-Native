@@ -67,7 +67,7 @@ def capture(args):
     print(json.dumps(dict(boundaries=len(points),services=service+1,controlDifferences=0,nativeCompared=False)))
 
 
-def analyze(data):
+def analyze(data,direct_storage=False):
     points=data.get('points',[])
     if data.get('version')!=1 or len(points)<4 or len(points)%2 or points[0]['boundary']!='startup' or points[-1]['boundary']!='end':
         raise ValueError('Incomplete native row publication evidence')
@@ -78,7 +78,9 @@ def analyze(data):
     for i,p in enumerate(points):
         service=count if p['boundary']=='end' else max(0,(i-1)//2)
         retained=i==len(points)-1 and data.get('nextRetry') and p.get('tilesReadOwner')=='retained-unblocked-vram-v1' and p.get('tilesObservedAt')==points[-2]['cycles'] and p.get('tilesWriteAttemptsSince')==0 and p['tiles']==points[-2]['tiles'] and not points[-2]['lcd']['readBlocked']
-        if p['service']!=service or p['pending'] not in (0,1) or not 0<=p['row']<32 or p['lcd']['readBlocked'] and not retained:
+        direct=direct_storage and data.get('reference',{}).get('titleStorageObserver')=='direct-vram-title-v1' and p.get('tilesReadOwner')=='direct-vram-title-v1'
+        if direct_storage and not direct:raise ValueError('Missing explicit direct row-storage observer')
+        if p['service']!=service or p['pending'] not in (0,1) or not 0<=p['row']<32 or p['lcd']['readBlocked'] and not(retained or direct):
             raise ValueError('Invalid row publication owner/storage read')
         if len(p['buffer'])!=32 or len(p['tiles'])!=1024 or any(not 0<=v<128 for v in p['buffer']+p['tiles']):
             raise ValueError('Incomplete/invalid row bytes')
@@ -93,8 +95,8 @@ def analyze(data):
     return points
 
 
-def compare_rows(data,native,epoch):
-    points=analyze(data)
+def compare_rows(data,native,epoch,direct_storage=False):
+    points=analyze(data,direct_storage)
     if len(points)!=len(native):raise ValueError('Truncated native row comparison')
     differences=[]
     for i,(p,n) in enumerate(zip(points,native)):

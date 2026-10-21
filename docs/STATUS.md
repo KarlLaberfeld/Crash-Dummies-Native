@@ -1,5 +1,36 @@
 # Crash Dummies Native - project status
 
+## Initial map/interruption and later-page A/B comparisons - October 21, 2026
+
+All eight selected one/two-player, full/skip instruction cases now match active
+Air/easy play through updates 320, 640 and 1,216 in both retained histories.
+The six previously missing 320-update siblings match. At 640, all eight cases
+include resource requests/uploads/completions and actual map deferral. At 1,216,
+they also include interrupted sprite, map and placement work and partial rows.
+The latter totals 9,728 updates, 97,280 boundaries, 1,556,480 actor snapshots,
+9,763 displays, 19,526 vectors, 390,520 sprite slots and 20,636,352 row/map bytes,
+zero differences. Eight displays occur during partial-row preparation. Earlier
+32/320/640 source/native streams and complete native ancestors remain unchanged.
+See [map/interruption scope](SELECTED_MAP_PUBLICATION.md).
+
+Eight further five-page carousels also match fresh A/B advances on every later
+page, including retained timers, selector/wrap, unlock-mismatch stores, map,
+raster/access work and continuing voices. Both initial A/B parents and histories
+are covered: 17,072 boundaries, 4,016 displays, 147,456 map bytes and 24,096 voice
+rows. All four earlier automatic carousels retain their accepted comparisons.
+
+Validation: optimized native diagnostic, all attached original comparisons and
+1,757 Python tests pass. Production sources are unchanged from the preceding
+full game/campaign/playthrough/audio regression; the Windows executable is
+rebuilt from the saved source revision. No release/automation change. The broad
+comparison request and final acceptance remain incomplete.
+
+Next: fresh Start/Select/unlock on later pages, later/terminal initial gameplay
+and two-player campaign switching, other stunts/difficulties/outcomes, modified
+high scores/name entry and further frames/PCM. Production scheduler integration
+and final Windows/device/distribution gates remain separate. The local resume
+checkpoint is `local/comparison-next-work.json`. Earlier entries are historical.
+
 ## Initial resource request/upload/completion extension - October 20, 2026
 
 Two further one-player/full-prompt cases, ordinary and earlier-paused, now match

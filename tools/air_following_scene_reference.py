@@ -22,6 +22,10 @@ def scene_owner(block,irq,row_publication=False):
         # counter read, LD B and HALT completion precede the vector entry.
         # Observed return is to 261c itself, without the 261d test tail.
         if pc==0x261c and ready==1 and irq['kind']=='stat' and irq['start']==block[8]['cycles']+8+12+24+16+16+4+4+20:return 2
+        # CALL/PUSH has completed, but the initial counter read has not. A
+        # VBlank here belongs to that upcoming snapshot, so the native wait
+        # retains one more frame. Require its exact prefix completion time.
+        if pc==0x2618 and ready==1 and irq['start']==block[8]['cycles']+8+12+24+16+20:return 1
         if (pc==0x03c9 and ready==0) or (pc in (0x03cb,0x2617) and ready==1):return 1
         raise ValueError('Unknown following wait-prefix completion')
     if phase==7:
@@ -33,6 +37,16 @@ def scene_owner(block,irq,row_publication=False):
     # native placement owner. Require the nested caller: this shared helper
     # address alone cannot identify which semantic operation was interrupted.
     if phase==6 and 0x20<=pc<=0x22 and irq.get('callerAddress')==0x1ae0:return 1
+    if phase==4 and pc in (0x08,0x0a,0x0d) and irq.get('callerAddress')==0x03ed:return 1
+    if phase==3 and pc in (0x30,0x31,0x32,0x33,0x34) and irq.get('callerAddress') in (0x1cc0,0x1cce,0x1cdf):return 1
+    if phase==3 and pc in (0x28,0x29,0x2a,0x2b,0x2c) and irq.get('callerAddress') in (0x1cc4,0x1ce5,0x1cf7):return 1
+    # 03ed constructs the indirect scene callback; 09e8 then calls the row
+    # owner. airMapClock already splits those exact native setup operations.
+    # A STAT completion may interrupt them. A VBlank before the row flag is
+    # owned still has no qualified publication gate and must be rejected.
+    if phase==5 and pc in (0x03f0,0x03f1,0x03f4,0x03f5,0x03f8,0x03f9,0x09e8):
+        if irq['kind']=='stat':return 1
+        raise ValueError('Display during unowned scene-callback prefix')
     # Identified source helpers represented by airSprite/Map/PlacementClock.
     ranges={3:((0x1bfb,0x1d3f),(0x23dd,0x241d),(0x03e7,0x03e7)),
             4:((0x1b90,0x1bfa),(0x03ea,0x03ed)),

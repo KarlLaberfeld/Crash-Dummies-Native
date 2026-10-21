@@ -14,23 +14,39 @@ TAIL=[['tick',4000,True]]
 PAGE_POINTS=dict(PAGE)
 PAGE_POINTS.update({0x26ea:'begin',0x27e6:'closeWait',0x27e9:'closeReady',0x27f5:'centerStored',0x27e3:'openStored',0x29ba:'pageEntry',0x2a96:'pageEntry',0x2a1a:'pageEntry',0x2add:'pageEntry',0x2a19:'pageReturn',0x2adc:'pageReturn',0x2a95:'pageReturn',0x2b14:'pageReturn',0x2ab1:'scoreRow'})
 IDLE_POINTS=dict(IDLE);IDLE_POINTS[0x2733]='wrapStored'
+IDLE_STORES={**RASTER_STORES,0x2b2d:0xc0b5,0x2b31:0xc0b6}
 DURATIONS=(480,480,960,480,960)
 
+def later_tail(action='automatic'):
+    if action=='automatic':return TAIL
+    if action not in ('a','b'):raise ValueError('Unowned later carousel action')
+    return [['tick',100,True]]+sum(([['press',action],['tick',2,True],['release',action],['tick',100,True]] for _ in range(4)),[])
+
+def idle_extent(group,index,action='automatic'):
+    duration=DURATIONS[index];points=group['points'];end=points[-1];names=[p['name'] for p in points];services=[r for r in group['interrupts'] if r['kind']=='vblank'];waits=names.count('wait')
+    fresh=action!='automatic'
+    if action not in ('automatic','a','b') or not 0<waits<=duration or names.count('ready')!=waits or names.count('timerStored')!=waits-int(fresh) or len(services)!=waits or end['remaining']!=(duration-waits+1 if fresh else 0) or end['waits']!=waits or end['index']!=(index+1)%5 or end['route']!=1 or any(p['pattern'] for p in points):raise ValueError('Incomplete carousel duration/action/wrap')
+    if fresh:
+        mask=1 if action=='a' else 2
+        if waits>=duration or services[-1]['pressed']!=mask or end['inputPressed']!=mask or any(r['pressed'] for r in services[:-1]):raise ValueError('Missing fresh later-page action')
+        if [(w['address'],w['value']) for w in group['writes'] if w['address'] in (0xc0b5,0xc0b6)]!=[(0xc0b5,0x15),(0xc0b6,0x2b)]:raise ValueError('Missing later-page unlock mismatch stores')
+    elif waits!=duration:raise ValueError('Incomplete automatic carousel duration')
+
 def attachment(parent,child,events,changed,setup):
-    if child['inputCase']!='carousel' or changed!=events+TAIL or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256'] or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached title carousel controls')
+    if child['inputCase']!='carousel' or changed!=events+later_tail(child.get('laterAction','automatic')) or child['parentControlMemorySha256']!=parent['controlMemorySha256'] or child['parentEventsSha256']!=event_sha(events) or child['setupSha256']!=setup or child['romSha256']!=parent['romSha256'] or child['controlDifferences'] or child['prefixControlHashes']!=[parent['controlMemorySha256']]*2 or child['unhookedControlHashes']!=[child['controlMemorySha256']]*2:raise ValueError('Detached title carousel controls')
 
 def prepare(args):
-    parent=read(args.capture/'capture-summary.json');events=read(args.capture/'events.json');setup=sha((args.capture/'setup.state').read_bytes())
+    parent=read(args.capture/'capture-summary.json');events=read(args.capture/'events.json');setup=sha((args.capture/'setup.state').read_bytes());action=getattr(args,'action','automatic');tail=later_tail(action)
     if parent['inputCase'] not in ('a','b') or parent['controlDifferences'] or sha(args.rom.read_bytes())!=parent['romSha256']:raise ValueError('Unowned carousel parent/ROM')
     Reference,metadata=reference_class('sameboy');require_matching_backend(parent,metadata);hashes=[];prefixes=[]
     for _ in range(2):
         p=Reference(str(args.rom),window='null',sound_volume=0)
         try:
             with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-            replay(p,events);prefixes.append(memory_sha(p));replay(p,TAIL);hashes.append(memory_sha(p))
+            replay(p,events);prefixes.append(memory_sha(p));replay(p,tail);hashes.append(memory_sha(p))
         finally:p.stop(save=False)
-    data=dict(**metadata,romSha256=parent['romSha256'],controlMemorySha256=hashes[0],controlDifferences=[],inputCase='carousel',parentInputCase=parent['inputCase'],parentControlMemorySha256=parent['controlMemorySha256'],parentEventsSha256=event_sha(events),setupSha256=setup,prefixControlHashes=prefixes,unhookedControlHashes=hashes,referenceOnly=True)
-    attachment(parent,data,events,events+TAIL,setup);args.out.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',args.out/'setup.state');write_json(args.out/'events.json',events+TAIL);write_json(args.out/'capture-summary.json',data);print(parent['inputCase'],'two carousel prefix/full hashes match',flush=True)
+    data=dict(**metadata,romSha256=parent['romSha256'],controlMemorySha256=hashes[0],controlDifferences=[],inputCase='carousel',laterAction=action,parentInputCase=parent['inputCase'],parentControlMemorySha256=parent['controlMemorySha256'],parentEventsSha256=event_sha(events),setupSha256=setup,prefixControlHashes=prefixes,unhookedControlHashes=hashes,referenceOnly=True)
+    attachment(parent,data,events,events+tail,setup);args.out.mkdir(parents=True,exist_ok=True);shutil.copyfile(args.capture/'setup.state',args.out/'setup.state');write_json(args.out/'events.json',events+tail);write_json(args.out/'capture-summary.json',data);print(parent['inputCase'],action,'two carousel prefix/full hashes match',flush=True)
 
 def capture(args):
     accepted=read(args.accepted_control/'capture-summary.json');manifest=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'actions.json');old=read(args.accepted_control/'events.json');events=read(args.capture/'events.json')
@@ -79,7 +95,7 @@ def capture(args):
             irq['end']=now;group['interrupts'].append(irq);irq=None
             if pc==0x2555:group['rasters'].append(dict(boundary='end',cycle=now,**geometry()))
         if pc in (0x2123,0x2801) and is_page:group['polls'].append(dict(cycle=now,mode=p.register_file.A&3))
-        address=(PAGE_STORES if is_page else RASTER_STORES).get(pc);value=p.register_file.A
+        address=(PAGE_STORES if is_page else IDLE_STORES).get(pc);value=p.register_file.A
         if pc==0x27ec and is_page:address=0xff4a
         if pc==0x27f2 and is_page:address=0xc09c
         if pc==0x2128 and is_page:address=256*p.register_file.D+p.register_file.E
@@ -91,14 +107,14 @@ def capture(args):
         if address is not None:group['writes'].append(dict(cycle=now,address=address,value=value))
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in set(PAGE_POINTS)|set(IDLE_POINTS)|set(PAGE_STORES)|set(RASTER_STORES)|set(IRQ_PHASES)|{0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x2801,0x2805,0x27ec,0x27f2,0x2730}:p.hook_register(0,pc,hook,pc)
+        for pc in set(PAGE_POINTS)|set(IDLE_POINTS)|set(PAGE_STORES)|set(IDLE_STORES)|set(IRQ_PHASES)|{0x0040,0x0048,0x2484,0x2555,0x2123,0x2128,0x2801,0x2805,0x27ec,0x27f2,0x2730}:p.hook_register(0,pc,hook,pc)
         for n,event in enumerate(events):
             replay(p,[event])
             if n==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Carousel observation changed accepted prefix')
         digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete carousel or changed original control')
-    data=dict(version=1,reference=metadata,storageReadOwner='direct-vram-title-v1',romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=parent['controlMemorySha256'],inputCase='carousel',parentInputCase=parent['inputCase'],groups=groups)
+    data=dict(version=1,reference=metadata,storageReadOwner='direct-vram-title-v1',romSha256=manifest['romSha256'],controlMemorySha256=digest,parentControlMemorySha256=parent['controlMemorySha256'],inputCase='carousel',laterAction=manifest.get('laterAction','automatic'),parentInputCase=parent['inputCase'],groups=groups)
     args.out.mkdir(parents=True,exist_ok=True)
     try:analyze(data,parent)
     except ValueError:write_json(args.out/'cycle.rejected.json',data);raise
@@ -118,8 +134,7 @@ def analyze(data,parent):
             stores=[w for w in group['writes'] if 0x9c00<=w['address']<0xa000]
             if len(stores)<640 or any(w['address']!=0x9dc0+n%320 or w['value'] for n,w in enumerate(stores[:640])):raise ValueError('Incomplete carousel two-pass clear')
         else:
-            duration=DURATIONS[index];names=[p['name'] for p in points]
-            if names.count('wait')!=duration or names.count('ready')!=duration or names.count('timerStored')!=duration or len(services)!=duration or end['remaining'] or end['waits']!=duration or end['index']!=(index+1)%5 or end['route']!=1 or any(p['pattern'] for p in points):raise ValueError('Incomplete carousel duration/wrap')
+            idle_extent(group,index,data.get('laterAction','automatic'))
             selector=[w['value'] for w in group['writes'] if w['address']==0xc03e]
             if selector!=([5,0] if index==4 else [index+1]):raise ValueError('Unowned carousel page-selector stores')
         last=first['cycles']
@@ -149,7 +164,7 @@ def compare(args,_parent_qualified=False):
     from air_startup_reference import analyze as startup_epoch
     accepted=read(args.case_control/'capture-summary.json');manifest=read(args.cycle_control/'capture-summary.json');data=read(args.cycle_out/'cycle.json');parent=read(args.actions_out/'actions.json')
     attachment(accepted,manifest,read(args.case_control/'events.json'),read(args.cycle_control/'events.json'),sha((args.cycle_control/'setup.state').read_bytes()));require_capture_reference(manifest,data)
-    if any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase','parentControlMemorySha256','parentInputCase')):raise ValueError('Mixed carousel controls/recording')
+    if any(data[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase','parentControlMemorySha256','parentInputCase')) or data.get('laterAction','automatic')!=manifest.get('laterAction','automatic'):raise ValueError('Mixed carousel controls/recording')
     services=analyze(data,parent)
     if (args.cycle_out/'buttons.txt').read_text()!=(args.actions_out/'buttons.txt').read_text()+''.join(str(p['held'])+'\n' for p in services):raise ValueError('Detached carousel raw inputs')
     retained=preserved_native_prefix(args.native_base,args.actions_base);epoch=startup_epoch(read(args.startup/'startup.json'))['epoch'];differences=[];totals=dict(boundaries=0,services=0,vectors=0,rasterBoundaries=0,polls=0,writes=0,mapBytes=0,voiceRows=0)
@@ -181,11 +196,11 @@ def compare(args,_parent_qualified=False):
         def deadline(line):
             value=lcd+(end-lcd)//70224*70224+line*456
             return value+70224 if value<=end else value
-        page=name.endswith('.page');index=group['page'];wanted=dict(end=end,lcdEpoch=lcd,tick=last['tick'],countdown=54,displays=preceding,stats=stats,nextStat=deadline(23),nextVBlank=deadline(144),index=last['index'],remaining=DURATIONS[index] if page else 0,route=0 if page else 1,song=1)
+        page=name.endswith('.page');index=group['page'];wanted=dict(end=end,lcdEpoch=lcd,tick=last['tick'],countdown=54,displays=preceding,stats=stats,nextStat=deadline(23),nextVBlank=deadline(144),index=last['index'],remaining=DURATIONS[index] if page else last['remaining'],route=0 if page else 1,song=1)
         if set(wanted)!=set(summary[0]):raise ValueError('Unqualified carousel summary')
         check(name+' summary',0,wanted,summary[0])
         for key,number in [('boundaries',len(points)),('services',len(ns)),('vectors',len(ni)),('rasterBoundaries',len(nr)),('polls',len(np)),('writes',len(nw)),('mapBytes',2048),('voiceRows',len(voices))]:totals[key]+=number
-    report=dict(parentInputCase=data['parentInputCase'],**{'compared'+k[0].upper()+k[1:]:v for k,v in totals.items()},preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Five-page original title carousel after first-page A/B: all compositions, retained initial high scores/BCD formatting, 480/960-update durations, wrap, access/raster timing/maps and active music. Further fresh controls on later pages, modified high scores, frames/PCM and production scheduling remain unqualified.')
+    report=dict(parentInputCase=data['parentInputCase'],laterAction=data.get('laterAction','automatic'),**{'compared'+k[0].upper()+k[1:]:v for k,v in totals.items()},preservedNativeFiles=retained,differences=len(differences),firstDifference=differences[:1],productionSchedulerAccepted=False,evidenceLimit='Five-page original title carousel after first-page A/B: composition, retained initial high scores/BCD formatting, wrap, access/raster timing/maps and active music. Automatic cases require complete 480/960 durations; fresh A/B cases independently require each of the four later pages to exit on its fresh edge with the correct retained timer. Other fresh routes, modified high scores, frames/PCM and production scheduling remain unqualified.')
     write_json(Path(str(args.native_base)+'.title-cycle.comparison.json'),report);print(report)
     if differences:raise ValueError('Native title carousel differs from the original')
 
@@ -206,6 +221,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='mode',required=True)
     for mode in ('prepare','capture'):
         p=sub.add_parser(mode);p.add_argument('rom',type=Path)
+        if mode=='prepare':p.add_argument('--action',choices=('automatic','a','b'),default='automatic')
         for key in ('capture','out')+(('accepted-control','parent-out') if mode=='capture' else ()):p.add_argument('--'+key,type=Path,required=True)
     p=sub.add_parser('compare-batch');p.add_argument('manifest',type=Path);args=parser.parse_args()
     if args.mode=='compare-batch':compare_many([argparse.Namespace(**{k:Path(v) for k,v in c.items()}) for c in read(args.manifest)])

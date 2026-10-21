@@ -1,5 +1,23 @@
 # Complete title-page carousel comparison
 
+October 21 fresh-action extension: eight additional complete carousels match
+fresh A and B on each later page (1..4), starting from both initial A/B parents
+in both retained histories. Each action requires its actual fresh edge, the
+correct retained 480/960 counter, no last timer decrement, both unlock mismatch
+stores, page-selector update and final wrap. The four earlier automatic cases
+still match with the extended analyzer. New totals: 17,072 boundaries, 4,016
+display/music services, 15,168 vectors, 22,304 raster boundaries, 105,048 polls,
+78,648 stores, 147,456 map bytes and 24,096 voice rows, zero differences.
+
+Use `prepare --action a` or `--action b` (default `automatic` retains the prior
+4,000-frame control). A fixed input-only tail supplies four separate edges after
+opening the later pages. Both unobserved prefix/full replays and the observed
+control hash agree. Complete accepted ancestor CSVs are preserved per case;
+source snapshots/times never drive native playback. No production source change
+was needed. Fresh Start/Select/unlock routes and modified score records remain
+separate outstanding comparisons. The following entries describe the earlier
+automatic-carousel scope; the 28 stable UI pixel cases remain separately scoped.
+
 Pixel follow-up: all five stable title pictures after A/B in both histories
 also match the production native renderer exactly. See
 [original UI frames](ORIGINAL_UI_FRAMES.md) for sampling/attachment limits.

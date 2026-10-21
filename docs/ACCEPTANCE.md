@@ -1,5 +1,14 @@
 # Crash Dummies Native - final release acceptance
 
+October 21: all eight selected initial Air/easy cases match through update 1,216,
+including map-deferred uploads, interrupted sprites/map/placements and mandatory
+partial-row byte comparison. Eight later-page fresh A/B carousels also match.
+Optimized diagnostic and 1,757 Python tests pass; four earlier automatic cases
+retain their accepted comparisons. See [map/interruption scope](SELECTED_MAP_PUBLICATION.md)
+and [carousel scope](TITLE_CYCLE.md). Production sources are unchanged; the broad
+comparison request, scheduler/device/output gates and final acceptance remain
+incomplete. No release/automation change. Entries below are historical scopes.
+
 October 20 initial-resource follow-up: both one-player/full-prompt histories
 match 320 initial Air updates with A+Right, including two requests/eight uploads/
 two completions per case and exact preservation of earlier source/native

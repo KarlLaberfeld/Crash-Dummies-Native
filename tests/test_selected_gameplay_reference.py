@@ -5,7 +5,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from test_air_following_quiet_reference import fixture as quiet_fixture
 from test_air_following_setup_reference import entry_fixture
-from selected_gameplay_reference import analyze,compare_many
+from selected_gameplay_reference import analyze,compare_many,entry_arguments,interrupted_extent
 from air_following_gameplay_reference import selected_entry_boundary,selected_extension
 from air_title_actions_reference import event_sha
 
@@ -42,12 +42,32 @@ class SelectedGameplayIntegrity(unittest.TestCase):
     def test_no_borrowed_old_pause(self):self.data['entryPauseConsumed']=True;self.reject()
     def test_missing_vector(self):self.data['interrupts'].pop();self.reject()
     def test_resource_crossing_requires_other_owner(self):self.data['points'][15]['transfer']=1;self.reject()
+    def test_child_resource_row_fields_do_not_change_shared_ancestry(self):
+        args=argparse.Namespace(game_entry_base=Path('parent'),native_base=Path('child'),startup=Path('startup'),resource_gameplay_base=Path('r'),deferred_gameplay_out=Path('d'),map_out=Path('m'))
+        self.assertEqual(vars(entry_arguments(args)),dict(native_base=Path('parent'),startup=Path('startup')))
     def test_empty_batch(self):
         with self.assertRaises(ValueError):compare_many([])
     def test_qualified_parent_batch_then_independent_children(self):
         args=argparse.Namespace(native_base=Path('child'),game_entry_base=Path('parent'),gameplay_out=Path('game'),startup=Path('startup'))
         with patch('selected_game_entry_reference.compare_many') as parent,patch('selected_gameplay_reference.compare') as child:
             compare_many([args]);self.assertEqual(parent.call_args.args[0][0].native_base,Path('parent'));self.assertNotIn('gameplay_out',vars(parent.call_args.args[0][0]));child.assert_called_once_with(args,_parent_qualified=True)
+
+class InterruptedCoverage(unittest.TestCase):
+    def setUp(self):
+        self.data=dict(updates=1,points=[dict(name="end" if i==9 else "point",cycles=1000+100*i) for i in range(10)],interrupts=[dict(kind='stat',start=1350,returnAddress=0x1c66,ready=0),dict(kind='vblank',start=1550,returnAddress=0x1f0e,ready=0),dict(kind='stat',start=1650,returnAddress=0x19f1,ready=0)])
+    def test_all_scene_families_and_partial_rows(self):self.assertEqual(interrupted_extent(self.data),dict(sprites=1,map=1,placements=1,partialRowDisplays=1))
+    def test_no_partial_row_cannot_claim_completion(self):
+        self.data['interrupts'][1]['returnAddress']=0x1f16
+        with self.assertRaises(ValueError):interrupted_extent(self.data)
+    def test_missing_placement(self):
+        self.data['interrupts'].pop()
+        with self.assertRaises(ValueError):interrupted_extent(self.data)
+    def test_missing_sprite(self):
+        self.data['interrupts'].pop(0)
+        with self.assertRaises(ValueError):interrupted_extent(self.data)
+    def test_unknown_return_address(self):
+        self.data['interrupts'][0]['returnAddress']=0x6000
+        with self.assertRaises(ValueError):interrupted_extent(self.data)
 
 class SourceEntryBoundary(unittest.TestCase):
     def setUp(self):
@@ -74,6 +94,12 @@ class ExtendedControls(unittest.TestCase):
         with self.assertRaises(ValueError):self.check()
     def test_complete(self):self.check()
     def test_skip_case_is_separate_but_valid(self):self.parent['inputCase']=self.child['inputCase']='skip-held';self.check()
+    def test_map_deferred_control_has_its_own_duration(self):
+        self.child['gameplayUpdates']=640;self.changed[-4]=['tick',620,True];self.check()
+    def test_map_extent_cannot_borrow_short_control(self):self.child['gameplayUpdates']=640;self.reject()
+    def test_interrupted_control_has_its_own_duration(self):
+        self.child['gameplayUpdates']=1216;self.changed[-4]=['tick',1196,True];self.check()
+    def test_interrupted_cannot_borrow_short_control(self):self.child['gameplayUpdates']=1216;self.reject()
     def test_wrong_extent(self):self.child['gameplayUpdates']=256;self.reject()
     def test_wrong_case(self):self.child['inputCase']='skip-held';self.reject()
     def test_wrong_input_marker(self):self.child['gameplayInput']='neutral';self.reject()

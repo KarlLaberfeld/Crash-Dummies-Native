@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-from title_cycle_reference import DURATIONS,TAIL,analyze,attachment,compare_many,event_sha
+from title_cycle_reference import DURATIONS,TAIL,analyze,attachment,compare_many,event_sha,later_tail,idle_extent
 
 @lru_cache(maxsize=1)
 def fixture():
@@ -63,6 +63,32 @@ class CarouselIntegrity(unittest.TestCase):
     def test_wrong_long_page_duration(self):self.data['groups'][3]['points'][-1]['waits']=480;self.reject()
     def test_missing_wrap_store(self):self.data['groups'][7]['writes'].pop();self.reject()
 
+class LaterPageActions(unittest.TestCase):
+    def setUp(self):
+        self.group=dict(points=[dict(name=n,pattern=0) for n in ['begin','wait','ready','timerStored','wait','ready','timerStored','wait','ready']]+[dict(name='end',pattern=0,remaining=478,waits=3,index=2,route=1,inputPressed=1)],interrupts=[dict(kind='vblank',pressed=n) for n in (0,0,1)],writes=[dict(address=0xc0b5,value=0x15),dict(address=0xc0b6,value=0x2b)])
+    def check(self):idle_extent(self.group,1,'a')
+    def reject(self):
+        with self.assertRaises(ValueError):self.check()
+    def test_fresh_a_retains_timer(self):self.check()
+    def test_fresh_b_is_separate(self):
+        self.group['interrupts'][-1]['pressed']=2;self.group['points'][-1]['inputPressed']=2;idle_extent(self.group,1,'b')
+    def test_missing_edge(self):self.group['interrupts'][-1]['pressed']=0;self.reject()
+    def test_held_is_not_fresh(self):self.group['points'][-1]['inputPressed']=0;self.reject()
+    def test_wrong_button(self):self.group['interrupts'][-1]['pressed']=2;self.reject()
+    def test_earlier_fresh_edge(self):self.group['interrupts'][0]['pressed']=1;self.reject()
+    def test_missing_unlock_mismatch_store(self):self.group['writes'].pop();self.reject()
+    def test_missing_service(self):self.group['interrupts'].pop();self.reject()
+    def test_wrong_retained_timer(self):self.group['points'][-1]['remaining']-=1;self.reject()
+    def test_wrong_wait_count(self):self.group['points'][-1]['waits']-=1;self.reject()
+    def test_fresh_action_cannot_count_last_decrement(self):self.group['points'].insert(-1,dict(name='timerStored',pattern=0));self.reject()
+    def test_fresh_case_is_not_timeout(self):
+        with self.assertRaises(ValueError):idle_extent(self.group,1,'automatic')
+    def test_bounded_input_tail(self):
+        for key in ('a','b'):
+            tail=later_tail(key);self.assertEqual(tail.count(['press',key]),4);self.assertEqual(tail.count(['release',key]),4)
+    def test_unowned_tail(self):
+        with self.assertRaises(ValueError):later_tail('start')
+
 class CarouselControls(unittest.TestCase):
     def setUp(self):
         self.parent=dict(controlMemorySha256='parent',romSha256='rom');self.events=[['tick',40,True]];self.changed=self.events+TAIL
@@ -71,6 +97,9 @@ class CarouselControls(unittest.TestCase):
     def reject(self):
         with self.assertRaises(ValueError):self.check()
     def test_complete(self):self.check()
+    def test_later_action_tail(self):
+        self.child['laterAction']='a';self.changed=self.events+later_tail('a');self.check()
+    def test_cannot_relabel_automatic_as_fresh(self):self.child['laterAction']='a';self.reject()
     def test_changed_tail(self):self.changed=self.events+[['tick',3999,True]];self.reject()
     def test_changed_prefix(self):self.changed=[['tick',39,True]]+TAIL;self.reject()
     def test_setup(self):self.child['setupSha256']='other';self.reject()

@@ -23,12 +23,20 @@ inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructi
         entered.rowPublication.initialize(*game,&instruction.background);entered.rowPublication.publish();entered.rowPublication.publish();entered.rowPublicationReady=true;
         AirNextInstructionCsv play(base+".title-gameplay","boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result");
         std::ofstream actors(base+".title-gameplay.entities.csv"),sprites(base+".title-gameplay.sprites.csv");
+        std::ofstream maps(base+".title-gameplay.map.csv");
+        if(!maps)throw std::runtime_error("Cannot open selected gameplay map observations");
+        maps<<"boundary,service,cycle,pending,row";for(int i=0;i<32;++i)maps<<",buffer"<<i;for(int i=0;i<1024;++i)maps<<",tile"<<i;maps<<'\n';
+        const unsigned origin=e.displays;
+        auto mapSnapshot=[&](const char* name,unsigned index,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& row=s.rowPublication;
+            maps<<name<<','<<(index-origin)<<','<<cycle<<','<<g.mapTransfer<<','<<row.destination;for(int value:row.buffer)maps<<','<<value;for(int value:row.tiles)maps<<','<<value;maps<<'\n';};
+        mapSnapshot("startup",origin,e.end,entered,*game);
         actors<<"boundary,slot,alive,frame,flags,handler,x,y,done,waiting,delay,period";for(int i=0;i<7;++i)actors<<",param"<<i;actors<<'\n';sprites<<"service,slot,present,x,y,flags\n";
         for(int update=0;update<updates;++update)entered=airFollowingAirQuietUpdate(entered,*game,sound,
             [&](const char* name,int64_t cycle,const AirFollowingSetup& s,const AirGame& g){const auto& input=s.instruction.map.campaign.timing.input;
                 play.points<<name<<','<<cycle<<','<<g.ticks<<','<<g.secondTicks<<','<<g.seconds<<','<<g.randomState<<','<<s.ready<<','<<g.mapTransfer<<','<<g.lastMapCamera<<','<<s.mapScratch<<','<<g.cameraX<<','<<g.cameraY<<','<<g.hudCursor<<','<<g.displayFadeRemaining<<','<<input.held<<','<<input.pressed<<','<<s.lcdc<<','<<s.display<<','<<g.transferState<<','<<g.transferRemaining<<','<<g.pendingSound<<','<<g.reverseSprites<<','<<g.transferFrame<<','<<g.transferFlags<<','<<g.result<<'\n';
                 for(int i=0;i<16;++i){const auto& a=g.entities[i];actors<<name<<','<<i<<','<<a.alive<<','<<(a.alive?a.frame:255)<<','<<((a.flags&~2)|(a.offscreen?2:0))<<','<<int(a.handler)<<','<<a.x<<','<<a.y<<','<<a.animDone<<','<<a.frameWaiting<<','<<a.delay<<','<<a.period;for(int value:a.params)actors<<','<<value;actors<<'\n';}},
-            [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];sprites<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},[&](auto... args){play.irq(args...);},sample);
+            [&](unsigned index,int64_t cycle,int tick,int display,int effects,int music,const DisplayInput& input){play.service(index,cycle,tick,0,display,effects,music,input);for(int slot=0;slot<40;++slot){const auto& s=game->visibleSprites.slots[slot];sprites<<index<<','<<slot<<','<<(s.present&&s.y!=0)<<','<<s.x<<','<<s.y<<','<<s.flags<<'\n';}},[&](auto... args){play.irq(args...);},sample,false,mapSnapshot);
+        mapSnapshot("end",entered.instruction.map.campaign.timing.displays,entered.instruction.map.campaign.timing.end,entered,*game);
         play.finish(entered.instruction.map.campaign,1,0,entered.instruction.map.scroll);
     }
 }
