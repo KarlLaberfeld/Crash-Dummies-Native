@@ -422,6 +422,8 @@ int main(){
             require(more.instruction.map.campaign.timing.end-loaded.instruction.map.campaign.timing.end==5564,"The fourth template band owns both its copy and destination-page carry");
         }
         require(followingInitialMapWork(true,0xae80)-followingInitialMapWork(true,0xf780)==4,"The high-difficulty initial world-coordinate wrap owns the shorter first row branch");
+        require(followingInitialMapWork(true,0xae80,0x8000)-followingInitialMapWork(true,0xae80,0)==4,"Actual retained map cursor owns the first row's direction work across turns");
+        require(followingInitialMapWork(true,0xae80)==followingInitialMapWork(true,0xae80,0x8000),"Legacy initial/retry map ownership remains unchanged without an explicit retained cursor");
         for(int player:{-1,0,2}){
             sound.stop();AirInstructionTextState state;state.map.display=state.map.stat=5;state.map.lyc=95;state.map.lcdc=0xd1;state.map.campaign.player=player;
             bool rejected=false;try{airFollowingSetupPrefix(state,1,0,sound,[](const char*,int64_t,const AirFollowingSetup&){},[](int64_t,int){},[](int64_t,int,int){});}catch(const std::runtime_error&){rejected=true;}

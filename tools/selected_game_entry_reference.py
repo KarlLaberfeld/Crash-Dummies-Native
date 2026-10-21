@@ -13,13 +13,21 @@ from air_reference import write_json
 GROUPS=('prefix','stage','entry');TABLES=(PREFIX,COMMON|AIR,ENTRY)
 
 def capture(args):
-    manifest=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'text.json');require_capture_reference(manifest,parent)
-    if manifest['controlDifferences'] or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')) or sha(args.rom.read_bytes())!=manifest['romSha256'] or parent['setupSha256']!=sha((args.capture/'setup.state').read_bytes()):raise ValueError('Detached selected game entry control/ROM/setup')
+    turn=getattr(args,'turn',False);old=None;events=read(args.capture/'events.json');watch=0
+    if turn:
+        from selected_turn_reference import entry_context,observation_start
+        parent,manifest,accepted,old,events=entry_context(args);watch=observation_start(events,parent['inputCase'])
+    else:
+        manifest=read(args.capture/'capture-summary.json');parent=read(args.parent_out/'text.json')
+        if manifest['controlDifferences'] or any(parent[k]!=manifest[k] for k in ('romSha256','controlMemorySha256','inputCase')):raise ValueError('Detached selected initial game entry control')
+    require_capture_reference(manifest,parent)
+    if sha(args.rom.read_bytes())!=manifest['romSha256'] or parent['setupSha256']!=sha((args.capture/'setup.state').read_bytes()):raise ValueError('Detached selected game entry ROM/setup')
     Reference,metadata=reference_class('sameboy');require_matching_backend(manifest,metadata);p=Reference(str(args.rom),window='null',sound_volume=0)
     groups=[dict(name=name,version=1,points=[],interrupts=[],polls=[],writes=[]) for name in GROUPS];active=complete=False;index=0;irq=None;buttons=[]
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def fields():
         player=p.memory[0xc082];common=dict(tick=word(0xc00a),countdown=word(0xc0b7),display=p.memory[0xc098],stat=p.memory[0xc099],lcdc=p.memory[0xff40],lyc=p.memory[0xff45],pendingRequests=p.memory[0xff0f]&3,musicEnabled=p.memory[0xffcf])
+        if turn:common['previousMapCamera']=word(0xff96)
         if index<2:common.update(player=player,stage=p.memory[0xc088+8*player],difficulty=p.memory[0xc089+8*player],lives=p.memory[0xc08a+8*player],interruptEnable=p.memory[0xffff]&3)
         if index>=1:common.update(cameraX=word(0xff92),cameraY=word(0xff94),mapScratch=word(0xc00c),ready=p.memory[0xffae])
         if index==1:common['reverse']=int(bool(p.memory[0xff90]))
@@ -54,14 +62,25 @@ def capture(args):
         elif pc in (0x2484,0x2555) and irq:irq['end']=now;group['interrupts'].append(irq);irq=None
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {pc for table in TABLES for pc in table}|set(IRQ_PHASES)|{0x2598,0x195d,0x0040,0x0048,0x2484,0x2555}:p.hook_register(0,pc,hook,pc)
-        replay(p,read(args.capture/'events.json'));digest=memory_sha(p)
+        for n,event in enumerate(events):
+            if n==watch:
+                for pc in {pc for table in TABLES for pc in table}|set(IRQ_PHASES)|{0x2598,0x195d,0x0040,0x0048,0x2484,0x2555}:p.hook_register(0,pc,hook,pc)
+            replay(p,[event])
+            if turn and n==len(old)-1 and memory_sha(p)!=accepted['controlMemorySha256']:raise ValueError('Turn entry observer changed its accepted instruction prefix')
+        digest=memory_sha(p)
     finally:p.stop(save=False)
     if not complete or irq or digest!=manifest['controlMemorySha256']:raise ValueError('Incomplete selected game entry or changed original control')
     groups[-1]['precedingDisplays']=len((args.parent_out/'buttons.txt').read_text().splitlines())
     data=dict(version=1,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,inputCase=parent['inputCase'],parentInputCase=parent['parentInputCase'],players=parent['players'],groups=groups)
+    if turn:
+        from air_title_actions_reference import event_sha
+        data.update(origin='selected-turn-entry',parentInstructionSha256=sha((args.parent_out/'instruction.json').read_bytes()),parentControlMemorySha256=accepted['controlMemorySha256'],captureEventsSha256=event_sha(events),setupSha256=sha((args.capture/'setup.state').read_bytes()))
     args.out.mkdir(parents=True,exist_ok=True)
-    try:analyze(data,parent)
+    try:
+        if turn:
+            from selected_turn_reference import analyze_entry as turn_analyze
+            turn_analyze(data,parent)
+        else:analyze(data,parent)
     except ValueError:write_json(args.out/'entry.rejected.json',data);raise
     write_json(args.out/'entry.json',data);(args.out/'buttons.txt').write_text((args.parent_out/'buttons.txt').read_text()+''.join(str(b)+'\n' for b in buttons));print(dict(parent=data['parentInputCase'],case=data['inputCase'],boundaries=sum(len(g['points']) for g in groups),services=len(buttons)),flush=True)
 

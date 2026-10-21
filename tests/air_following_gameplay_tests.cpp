@@ -70,6 +70,30 @@ int main(){
             require(campaign.lives[0]==1&&fifth->ticks==15000&&fifth->randomState==0x6300,"Final entry does not consume or reset the last life");
             for(int i=0;i<16;++i)require(fifth->entities[i].anim==400+i&&fifth->entities[i].delay==70+i&&fifth->entities[i].period==90+i,"Final entry copies the fourth animation blocks, not an older retry");
         }
+        {
+            auto first=std::make_unique<AirGame>(*assets,*shared),second=std::make_unique<AirGame>(*assets,*shared);
+            first->result=1;first->secondTicks=23;first->lastForce=-4;first->reverseSprites=true;
+            for(int i=0;i<16;++i){first->entities[i].anim=500+i;first->entities[i].delay=60+i;first->entities[i].period=80+i;}
+            AirFollowingSetup turn;turn.stage=1;turn.display=turn.stat=4;turn.hudCursor=2;turn.fadeRemaining=7;
+            turn.cameraX=assets->levels[0].cameraX;turn.cameraY=assets->levels[0].cameraY;turn.randomState=0x8500;
+            auto& c=turn.instruction.map.campaign;c.player=1;c.lives={4,5};c.timing.tick=20000;
+            bool rejected=false;try{airFollowingAirHandoff(*second,*first,turn);}catch(const std::exception&){rejected=true;}
+            require(rejected,"The existing same-player route still rejects a player change");
+            airFollowingAirHandoff(*second,*first,turn,AirFollowingAirRoute::SelectedNextPlayer);
+            require(second->playerNumber==1&&second->ticks==20000&&second->randomState==0x8500&&c.lives==std::array<int,2>{4,5},"Explicit initial selected turn retains its actual target/lives/clock/seed");
+            require(second->secondTicks==23&&second->lastForce==-4&&!second->reverseSprites,"Global partial second and side push survive player switching; allocation direction resets");
+            for(int i=0;i<16;++i)require(second->entities[i].anim==500+i&&second->entities[i].delay==60+i&&second->entities[i].period==80+i,"All global animation blocks survive the selected turn switch");
+            for(int bad=0;bad<6;++bad){auto altered=turn;auto result=first->result;
+                if(bad==0)altered.instruction.map.campaign.lives[0]=5;
+                if(bad==1)altered.instruction.map.campaign.lives[1]=4;
+                if(bad==2)altered.instruction.map.campaign.player=0;
+                if(bad==3)altered.instruction.map.campaign.result=1;
+                if(bad==4)first->result=33;
+                auto route=bad==5?static_cast<AirFollowingAirRoute>(99):AirFollowingAirRoute::SelectedNextPlayer;
+                bool refused=false;try{airFollowingAirHandoff(*second,*first,altered,route);}catch(const std::exception&){refused=true;}first->result=result;
+                require(refused,"The selected-turn route cannot borrow other lives/player/result or an unknown owner");
+            }
+        }
         auto preceding=std::make_unique<AirGame>(*assets,*shared),game=std::make_unique<AirGame>(*assets,*shared);
         preceding->result=33;AirFollowingSetup state;state.stage=1;state.display=state.stat=4;state.hudCursor=2;state.cameraX=assets->levels[0].cameraX;state.cameraY=assets->levels[0].cameraY;
         auto rejects=[&]{try{airFollowingAirHandoff(*game,*preceding,state);return false;}catch(const std::runtime_error&){return true;}};
@@ -90,7 +114,7 @@ int main(){
         AirClock clock;clock.now=t.lcdEpoch+AirClock::Frame+2500;clock.nextStat=t.lcdEpoch+AirClock::Frame+AirClock::StatLine;clock.nextVBlank=t.lcdEpoch+AirClock::Frame+AirClock::VBlankLine;
         clock.displays=5;clock.statServices=6;clock.objectDisable=[&](int64_t,AirIrqOwner){state.lcdc&=~2;};int services=0,snapshots=0,busEvents=0;
         airFollowingEntryPause(clock,state,*preceding,sound,pause,
-            [&](unsigned index,int64_t,int tick,int display,int effects,int music,const DisplayInput& input){require(index==5+services&&tick==7+services&&display==160&&effects==64&&music==60,"Paused callbacks retain global counters while freezing gameplay/music");++services;require(input.pressed==(services==2?8:0),"Fresh resume input belongs to its paused display sample");},
+            [&](unsigned index,int64_t,int tick,int display,int effects,int music,const DisplayInput& input){require(index==unsigned(5+services)&&tick==7+services&&display==160&&effects==64&&music==60,"Paused callbacks retain global counters while freezing gameplay/music");++services;require(input.pressed==(services==2?8:0),"Fresh resume input belongs to its paused display sample");},
             [](const char*,int64_t,int64_t,int){},[&](const char*,const char*,unsigned,int,int64_t){++busEvents;},
             [&](const char*,int64_t,const AirPauseGraphics&){++snapshots;},[&]{return services?8:0;});
         require(services==2&&snapshots==3&&busEvents>296,"Entry pause owns complete copy/text/restore observations and two counter waits");

@@ -8,11 +8,16 @@ namespace ticd {
 // Following Air entry inherits semantic animation blocks and the partial
 // second from the previous native Air stunt. Result/instruction owners do not
 // clear them. Neither original states nor reference times enter this handoff.
-inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const AirFollowingSetup& state){
+enum class AirFollowingAirRoute { SamePlayer,SelectedNextPlayer };
+inline void airFollowingAirHandoff(AirGame& game,const AirGame& preceding,const AirFollowingSetup& state,
+    AirFollowingAirRoute route=AirFollowingAirRoute::SamePlayer){
     const auto& c=state.instruction.map.campaign;const auto& t=c.timing;
+    const bool ownedPlayer=route==AirFollowingAirRoute::SamePlayer?c.player==preceding.playerNumber:
+        route==AirFollowingAirRoute::SelectedNextPlayer&&preceding.playerNumber==0&&c.player==1&&
+        c.lives[0]==4&&c.lives[1]==5&&!c.result&&preceding.result==1&&!state.difficulty;
     if(state.stage!=1||state.display!=4||state.stat!=4||state.ready||state.pendingRequests||state.hudCursor!=2||
        &game==&preceding||!(preceding.result&1)||(preceding.result&6)||preceding.animationFaults||preceding.secondTicks<0||preceding.secondTicks>=60||
-       c.player!=preceding.playerNumber||state.difficulty!=preceding.difficulty)
+       !ownedPlayer||state.difficulty!=preceding.difficulty)
         throw std::runtime_error("Unowned following Air gameplay handoff");
     game.start(state.difficulty,c.player);game.measureWork=true;
     if(game.cameraX!=state.cameraX||game.cameraY!=state.cameraY)throw std::runtime_error("Following Air camera disagrees with native level");

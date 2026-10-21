@@ -1,5 +1,17 @@
 # Crash Dummies Native - final release acceptance
 
+October 21 actual-turn follow-up: eighteen attached original/native cases
+match actual subsequent-player Air/easy setup, entry and first 32 quiet updates.
+Native player/lives and global animation/partial-second/side-push/map-cursor
+ownership survive the turn. A source-derived four-cycle map-preparation branch
+correction retains the existing initial/retry defaults. All 560/564 complete
+native ancestors remain unchanged; fresh optimized replays preserve 589/593
+complete case CSVs. 1,956 Python tests, 970 native handoff checks and the full
+native Windows regression pass; a public-entry integration check requalifies one
+complete ancestry. See [scope](SELECTED_TURN.md). Later active/resource/row/pause/
+outcome work, other required matrix families and final production/output/device/
+distribution gates remain open. No final release; continuation remains active.
+
 October 21 following-instruction follow-up: eighteen original/native cases
 qualify the actual next live player's map transition, full/late-skip text and
 prompt/held exit, including two ignored Start-during-scroll cases. Owned

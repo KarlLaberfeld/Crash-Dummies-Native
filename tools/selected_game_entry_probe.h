@@ -5,11 +5,13 @@
 #include "air_following_gameplay.h"
 #include <memory>
 namespace ticd {
-inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false,int updates=32,bool terminal=false,std::function<void(AirFollowingSetup,AirGame&)> continuation={}){
+inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructionTextState& instruction,NativeAudio& sound,std::function<int()> sample,const AirGame* preceding=nullptr,bool gameplay=false,int updates=32,bool terminal=false,std::function<void(AirFollowingSetup,AirGame&)> continuation={},AirFollowingAirRoute route=AirFollowingAirRoute::SamePlayer,bool retainMapCamera=false){
     AirNextInstructionCsv prefix(base+".title-game-prefix","boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests","cycle,address,value","ly");
     auto setup=airFollowingSetupPrefix(instruction,1,0,sound,[&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& c=s.instruction.map.campaign;prefix.points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<s.stage<<','<<s.difficulty<<','<<c.lives[c.player]<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<'\n';},[&](auto... args){prefix.poll(args...);},[&](auto... args){prefix.write(args...);});
     const auto& p=setup.instruction.map.campaign.timing;prefix.summary<<"end,tick,countdown,displays,stats,pollReads,lcdDisabled,pendingRequests\n"<<p.end<<','<<p.tick<<','<<p.countdown<<','<<p.displays<<','<<p.stats<<','<<setup.pollReads<<','<<setup.lcdDisabled<<','<<setup.pendingRequests<<'\n';
     auto profiles=AirFollowingStageAssets::load("build/following-setup.dat");
+    if(retainMapCamera){if(!preceding)throw std::runtime_error("Turn setup lacks its preceding native map cursor");setup.initialMapCamera=preceding->lastMapCamera;
+        std::ofstream cursor(base+".title-game-map-seed.csv");if(!cursor)throw std::runtime_error("Cannot open retained map cursor output");cursor<<"previousMapCamera\n"<<setup.initialMapCamera<<'\n';}
     AirNextInstructionCsv stage(base+".title-game-stage","boundary,cycle,tick,countdown,player,stage,difficulty,lives,display,stat,lcdc,lyc,pendingRequests,cameraX,cameraY,mapScratch,ready,musicEnabled");
     auto prepared=airFollowingStageSetup(setup,profiles.profiles[0],sound,[&](const char* name,int64_t cycle,const AirFollowingSetup& s){const auto& c=s.instruction.map.campaign;stage.points<<name<<','<<cycle<<','<<c.timing.tick<<','<<c.timing.countdown<<','<<c.player<<','<<s.stage<<','<<s.difficulty<<','<<c.lives[c.player]<<','<<s.display<<','<<s.stat<<','<<s.lcdc<<','<<s.lyc<<','<<s.pendingRequests<<','<<s.cameraX<<','<<s.cameraY<<','<<s.mapScratch<<','<<s.ready<<','<<sound.enabled<<'\n';});
     stage.finish(prepared.instruction.map.campaign,1,0,prepared.instruction.map.scroll);
@@ -19,7 +21,7 @@ inline void airProbeSelectedGameEntry(const std::string& base,const AirInstructi
     const auto& e=entered.instruction.map.campaign.timing;entry.summary<<"end,tick,countdown,displays,stats,lcdEpoch,nextStat,nextVBlank,randomState,hudCursor,fadeRemaining,entryPauseComplete\n"<<e.end<<','<<e.tick<<','<<e.countdown<<','<<e.displays<<','<<e.stats<<','<<e.lcdEpoch<<','<<e.nextStat<<','<<e.nextVBlank<<','<<entered.randomState<<','<<entered.hudCursor<<','<<entered.fadeRemaining<<','<<entered.entryPauseComplete<<'\n';
     if(gameplay){
         if(!preceding||!instruction.backgroundOwned)throw std::runtime_error("Selected gameplay lacks native preceding animation and map owners");
-        auto game=std::make_unique<AirGame>(preceding->assets,preceding->shared);airFollowingAirHandoff(*game,*preceding,entered);
+        auto game=std::make_unique<AirGame>(preceding->assets,preceding->shared);airFollowingAirHandoff(*game,*preceding,entered,route);
         entered.rowPublication.initialize(*game,&instruction.background);entered.rowPublication.publish();entered.rowPublication.publish();entered.rowPublicationReady=true;
         AirNextInstructionCsv play(base+".title-gameplay","boundary,cycle,tick,secondTicks,seconds,random,ready,map,lastMapCamera,mapScratch,cameraX,cameraY,hudCursor,fadeRemaining,held,pressed,lcdc,display,transfer,remaining,effect,reverse,transferFrame,transferFlags,result");
         std::ofstream actors(base+".title-gameplay.entities.csv"),sprites(base+".title-gameplay.sprites.csv");

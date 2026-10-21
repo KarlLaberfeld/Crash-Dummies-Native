@@ -13,6 +13,7 @@ struct AirFollowingSetup {
     bool rowPublicationReady=false;
     AirMapPublication rowPublication;
     int cameraX=0,cameraY=0,mapScratch=0,ready=0,randomState=0,hudCursor=0,fadeRemaining=8;
+    int initialMapCamera=-1; // Explicit retained native map cursor; -1 keeps legacy entry ownership.
     std::array<unsigned char,256> objects{},actors{};
 };
 // 0355..0367: the identified instruction-to-stunt service gate. The inherited
@@ -79,12 +80,13 @@ inline int followingQuadrantCopyWork(int bytes){
     int copy=followingRamCopyWork(bytes);
     return 3*(12+16+24+copy+12)+12+16+copy;
 }
-inline int followingInitialMapWork(bool air,int cameraY){
+inline int followingInitialMapWork(bool air,int cameraY,int initialMapCamera=-1){
     // 1e77's 32 rows: direct preparation body (2116/192), 32-byte row
     // publication (736/40), and source loop/coordinate wrappers. Air's first
     // row's bit-7 change and downward branch come from native word-wrapped
     // coordinates, including the high-difficulty initial-coordinate wrap.
-    int work=24+108+32*192-4+16,previous=air?0x8000:0x4000,current=(cameraY+4096)&65535;
+    if(initialMapCamera< -1||initialMapCamera>65535)throw std::runtime_error("Unowned initial map cursor");
+    int work=24+108+32*192-4+16,previous=initialMapCamera<0?(air?0x8000:0x4000):initialMapCamera,current=(cameraY+4096)&65535;
     for(int row=0;row<32;++row){
         bool changed=(previous^current)&128;
         work+=changed?2116+736+(((previous-current)&0x8000)?4:0):192+40;
@@ -121,7 +123,7 @@ AirFollowingSetup airFollowingStageSetup(AirFollowingSetup state,const AirFollow
     now+=(air?68:64)+24+816;point("playerReady");
     now+=492+followingRamCopyWork(32*p.chunks);state.ready=1;point("spritesReady");
     if(air){now+=60+24+816+52;point("helperReady");}
-    now+=followingInitialMapWork(air,p.cameraY);
+    now+=followingInitialMapWork(air,p.cameraY,state.initialMapCamera);
     // Last native row destination is derived from the penultimate row's world
     // coordinate. C00C/D has a row-publication role here, not RNG ownership.
     state.mapScratch=256+(((2*((p.cameraY+256)&65535)>>8)+24)&31)*8;point("mapPrepared");

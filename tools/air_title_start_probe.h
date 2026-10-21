@@ -15,7 +15,7 @@
 #include "selected_outcome_probe.h"
 namespace ticd {
 inline void airProbeTitleStart(const std::string& base,AirTitleMenu waited,const AirFollowingSetup& state,const AirGame& game,int resultLives,
-    NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool selectedEntry=false,bool selectedPlay=false,int selectedUpdates=32,bool selectedTerminal=false,bool selectedOutcome=false,bool selectedFollowingInstruction=false){
+    NativeAudio& sound,const UiAssets& ui,std::function<int()> sample,bool titleInstruction=false,bool titleCampaign=false,bool titleResume=false,bool titleHeader=false,bool titlePicture=false,bool titleEntrance=false,bool titleText=false,bool titleInstructionExit=false,bool selectedEntry=false,bool selectedPlay=false,int selectedUpdates=32,bool selectedTerminal=false,bool selectedOutcome=false,int selectedFollowingInstruction=0){
     AirNextInstructionCsv out(base+".title-start","boundary,cycle,palettes,waits,tick,countdown,stat,lcdc,scrollY,lyc,bgp,obp0,obp1,musicEnabled,inputHeld,inputPressed");
     std::ofstream raster(base+".title-start.raster.csv");raster<<"boundary,cycle,stat,lcdc,scrollY,lyc\n";
     std::ofstream voices(base+".title-start.voices.csv");airInstructionVoiceHeader(voices);

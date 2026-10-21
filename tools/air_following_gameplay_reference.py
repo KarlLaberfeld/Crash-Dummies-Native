@@ -24,6 +24,9 @@ def selected_extension(parent,child,events,changed,setup):
 def selected_entry_boundary(parent,manifest,accepted=None):
     require_capture_reference(manifest,parent)
     expected=manifest if accepted is None else accepted
+    if parent.get('origin')=='selected-turn-entry':
+        from selected_turn_reference import gameplay_entry_boundary
+        return gameplay_entry_boundary(parent,expected)
     if parent.get('version')!=1 or parent.get('inputCase') not in ('full-prompt','skip-held') or any(parent[k]!=expected[k] for k in ('romSha256','controlMemorySha256','inputCase')) or [g['name'] for g in parent.get('groups',[])]!=['prefix','stage','entry']:raise ValueError('Detached selected-game entry observation')
     from air_following_entry_reference import analyze as analyze_entry
     analyze_entry(parent['groups'][-1]);begin=parent['groups'][-1]['points'][-1]['cycles']
@@ -51,7 +54,7 @@ def capture(args):
     outgoing=False;outro_points=[];outro_irqs=[]
     observed_points={**POINTS,**(TERMINAL_POINTS if terminal else {})}
     if not 1<=extent<=100000:raise ValueError('Invalid following update extent')
-    p=Reference(str(args.rom),window='null',sound_volume=0);armed=False;active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False;updates=0
+    p=Reference(str(args.rom),window='null',sound_volume=0);armed=bool(attached and attached.get('origin')=='selected-turn-entry');active=False;complete=False;points=[];irqs=[];opened=None;buttons=[];pause_seen=False;updates=0
     def word(a):return p.memory[a]+256*p.memory[a+1]
     def hook(pc):
         nonlocal armed,active,complete,opened,pause_seen,updates,outgoing
@@ -102,8 +105,15 @@ def capture(args):
         elif pc in (0x2484,0x2555) and opened:opened['end']=now;(outro_irqs if outgoing else irqs).append(opened);opened=None
     try:
         with (args.capture/'setup.state').open('rb') as f:p.load_state(f)
-        for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476,0x0462}:p.hook_register(0,pc,hook,pc)
-        for index,event in enumerate(json.loads((args.capture/'events.json').read_text())):
+        events=json.loads((args.capture/'events.json').read_text());watch=0
+        if attached and attached.get('origin')=='selected-turn-entry':
+            from selected_turn_reference import observation_start
+            from air_title_actions_reference import event_sha
+            if attached.get('captureEventsSha256')!=event_sha(events):raise ValueError('Changed attached turn gameplay input events')
+            watch=observation_start(events,attached['inputCase'])
+        for index,event in enumerate(events):
+            if index==watch:
+                for pc in {*observed_points,*(OUTRO_POINTS if outro else {}),*IRQ_PHASES,0x0040,0x0048,0x2484,0x2555,0x268b,0x1476,0x0462}:p.hook_register(0,pc,hook,pc)
             if event[0]=='tick':p.tick(event[1],event[2])
             elif event[0] in ('press','release'):getattr(p,'button_'+event[0])(event[1])
             else:raise ValueError('Unknown original control event')
@@ -118,6 +128,7 @@ def capture(args):
     data=dict(version=1,updates=extent,reference=metadata,romSha256=manifest['romSha256'],controlMemorySha256=digest,points=points,interrupts=irqs,precedingDisplays=len(buttons)-sum(r['kind']=='vblank' for r in irqs+outro_irqs)-scope.display_offset,entryPauseConsumed=pause_seen,productionSchedulerAccepted=False)
     if attached:
         prefix=(Path(selected_entry).parent/'buttons.txt').read_text();data.update(selectedEntryCycle=begin_cycle,parentControlMemorySha256=attached['controlMemorySha256'],parentInputCase=attached['parentInputCase'],inputCase=attached['inputCase'],players=attached['players'],precedingDisplays=len(prefix.splitlines()))
+        if attached.get('origin')=='selected-turn-entry':data.update(origin='selected-turn-gameplay',parentEntrySha256=hashlib.sha256(Path(selected_entry).read_bytes()).hexdigest())
     if scope.following:data['nextRetry']=True
     if scope.retry!=1:data['afterRetry']=scope.retry
     if getattr(args,'partial_rows',False):data['partialRows']=True

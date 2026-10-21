@@ -1,5 +1,33 @@
 # Crash Dummies Native - project status
 
+## Actual subsequent-player setup, entry and first updates - October 21, 2026
+
+All eighteen accepted following-instruction controls now continue through the
+actual next live player's Air/easy setup, LCD restart and first 32 quiet
+updates, zero differences. A one-player campaign retains player one with four
+lives; a two-player campaign starts player two with five, retaining player one's
+four lives. Global animation, partial-second, side-push and map-cursor state
+come from the preceding native game. See [scope](SELECTED_TURN.md).
+
+The first pilot exposed four extra map-preparation cycles caused by resetting
+the retained map cursor. The owner now derives that branch's cost from its
+actual preceding native cursor. Existing initial/retry defaults are unchanged;
+no original clock/state or measured duration drives native execution.
+
+Validation: 1,956 Python tests, 970 native handoff checks, 52,922 clock checks,
+4,281 source-work checks and the full native Windows game/campaign/playthrough/
+audio/sprite regression pass. Every case preserves all 560/564 complete native
+ancestor CSVs; fresh optimized replays preserve all 589/593 complete case CSVs.
+A public-entry integration check requalifies one complete ancestry. Normal builds
+run the handoff tests. The clean Windows EXE is rebuilt from the saved source.
+
+Next: subsequent attempt's active/resource/row/pause/outcome work. Other required
+stunts/difficulties, retained menus/passwords, changed scores/name entry,
+rendered frames/PCM, production scheduler integration and final Windows/device/
+distribution acceptance remain open. The broad request remains incomplete;
+continuation is active. No final release. Older entries retain historical scope.
+
+
 ## Selected post-result instruction transition, text and exit - October 21, 2026
 
 Eighteen attached original/native comparisons cover the next live player's
